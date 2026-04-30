@@ -1,0 +1,12 @@
+{
+  "name": "Idea Capsule (闪念胶囊)",
+  "description": "A smart productivity tool for quick idea capture, inspired by Smartisan OS. Uses AI to automatically categorize and organize your thoughts into actionable capsules.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI-powered categorization",
+    "Voice-to-text simulation",
+    "Smart todo management"
+  ]
+}
