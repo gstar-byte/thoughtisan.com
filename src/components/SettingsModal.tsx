@@ -142,26 +142,6 @@ export function SettingsModal({ isOpen, onClose, user, onUpgradeClick, onDowngra
                 </div>
              </div>
 
-             <div className="bg-white rounded-2xl overflow-hidden mt-4">
-                <div className="px-4 py-3 bg-[#E5E5EA] flex items-center gap-2">
-                   <Cloud size={16} className="text-[#1D1D1F]" />
-                   <span className="text-[#1D1D1F] text-sm font-bold tracking-tight">App Export</span>
-                </div>
-                
-                <div className="p-4 flex items-center justify-between">
-                   <div>
-                      <h4 className="font-bold text-[#1D1D1F]">Source Code</h4>
-                      <p className="text-xs text-[#8E8E93]">Download the full source code archive.</p>
-                   </div>
-                   <a 
-                      href="/source.tar.gz" 
-                      download="source.tar.gz"
-                      className="bg-gradient-to-r gap-2 flex flex-row items-center justify-center from-[#007AFF] to-[#00C6FF] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-transform"
-                   >
-                     Download
-                   </a>
-                </div>
-             </div>
 
           </div>
         </motion.div>

@@ -13,6 +13,7 @@ export interface Capsule {
   content: string;
   category?: string;
   createdAt: number;
+  updatedAt?: number;
   completed: boolean;
   isTodo: boolean;
   isArchived: boolean;

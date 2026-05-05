@@ -127,6 +127,8 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [capsules, setCapsules] = useState<Capsule[]>([]);
+  const [demoCapsules, setDemoCapsules] = useState<Capsule[]>([]);
+  const allCapsules = [...demoCapsules, ...capsules].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,9 +161,10 @@ export default function App() {
     if (!user) return;
     setAuthProcessing(true);
     try {
-      const demoCapsules = [
+      const generatedDemoCapsules: Capsule[] = [
         {
-          content: "🚀 欢迎使用 Idea Capsule! 这是一条思考便签，用来记录你的灵感。列表和网格视图都能完美展示。",
+          id: 'demo-1',
+          content: "🚀 Welcome to Idea Capsule! This is a thought note to record your inspiration. It displays perfectly in both list and grid views.",
           category: "Technology",
           tags: ["intro", "welcome"],
           color: PRESET_COLORS[0],
@@ -175,7 +178,8 @@ export default function App() {
           createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2, // 2 days ago
         },
         {
-          content: "🛒 记得买牛奶和面包",
+          id: 'demo-2',
+          content: "🛒 Remember to buy milk and bread",
           category: "Personal",
           tags: ["shopping", "home"],
           color: PRESET_COLORS[1],
@@ -186,7 +190,8 @@ export default function App() {
           createdAt: Date.now() - 1000 * 60 * 60,
         },
         {
-          content: "🎯 完成项目汇报 PPT",
+          id: 'demo-3',
+          content: "🎯 Finish project presentation PPT",
           category: "Work",
           tags: ["important", "deadline"],
           color: PRESET_COLORS[2],
@@ -198,7 +203,8 @@ export default function App() {
           updatedAt: Date.now() - 1000 * 60 * 30,
         },
         {
-          content: "💡 一个关于新 App 的疯狂想法：AI 驱动的梦境分析器。",
+          id: 'demo-4',
+          content: "💡 A crazy idea for a new App: AI-driven dream analyzer.",
           category: "Idea",
           tags: ["creative", "startup", "ai"],
           color: PRESET_COLORS[3],
@@ -209,7 +215,8 @@ export default function App() {
           createdAt: Date.now() - 1000 * 60 * 2,
         },
         {
-          content: "🗑️ 这是一条过期的废弃便签，它在回收站里。",
+          id: 'demo-5',
+          content: "🗑️ This is an expired abandoned note, currently in the trash.",
           category: "Uncategorized",
           color: PRESET_COLORS[4],
           isTodo: false,
@@ -219,7 +226,8 @@ export default function App() {
           createdAt: Date.now() - 1000 * 60 * 60 * 24 * 7,
         },
         {
-          content: "⏰ 预约明天的牙医检查",
+          id: 'demo-6',
+          content: "⏰ Book tomorrow's dentist appointment",
           category: "Health",
           tags: ["appointment"],
           color: PRESET_COLORS[5],
@@ -231,7 +239,8 @@ export default function App() {
           createdAt: Date.now(),
         },
         {
-          content: '这是一条已完成的待办事项 demo，可以在 "Completed To-do" 视图中看到。',
+          id: 'demo-7',
+          content: 'This is a completed todo item demo, visible in the "Completed To-do" view.',
           category: 'Personal',
           tags: ['demo', 'done'],
           color: '#434343',
@@ -242,7 +251,8 @@ export default function App() {
           createdAt: Date.now() - 172800000,
         },
         {
-          content: "📚 阅读《设计心理学》第 1-3 章",
+          id: 'demo-8',
+          content: "📚 Read 'The Design of Everyday Things' Chapters 1-3",
           category: "Study",
           tags: ["reading", "design"],
           color: PRESET_COLORS[6] || '#AF52DE',
@@ -253,7 +263,8 @@ export default function App() {
           createdAt: Date.now() - 43200000,
         },
         {
-          content: "📞 和投资人确认下周的线上会议时间",
+          id: 'demo-9',
+          content: "📞 Confirm next week's online meeting time with investors",
           category: "Work",
           tags: ["meeting", "important"],
           color: PRESET_COLORS[2],
@@ -265,7 +276,8 @@ export default function App() {
           createdAt: Date.now() - 86400000,
         },
         {
-          content: "🎬 推荐电影：星际穿越、盗梦空间",
+          id: 'demo-10',
+          content: "🎬 Recommended movies: Interstellar, Inception",
           category: "Entertainment",
           tags: ["movie", "weekend"],
           color: PRESET_COLORS[3],
@@ -276,7 +288,8 @@ export default function App() {
           createdAt: Date.now() - 172800000,
         },
         {
-          content: "✈️ 制定年底的去日本京都的旅行攻略：机票、酒店、签证",
+          id: 'demo-11',
+          content: "✈️ Make travel plans for Kyoto, Japan at the end of the year: flights, hotels, visas",
           category: "Personal",
           tags: ["travel", "japan"],
           color: PRESET_COLORS[1],
@@ -287,7 +300,8 @@ export default function App() {
           createdAt: Date.now() - 259200000,
         },
         {
-          content: "💻 优化前端首屏加载速度，检查 Vite 配置和按需加载",
+          id: 'demo-12',
+          content: "💻 Optimize frontend first-screen loading speed, check Vite config and lazy loading",
           category: "Technology",
           tags: ["dev", "performance"],
           color: PRESET_COLORS[0],
@@ -299,14 +313,9 @@ export default function App() {
         }
       ];
 
-      const batch = writeBatch(db);
-      demoCapsules.forEach(cap => {
-        const docRef = doc(collection(db, 'capsules'));
-        batch.set(docRef, { ...cap, userId: user.uid });
-      });
-      await batch.commit();
+      setDemoCapsules(generatedDemoCapsules);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'capsules/seed');
+      console.error(error);
     } finally {
       setAuthProcessing(false);
     }
@@ -364,11 +373,12 @@ export default function App() {
 
   // Auth Listener
   useEffect(() => {
+    let userDocUnsubscribe: () => void;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (firebaseUser) {
         // Listen to user document for premium status
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        onSnapshot(userDocRef, (docSnap) => {
+        userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser({
               uid: firebaseUser.uid,
@@ -396,14 +406,25 @@ export default function App() {
             }, { merge: true });
           }
            setAuthLoading(false);
+        }, (error) => {
+          console.error("user doc snapshot error", error);
         });
       } else {
+        if (userDocUnsubscribe) {
+          userDocUnsubscribe();
+        }
         setUser(null);
         setCapsules([]);
+        setDemoCapsules([]);
         setAuthLoading(false);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+      }
+      unsubscribe();
+    }
   }, []);
 
   // Firestore Sync Listener
@@ -451,7 +472,7 @@ export default function App() {
     if (!user || authLoading) return;
     
     // Define the global startTour function so it can be called from the UI anytime
-    (window as any).startTour = () => {
+    (window as any).startTour = async () => {
        if (tourActive.current) return;
        tourActive.current = true;
        
@@ -459,16 +480,25 @@ export default function App() {
           (window as any)._setIsSidebarOpen(false);
        }
        
+       if (allCapsules.length === 0) {
+          setFilter('all');
+       }
+       
        setTimeout(() => {
           let steps: any[] = [];
           
-          if (capsules.length === 0) {
-            steps.push({ element: '#generate-demo-btn', popover: { title: 'Welcome!', description: 'Click here to load some demo data and see how it works.', side: "top", align: 'start' } });
-            steps.push({ element: '#thought-input', popover: { title: 'Quick Capture', description: 'Type text and press Enter, or hold the mic icon to record your voice and release to save.', side: "top", align: 'start' } });
-          } else {
-            steps.push({ element: '#thought-input', popover: { title: 'Quick Capture', description: 'Type text and press Enter, or hold the mic icon to record your voice and release to save.', side: "top", align: 'start' } });
-            steps.push({ element: '#capsule-item-0', popover: { title: 'Long Press / Select', description: 'Long press a note (or click select) for batch actions.', side: "bottom", align: 'start' } });
-            steps.push({ element: '#capsule-options-btn-0', popover: { title: 'Note Settings', description: 'Click the three dots on the note to change color, set a reminder, or add tags.', side: "bottom", align: 'start' } });
+          if (allCapsules.length === 0 && document.querySelector('#generate-demo-btn')) {
+             steps.push({ element: '#generate-demo-btn', popover: { title: 'Generate Demo Data', description: 'Click here to populate the app with example data, or type your first idea below.', side: "top", align: 'center' } });
+          }
+          
+          steps.push({ element: '#thought-input', popover: { title: 'Quick Capture', description: 'Type text and press Enter, or hold the mic icon to record your voice and release to save.', side: "top", align: 'start' } });
+          steps.push({ element: '#view-mode-toggle', popover: { title: 'Layout', description: 'Toggle between list and grid views for your capsules.', side: "bottom", align: 'start' } });
+          
+          if (document.querySelector('#capsule-options-btn-0')) {
+             steps.push({ element: '#capsule-options-btn-0', popover: { title: 'Note Settings', description: 'Click the three dots on the note to change color, set a reminder, or add tags.', side: "bottom", align: 'start' } });
+          }
+          if (document.querySelector('#capsule-item-0')) {
+             steps.push({ element: '#capsule-item-0', popover: { title: 'Long Press / Select', description: 'Long press a note (or click select) for batch actions.', side: "top", align: 'start' } });
           }
           
           const validSteps = steps.filter(s => document.querySelector(s.element));
@@ -501,13 +531,13 @@ export default function App() {
          }
        }, 800);
     }
-  }, [user, authLoading, capsules.length]);
+  }, [user, authLoading, allCapsules.length]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const recognition = useRef<any>(null);
   
-  const allTags = Array.from(new Set(capsules.flatMap(c => c.tags || []))).sort();
-  const allCategories = Array.from(new Set(capsules.map(c => c.category).filter(Boolean) as string[])).sort();
+  const allTags = Array.from(new Set(allCapsules.flatMap(c => c.tags || []))).sort();
+  const allCategories = Array.from(new Set(allCapsules.map(c => c.category).filter(Boolean) as string[])).sort();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -524,12 +554,21 @@ export default function App() {
   const batchUpdate = async (updates: Partial<Capsule>) => {
     if (!user) return;
     try {
-      const batch = writeBatch(db);
-      selectedIds.forEach(id => {
-        const docRef = doc(db, 'capsules', id);
-        batch.update(docRef, { ...updates, updatedAt: Date.now() });
-      });
-      await batch.commit();
+      const demoIds = Array.from<string>(selectedIds).filter((id: string) => id.startsWith('demo-'));
+      const realIds = Array.from<string>(selectedIds).filter((id: string) => !id.startsWith('demo-'));
+
+      if (demoIds.length > 0) {
+        setDemoCapsules(prev => prev.map(c => demoIds.includes(c.id) ? { ...c, ...updates, updatedAt: Date.now() } : c));
+      }
+
+      if (realIds.length > 0) {
+        const batch = writeBatch(db);
+        realIds.forEach((id: string) => {
+          const docRef = doc(db, 'capsules', id);
+          batch.update(docRef, { ...updates, updatedAt: Date.now() });
+        });
+        await batch.commit();
+      }
       setSelectedIds(new Set());
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'capsules/batch');
@@ -539,12 +578,21 @@ export default function App() {
   const batchRemovePermanently = async () => {
     if (!user) return;
     try {
-      const batch = writeBatch(db);
-      selectedIds.forEach(id => {
-        const docRef = doc(db, 'capsules', id);
-        batch.delete(docRef);
-      });
-      await batch.commit();
+      const demoIds = Array.from<string>(selectedIds).filter((id: string) => id.startsWith('demo-'));
+      const realIds = Array.from<string>(selectedIds).filter((id: string) => !id.startsWith('demo-'));
+
+      if (demoIds.length > 0) {
+        setDemoCapsules(prev => prev.filter(c => !demoIds.includes(c.id)));
+      }
+
+      if (realIds.length > 0) {
+        const batch = writeBatch(db);
+        realIds.forEach((id: string) => {
+          const docRef = doc(db, 'capsules', id);
+          batch.delete(docRef);
+        });
+        await batch.commit();
+      }
       setSelectedIds(new Set());
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'capsules/batch');
@@ -629,6 +677,10 @@ export default function App() {
 
   const updateCapsule = async (id: string, updates: Partial<Capsule>) => {
     if (!user) return;
+    if (id.startsWith('demo-')) {
+      setDemoCapsules(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c));
+      return;
+    }
     try {
       const docRef = doc(db, 'capsules', id);
       const cleanUpdates: any = {};
@@ -690,6 +742,10 @@ export default function App() {
 
   const removeCapsuleForever = async (id: string) => {
     if (!user) return;
+    if (id.startsWith('demo-')) {
+      setDemoCapsules(prev => prev.filter(c => c.id !== id));
+      return;
+    }
     try {
       const docRef = doc(db, 'capsules', id);
       await deleteDoc(docRef);
@@ -725,7 +781,11 @@ export default function App() {
   const renameCategory = (oldCat: string) => {
     const newCat = prompt('Rename category:', oldCat);
     if (newCat && newCat.trim() && newCat !== oldCat) {
-      setCapsules(prev => prev.map(c => c.category === oldCat ? { ...c, category: newCat.trim() } : c));
+      allCapsules.forEach(c => {
+        if (c.category === oldCat) {
+          updateCapsule(c.id, { category: newCat.trim() });
+        }
+      });
       if (categoryFilter === oldCat) setCategoryFilter(newCat.trim());
     }
   };
@@ -734,26 +794,33 @@ export default function App() {
     const newTag = prompt('Rename tag:', oldTag);
     if (newTag && newTag.trim() && newTag !== oldTag) {
       const trimmed = newTag.trim().replace('#', '');
-      setCapsules(prev => prev.map(c => {
+      allCapsules.forEach(c => {
         if (c.tags?.includes(oldTag)) {
-          return { ...c, tags: c.tags.map(t => t === oldTag ? trimmed : t) };
+          updateCapsule(c.id, { tags: c.tags.map(t => t === oldTag ? trimmed : t) });
         }
-        return c;
-      }));
+      });
       if (tagFilter === oldTag) setTagFilter(trimmed);
     }
   };
 
   const removeCategory = (catToRemove: string) => {
     if (confirm(`This will delete all notes in this category.`)) {
-      setCapsules(prev => prev.filter(c => c.category !== catToRemove));
+      allCapsules.forEach(c => {
+        if (c.category === catToRemove) {
+          removeCapsuleForever(c.id);
+        }
+      });
       if (categoryFilter === catToRemove) setCategoryFilter('all');
     }
   };
 
   const removeTag = (tagToRemove: string) => {
     if (confirm(`This will delete all notes with this tag.`)) {
-      setCapsules(prev => prev.filter(c => !(c.tags?.includes(tagToRemove))));
+      allCapsules.forEach(c => {
+        if (c.tags?.includes(tagToRemove)) {
+          removeCapsuleForever(c.id);
+        }
+      });
       if (tagFilter === tagToRemove) setTagFilter(null);
     }
   };
@@ -767,7 +834,7 @@ export default function App() {
     const interval = setInterval(() => {
       const now = Date.now();
       
-      capsules.forEach(cap => {
+      allCapsules.forEach(cap => {
         if (cap.reminder && cap.reminder.date && cap.reminder.date <= now && !cap.completed && !cap.isDeleted && !cap.isArchived) {
           
           if (user?.isPremium) {
@@ -811,9 +878,9 @@ export default function App() {
     }, 60000); // Check every minute
     
     return () => clearInterval(interval);
-  }, [capsules]);
+  }, [allCapsules]);
 
-  const filteredCapsules = capsules.filter(c => {
+  const filteredCapsules = allCapsules.filter(c => {
     const matchesSearch = c.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          (c.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
     const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter;
@@ -1153,10 +1220,10 @@ export default function App() {
                      window.location.reload();
                    }
                 }}
-                className="w-full flex items-center justify-center gap-2 p-2.5 text-xs font-bold text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-xl transition-all"
+                className="w-full flex items-center justify-start gap-2 p-2.5 px-4 text-xs font-bold text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-xl transition-all"
              >
                 <Lightbulb size={14} />
-                新手向导 (Replay Guide)
+                Onboarding
              </button>
           </div>
         )}
@@ -1240,14 +1307,16 @@ export default function App() {
                </button>
             )}
             <button
+              id="settings-btn"
               onClick={() => setShowSettingsModal(true)}
-              className="flex w-10 h-10 items-center justify-center bg-[#F2F2F7] text-[#1D1D1F] rounded-xl hover:bg-[#E5E5EA] transition-colors"
+              className="flex w-10 h-10 items-center justify-center bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F2F2F7] rounded-xl hover:bg-[#E5E5EA] dark:hover:bg-[#3A3A3C] transition-colors"
             >
               <SettingsIcon size={20} />
             </button>
             <button
+              id="view-mode-toggle"
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="flex w-10 h-10 items-center justify-center bg-[#F2F2F7] text-[#1D1D1F] rounded-xl hover:bg-[#E5E5EA] transition-colors"
+              className="flex w-10 h-10 items-center justify-center bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F2F2F7] rounded-xl hover:bg-[#E5E5EA] dark:hover:bg-[#3A3A3C] transition-colors"
             >
               {viewMode === 'grid' ? <LayoutList size={20} /> : <LayoutGrid size={20} />}
             </button>

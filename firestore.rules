@@ -54,9 +54,9 @@ service cloud.firestore {
 
     // 用户资料规则
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create, update: if isOwner(userId) 
-                          && incoming().uid == userId;
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) 
+                 && (incoming().uid == userId || incoming().uid == null);
     }
   }
 }
