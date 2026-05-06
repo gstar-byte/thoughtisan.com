@@ -348,7 +348,7 @@ export default function App() {
       } else if (err.code === 'auth/weak-password') {
         setAuthError('Password is too weak.');
       } else {
-        setAuthError('An error occurred. Please try again.');
+        setAuthError(err.message || 'An error occurred. Please try again.');
       }
     } finally {
       setAuthProcessing(false);
@@ -473,18 +473,12 @@ export default function App() {
   useEffect(() => {
     if (!user || authLoading) return;
     
-    // Define the global startTour function so it can be called from the UI anytime
     (window as any).startTour = async () => {
       if (tourActive.current) return;
       tourActive.current = true;
       
-      // Force filter to 'all' to ensure items are potentially visible
+      // Force filter to 'all' to ensure elements are visible
       setFilter('all');
-
-      // If no capsules, seed them first so all 5 steps have elements to point to
-      if (allCapsules.length === 0) {
-        seedDemoData();
-      }
 
       setTimeout(() => {
         const driverObj = driver({
@@ -539,7 +533,7 @@ export default function App() {
           ],
           onDestroyed: () => {
             tourActive.current = false;
-            localStorage.setItem('onboarding_v2_complete', 'true');
+            localStorage.setItem('onboarding_v4_complete', 'true');
           }
         });
 
@@ -547,13 +541,13 @@ export default function App() {
       }, 800); // Give enough time for DOM to update after seeding
     };
 
-    const hasSeenTutorial = localStorage.getItem('onboarding_v2_complete');
+    const hasSeenTutorial = localStorage.getItem('onboarding_v4_complete');
     if (!hasSeenTutorial && !tourActive.current) {
        setTimeout(() => {
          if ((window as any).startTour && !tourActive.current) {
            (window as any).startTour();
          }
-       }, 2000); // Longer delay to ensure page is fully ready
+       }, 3000); // 3s delay for stable trigger
     }
   }, [user, authLoading, allCapsules.length]);
 
@@ -1036,7 +1030,7 @@ export default function App() {
             >
               <h3 className="text-2xl font-bold text-[#1D1D1F] mb-2">{isRegistering ? 'Create Account' : 'Welcome Back'}</h3>
               <p className="text-[#8E8E93] text-sm font-semibold mb-8">
-                {isRegistering ? 'Start your lightning journey today.' : 'Sign in to sync your capsules.'}
+                {isRegistering ? 'Start your idea journey today.' : 'Sign in to sync your capsules.'}
               </p>
 
               <form onSubmit={handleEmailAuth} className="space-y-4">
@@ -2145,7 +2139,10 @@ function CapsuleItem({
             )}
 
             {capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date && (
-              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-black/10 backdrop-blur-md border border-white/10 text-white shadow-sm" title={`Reminder: ${new Date(capsule.reminder.date).toLocaleString()}`}>
+              <div 
+                className="flex items-center justify-center w-5 h-5 rounded-full bg-black/10 backdrop-blur-md border border-white/10 text-white shadow-sm" 
+                title={`Reminder: ${new Date(capsule.reminder.date).toLocaleString()}${capsule.reminder.type !== 'once' ? ` (${capsule.reminder.type})` : ''}`}
+              >
                 <Bell size={12} className={capsule.reminder.date <= Date.now() ? "text-red-300 animate-pulse" : "text-white"} />
               </div>
             )}
