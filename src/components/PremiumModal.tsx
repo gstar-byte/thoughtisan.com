@@ -47,8 +47,8 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
                 <Zap className="w-6 h-6 md:w-8 md:h-8 text-white" fill="currentColor" />
              </div>
              
-             <h2 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">Upgrade to Pro</h2>
-             <p className="text-white/80 font-medium text-sm md:text-base">Unlock the full power of Lightning Capsule. One-time payment. Lifetime access.</p>
+              <h2 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">Upgrade to Pro</h2>
+              <p className="text-white/80 font-medium text-sm md:text-base">Unlock the full power of Idea Capsule. One-time payment. Lifetime access.</p>
           </div>
           
           <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden custom-scrollbar">
@@ -62,8 +62,8 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
              <div className="bg-[#F2F2F7] rounded-2xl p-6 mb-6 flex flex-col items-center">
                  <p className="text-[#8E8E93] text-sm font-bold uppercase tracking-wider mb-1">Lifetime Deal</p>
                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-extrabold text-[#1D1D1F]">$19.99</span>
-                    <span className="text-xl font-bold text-[#8E8E93] line-through">$49.99</span>
+                    <span className="text-4xl font-extrabold text-[#1D1D1F]">$88.99</span>
+                    <span className="text-xl font-bold text-[#8E8E93] line-through">$129.99</span>
                  </div>
              </div>
              
@@ -92,10 +92,10 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
                           intent: "CAPTURE",
                           purchase_units: [
                             {
-                              description: "Lightning Capsule Pro - Lifetime Deal",
+                              description: "Idea Capsule Pro - Lifetime Deal",
                               amount: {
                                 currency_code: "USD",
-                                value: "19.99"
+                                value: "88.99"
                               }
                             }
                           ]
