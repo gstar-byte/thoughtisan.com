@@ -922,7 +922,9 @@ export default function App() {
     return () => clearInterval(interval);
   }, [allCapsules]);
 
-  const filteredCapsules = allCapsules.filter(c => {
+  const sortedCapsules = [...allCapsules].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  
+  const filteredCapsules = sortedCapsules.filter(c => {
     const matchesSearch = c.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          (c.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
     const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter;
@@ -1251,11 +1253,11 @@ export default function App() {
           )}
         </nav>
 
-        {isSidebarOpen && (
+        {isSidebarOpen && !localStorage.getItem('onboarding_v4_complete') && (
           <div className="px-3 pb-3">
              <button 
                 onClick={() => {
-                   localStorage.removeItem('onboarding_v2_complete');
+                   localStorage.removeItem('onboarding_v4_complete');
                    if ((window as any).startTour) {
                      (window as any).startTour();
                    } else {
@@ -1567,18 +1569,44 @@ export default function App() {
             {firedReminders.map(rem => (
               <motion.div 
                 key={rem.id}
-                initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 50, scale: 0.95 }}
-                className="bg-white/90 backdrop-blur-3xl rounded-2xl shadow-xl p-4 border border-[#E5E5EA] flex items-start gap-3 pointer-events-auto"
+                exit={{ opacity: 0, y: 50, scale: 0.9 }}
+                className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-3xl rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-6 border-2 border-[#007AFF]/20 flex items-start gap-4 pointer-events-auto w-full mb-2"
               >
-                 <div className="text-[#007AFF] mt-0.5"><Bell className="animate-bounce" size={20} /></div>
-                 <div className="flex-1 min-w-0">
-                   <h4 className="font-bold text-sm text-[#1D1D1F]">Reminder</h4>
-                   <p className="text-xs text-[#8E8E93] line-clamp-2">{rem.content}</p>
+                 <div className="bg-[#007AFF] text-white p-3.5 rounded-2xl shadow-lg shadow-[#007AFF]/30 mt-0.5">
+                   <Bell className="animate-bounce" size={26} />
                  </div>
-                 <button onClick={() => setFiredReminders(prev => prev.filter(p => p.id !== rem.id))} className="text-[#8E8E93] hover:bg-[#F2F2F7] hover:text-[#1D1D1F] p-1.5 rounded-full transition-colors shrink-0">
-                    <Check size={16} />
+                 <div className="flex-1 min-w-0">
+                   <div className="flex items-center gap-2 mb-1">
+                     <span className="text-[10px] font-black text-[#007AFF] uppercase tracking-widest">System Alert</span>
+                     <div className="w-1 h-1 rounded-full bg-[#8E8E93]"></div>
+                     <span className="text-[10px] font-bold text-[#8E8E93]">Just now</span>
+                   </div>
+                   <h4 className="font-black text-lg text-[#1D1D1F] dark:text-[#F2F2F7] leading-tight mb-2">Reminder: Idea Capsule</h4>
+                   <p className="text-sm font-medium text-[#48484A] dark:text-[#8E8E93] line-clamp-3 leading-relaxed mb-4">{rem.content}</p>
+                   
+                   <div className="flex gap-2">
+                     <button 
+                        onClick={() => setFiredReminders(prev => prev.filter(p => p.id !== rem.id))}
+                        className="flex-1 bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F2F2F7] py-3 rounded-xl text-xs font-bold hover:bg-[#E5E5EA] transition-colors"
+                     >
+                        Dismiss
+                     </button>
+                     <button 
+                        onClick={() => {
+                           setFilter('all');
+                           setSearchQuery(rem.content);
+                           setFiredReminders(prev => prev.filter(p => p.id !== rem.id));
+                        }}
+                        className="flex-1 bg-[#007AFF] text-white py-3 rounded-xl text-xs font-bold hover:bg-[#0062CC] transition-colors shadow-lg shadow-[#007AFF]/20"
+                     >
+                        View Note
+                     </button>
+                   </div>
+                 </div>
+                 <button onClick={() => setFiredReminders(prev => prev.filter(p => p.id !== rem.id))} className="text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] p-2 rounded-full transition-colors shrink-0">
+                   <X size={20} />
                  </button>
               </motion.div>
             ))}
