@@ -624,6 +624,29 @@ export default function App() {
 
   const [editingCapsule, setEditingCapsule] = useState<Capsule | null>(null);
 
+  const clearAllData = async () => {
+    if (!user) return;
+    if (!window.confirm('Are you sure you want to delete ALL your data? This cannot be undone.')) return;
+    
+    setAuthProcessing(true);
+    try {
+      const q = query(collection(db, 'capsules'), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      setCapsules([]);
+      setDemoCapsules([]);
+      alert('All data has been cleared.');
+    } catch (error) {
+      console.error('Error clearing data:', error);
+      alert('Failed to clear data.');
+    } finally {
+      setAuthProcessing(false);
+      setShowSettingsModal(false);
+    }
+  };
+
   const handleCreateCapsule = async (text: string) => {
     if (!text.trim()) return;
     
@@ -1675,6 +1698,7 @@ export default function App() {
              setShowSettingsModal(false);
            }
         }}
+        onClearAllData={clearAllData}
       />
 
       {/* Edge Swipe Panel Trigger (Mock Implementation for Edge Panel) */}
