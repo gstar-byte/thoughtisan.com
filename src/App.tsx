@@ -497,10 +497,10 @@ export default function App() {
             } 
           },
           { 
-            element: '#mic-button', 
+            element: '#quick-capture-area', 
             popover: { 
               title: '2. 随手记录', 
-              description: '点击麦克风或在输入框键入文字，随时捕捉灵感。', 
+              description: '在左侧输入文字，或点击右侧麦克风语音输入，随时捕捉灵感。', 
               side: "top", 
               align: 'center' 
             } 
@@ -540,7 +540,7 @@ export default function App() {
           steps: steps,
           onDestroyed: () => {
             tourActive.current = false;
-            localStorage.setItem('onboarding_complete', 'true');
+            localStorage.setItem('onboarding_v2_complete', 'true');
           }
         });
 
@@ -548,13 +548,13 @@ export default function App() {
       }, 500);
     };
 
-    const hasSeenTutorial = localStorage.getItem('onboarding_complete');
+    const hasSeenTutorial = localStorage.getItem('onboarding_v2_complete');
     if (!hasSeenTutorial && !tourActive.current) {
        setTimeout(() => {
          if ((window as any).startTour && !tourActive.current) {
            (window as any).startTour();
          }
-       }, 800);
+       }, 1500); // Wait a bit longer for initial data load
     }
   }, [user, authLoading, allCapsules.length]);
 
@@ -1261,6 +1261,7 @@ export default function App() {
           <div className="px-3 pb-3">
              <button 
                 onClick={() => {
+                   localStorage.removeItem('onboarding_v2_complete');
                    if ((window as any).startTour) {
                      (window as any).startTour();
                    } else {
@@ -1642,10 +1643,13 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Input Area */}
-        <footer id="input-area" className={`shrink-0 min-h-[80px] md:h-32 bg-white/90 backdrop-blur-xl border-t border-[#E5E5EA] px-4 md:px-8 py-3 md:py-4 flex items-center justify-center relative z-40 transition-opacity duration-300 ${selectedIds.size > 0 ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-          <div className="flex items-center w-full max-w-3xl gap-2 md:gap-4 flex-nowrap">
-             <div className={`flex-1 bg-[#F2F2F7] rounded-[24px] min-h-[56px] flex items-center px-5 transition-all border-2 border-transparent ${isListening ? 'border-red-400 ring-8 ring-red-50' : 'focus-within:border-[#007AFF]/20 focus-within:bg-white focus-within:shadow-2xl'}`}>
+        {/* Improved Quick Capture Input Area */}
+        <footer id="input-area" className={`shrink-0 min-h-[80px] md:h-32 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 px-4 md:px-8 py-3 md:py-4 flex items-center justify-center relative z-40 transition-opacity duration-300 ${selectedIds.size > 0 ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+          <div 
+            id="quick-capture-area"
+            className="flex items-center w-full max-w-3xl gap-2 md:gap-4 flex-nowrap bg-white/50 dark:bg-black/20 p-2 rounded-[32px] border border-white/20 shadow-sm"
+          >
+             <div className={`flex-1 bg-[#F2F2F7] dark:bg-[#2C2C2E] rounded-[24px] min-h-[56px] flex items-center px-5 transition-all border-2 border-transparent ${isListening ? 'border-red-400 ring-8 ring-red-50' : 'focus-within:border-[#007AFF]/20 focus-within:bg-white dark:focus-within:bg-[#3A3A3C] focus-within:shadow-2xl'}`}>
                 <div className="text-[#007AFF] mr-3 shrink-0">
                    <Zap size={22} strokeWidth={2.5} />
                 </div>
@@ -1656,15 +1660,18 @@ export default function App() {
                   placeholder={isListening ? "Listening..." : "Record your thoughts..."}
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateCapsule(inputText)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inputText.trim()) {
+                      handleCreateCapsule(inputText);
+                      setInputText('');
+                    }
+                  }}
                   disabled={isProcessing}
-                  className="bg-transparent border-none focus:ring-0 flex-1 text-base md:text-lg placeholder-[#8E8E93] outline-none py-3"
+                  className="bg-transparent border-none focus:ring-0 flex-1 text-base md:text-lg placeholder-[#8E8E93] dark:text-[#F2F2F7] outline-none py-3"
                 />
-                
                 {(inputText.trim() || isProcessing) && (
                   <button 
-                    id="submit-button"
-                    onClick={() => handleCreateCapsule(inputText)}
+                    onClick={() => { handleCreateCapsule(inputText); setInputText(''); }}
                     className="text-[#007AFF] p-2 hover:scale-110 active:scale-90 transition-all font-bold"
                   >
                     {isProcessing ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><RotateCcw size={20} /></motion.div> : <Plus size={28} strokeWidth={3} />}
@@ -1672,13 +1679,15 @@ export default function App() {
                 )}
              </div>
 
-             <button 
+             <motion.button 
                id="mic-button"
-               onClick={() => {
-                 if (isListening) stopListening();
-                 else startListening();
-               }}
-               className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all shadow-2xl hover:scale-105 active:scale-95 shrink-0 ${isListening ? 'bg-red-500 ring-8 ring-red-100' : 'bg-gradient-to-br from-[#007AFF] to-[#00C6FF]'}`}
+               whileHover={{ scale: 1.05 }}
+               whileTap={{ scale: 0.95 }}
+               onMouseDown={startListening}
+               onMouseUp={stopListening}
+               onTouchStart={startListening}
+               onTouchEnd={stopListening}
+               className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 ${isListening ? 'bg-red-500 ring-8 ring-red-100' : 'bg-gradient-to-br from-[#007AFF] to-[#00C6FF]'}`}
              >
                {isListening ? (
                  <div className="flex gap-1 items-center">
@@ -1689,7 +1698,7 @@ export default function App() {
                ) : (
                  <Mic size={28} className="text-white" />
                )}
-             </button>
+             </motion.button>
           </div>
         </footer>
       </main>
