@@ -1103,22 +1103,35 @@ export default function App() {
                 <div className="relative flex justify-center text-[10px] uppercase font-black text-[#8E8E93]"><span className="bg-white px-4 tracking-widest">Or social sign in</span></div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={() => signInWithPopup(auth, googleProvider)}
-                  className="flex items-center justify-center bg-white border border-[#E5E5EA] py-3 rounded-xl hover:bg-[#F2F2F7] transition-all active:scale-95"
+                  className="flex items-center justify-center bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm"
+                  title="Sign in with Google"
                 >
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 bg-white rounded-full p-0.5" referrerPolicy="no-referrer" />
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
                 </button>
+                
                 <button 
-                  onClick={() => signInWithPopup(auth, appleProvider)}
-                  className="flex items-center justify-center bg-[#1D1D1F] text-white py-3 rounded-xl border border-transparent hover:bg-black transition-all active:scale-95"
+                  onClick={() => alert("Microsoft login is being configured. Please use Google or Email for now.")}
+                  className="flex items-center justify-center bg-[#00A4EF] text-white py-3 rounded-xl border border-transparent hover:bg-[#008CDB] transition-all active:scale-95 shadow-sm"
+                  title="Sign in with Microsoft"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg"><path fill="#f3f3f3" d="M0 0h11v11H0z"/><path fill="#f3f3f3" d="M12 0h11v11H12z"/><path fill="#f3f3f3" d="M0 12h11v11H0z"/><path fill="#f3f3f3" d="M12 12h11v11H12z"/></svg>
+                </button>
+
+                <button 
+                  onClick={() => alert("Apple login is being configured. Please use Google or Email for now.")}
+                  className="flex items-center justify-center bg-[#000000] text-white py-3 rounded-xl border border-transparent hover:bg-[#1D1D1F] transition-all active:scale-95 shadow-sm"
+                  title="Sign in with Apple"
                 >
                   <Apple size={20} />
                 </button>
+                
                 <button 
                   onClick={() => signInWithPopup(auth, facebookProvider)}
-                  className="flex items-center justify-center bg-[#1877F2] text-white py-3 rounded-xl border border-transparent hover:bg-[#1864D9] transition-all active:scale-95"
+                  className="flex items-center justify-center bg-[#1877F2] text-white py-3 rounded-xl border border-transparent hover:bg-[#1864D9] transition-all active:scale-95 shadow-sm"
+                  title="Sign in with Facebook"
                 >
                   <Facebook size={20} />
                 </button>
