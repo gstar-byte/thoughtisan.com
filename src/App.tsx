@@ -684,6 +684,7 @@ export default function App() {
         category: category || undefined,
         tags: tags && tags.length > 0 ? tags : undefined,
         createdAt: Date.now(),
+        updatedAt: Date.now(), // Added for float-to-top
         completed: false,
         isTodo: isTodo ?? false,
         isArchived: false,
@@ -700,6 +701,7 @@ export default function App() {
           userId: user?.uid,
           content: text,
           createdAt: Date.now(),
+          updatedAt: Date.now(), // Added for float-to-top
           completed: false,
           isTodo: false,
           isArchived: false,
