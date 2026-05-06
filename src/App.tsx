@@ -720,8 +720,15 @@ export default function App() {
 
   const updateCapsule = async (id: string, updates: Partial<Capsule>) => {
     if (!user) return;
+    const now = Date.now();
+    
+    // Sync with editing state if this is the one being edited
+    if (editingCapsule?.id === id) {
+      setEditingCapsule(prev => prev ? { ...prev, ...updates, updatedAt: now } : null);
+    }
+
     if (id.startsWith('demo-')) {
-      setDemoCapsules(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c));
+      setDemoCapsules(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: now } : c));
       return;
     }
     try {
@@ -731,11 +738,10 @@ export default function App() {
         if (value !== undefined) {
           cleanUpdates[key] = value;
         } else {
-          // Instead of undefined, use null to delete the field, or use deleteField()
           cleanUpdates[key] = null;
         }
       });
-      await updateDoc(docRef, { ...cleanUpdates, updatedAt: Date.now() });
+      await updateDoc(docRef, { ...cleanUpdates, updatedAt: now });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `capsules/${id}`);
     }
@@ -883,6 +889,14 @@ export default function App() {
           if (!isAlreadyFired) {
             console.log('--- REMINDER FIRED ---', cap.id);
             setFiredReminders(prev => [...prev, cap]);
+            
+            // Play notification sound
+            try {
+              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+              audio.play().catch(e => console.log('Audio play blocked by browser policy'));
+            } catch (e) {
+              console.error('Failed to play reminder sound', e);
+            }
             
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification('Idea Capsule Reminder', {
@@ -1146,7 +1160,7 @@ export default function App() {
             <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center drop-shadow-md">
               <AppLogo className="w-full h-full" />
             </div>
-            {isSidebarOpen && <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343]">Idea Capsule</span>}
+            {isSidebarOpen && <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343] whitespace-nowrap">Idea Capsule</span>}
           </div>
           {isSidebarOpen && (
             <button 
@@ -1532,7 +1546,7 @@ export default function App() {
                   
                   <div className="mt-8 flex flex-wrap gap-2">
                     {editingCapsule.tags?.map(tag => (
-                      <span key={tag} className="px-4 py-1.5 bg-[#F2F2F7] rounded-full text-sm font-bold text-[#8E8E93]">
+                      <span key={tag} className="px-3 py-1 bg-[#F2F2F7] rounded-full text-xs font-bold text-[#8E8E93] tracking-tight">
                         #{tag}
                       </span>
                     ))}
