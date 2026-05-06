@@ -475,15 +475,12 @@ export default function App() {
     
     // Define the global startTour function so it can be called from the UI anytime
     (window as any).startTour = async () => {
-       if (tourActive.current) return;
-       tourActive.current = true;
-       
-       if (window.innerWidth <= 768 && (window as any)._setIsSidebarOpen) {
-          (window as any)._setIsSidebarOpen(false);
-       }
-    (window as any).startTour = async () => {
       if (tourActive.current) return;
       tourActive.current = true;
+      
+      if (window.innerWidth <= 768 && (window as any)._setIsSidebarOpen) {
+         (window as any)._setIsSidebarOpen(false);
+      }
       
       // Force all view to 'all' to ensure elements are visible
       setFilter('all');
