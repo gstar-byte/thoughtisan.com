@@ -490,8 +490,8 @@ export default function App() {
           { 
             element: '#generate-demo-btn', 
             popover: { 
-              title: '1. 生成演示数据', 
-              description: '点击这里生成几条演示笔记，让我们开始探索吧！', 
+              title: '1. Generate Demo Data', 
+              description: 'Click here to generate example notes and explore the app instantly.', 
               side: "bottom", 
               align: 'center' 
             } 
@@ -499,8 +499,8 @@ export default function App() {
           { 
             element: '#quick-capture-area', 
             popover: { 
-              title: '2. 随手记录', 
-              description: '在左侧输入文字，或点击右侧麦克风语音输入，随时捕捉灵感。', 
+              title: '2. Quick Capture', 
+              description: 'Type your thoughts on the left, or use the mic on the right for voice input.', 
               side: "top", 
               align: 'center' 
             } 
@@ -508,8 +508,8 @@ export default function App() {
           { 
             element: '#capsule-options-btn-0', 
             popover: { 
-              title: '3. 笔记菜单', 
-              description: '点击三个点可以管理这条笔记（修改颜色、设置提醒等）。', 
+              title: '3. Note Menu', 
+              description: 'Click the three dots to customize colors, categories, or set reminders.', 
               side: "left", 
               align: 'center' 
             } 
@@ -517,8 +517,8 @@ export default function App() {
           { 
             element: '#capsule-item-0', 
             popover: { 
-              title: '4. 长按选择', 
-              description: '长按任意笔记可以进入批量选择模式，方便快速管理。', 
+              title: '4. Long Press to Select', 
+              description: 'Long press any note to enter selection mode for bulk actions.', 
               side: "bottom", 
               align: 'center' 
             } 
@@ -526,8 +526,8 @@ export default function App() {
           { 
             element: '#view-mode-toggle', 
             popover: { 
-              title: '5. 切换布局', 
-              description: '在这里可以自由切换列表或网格视图，找到最适合你的展示方式。', 
+              title: '5. Toggle Layout', 
+              description: 'Switch between list and grid views to find your perfect layout.', 
               side: "bottom", 
               align: 'center' 
             } 
@@ -881,12 +881,13 @@ export default function App() {
     
     const interval = setInterval(() => {
       const now = Date.now();
-      
       allCapsules.forEach(cap => {
         if (cap.reminder && cap.reminder.date && cap.reminder.date <= now && !cap.completed && !cap.isDeleted && !cap.isArchived) {
           
-          if (user?.isPremium) {
-            setFiredReminders(prev => prev.find(p => p.id === cap.id) ? prev : [...prev, cap]);
+          const isAlreadyFired = firedReminders.some(f => f.id === cap.id);
+          if (!isAlreadyFired) {
+            console.log('--- REMINDER FIRED ---', cap.id);
+            setFiredReminders(prev => [...prev, cap]);
             
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification('Idea Capsule Reminder', {
@@ -923,7 +924,7 @@ export default function App() {
           }
         }
       });
-    }, 60000); // Check every minute
+    }, 10000); // Check every 10s
     
     return () => clearInterval(interval);
   }, [allCapsules]);
