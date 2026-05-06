@@ -313,6 +313,7 @@ export default function App() {
         }
       ];
 
+      console.log('--- SEEDING DEMO DATA ---', generatedDemoCapsules);
       setDemoCapsules(generatedDemoCapsules);
     } catch (error) {
       console.error(error);
@@ -442,6 +443,7 @@ export default function App() {
         id: d.id 
       }));
       // Sort by createdAt descending locally
+      console.log('--- FIRESTORE DATA LOADED ---', docs.length, 'items');
       setCapsules(docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
