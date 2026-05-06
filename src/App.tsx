@@ -478,66 +478,65 @@ export default function App() {
       if (tourActive.current) return;
       tourActive.current = true;
       
-      if (window.innerWidth <= 768 && (window as any)._setIsSidebarOpen) {
-         (window as any)._setIsSidebarOpen(false);
-      }
-      
-      // Force all view to 'all' to ensure elements are visible
+      // Force filter to 'all' to ensure items are potentially visible
       setFilter('all');
 
-      setTimeout(() => {
-        const steps: any[] = [
-          { 
-            element: '#generate-demo-btn', 
-            popover: { 
-              title: '1. Generate Demo Data', 
-              description: 'Click here to generate example notes and explore the app instantly.', 
-              side: "bottom", 
-              align: 'center' 
-            } 
-          },
-          { 
-            element: '#quick-capture-area', 
-            popover: { 
-              title: '2. Quick Capture', 
-              description: 'Type your thoughts on the left, or use the mic on the right for voice input.', 
-              side: "top", 
-              align: 'center' 
-            } 
-          },
-          { 
-            element: '#capsule-options-btn-0', 
-            popover: { 
-              title: '3. Note Menu', 
-              description: 'Click the three dots to customize colors, categories, or set reminders.', 
-              side: "left", 
-              align: 'center' 
-            } 
-          },
-          { 
-            element: '#capsule-item-0', 
-            popover: { 
-              title: '4. Long Press to Select', 
-              description: 'Long press any note to enter selection mode for bulk actions.', 
-              side: "bottom", 
-              align: 'center' 
-            } 
-          },
-          { 
-            element: '#view-mode-toggle', 
-            popover: { 
-              title: '5. Toggle Layout', 
-              description: 'Switch between list and grid views to find your perfect layout.', 
-              side: "bottom", 
-              align: 'center' 
-            } 
-          }
-        ];
+      // If no capsules, seed them first so all 5 steps have elements to point to
+      if (allCapsules.length === 0) {
+        seedDemoData();
+      }
 
+      setTimeout(() => {
         const driverObj = driver({
           showProgress: true,
           overlayColor: 'rgba(0,0,0,0.5)',
-          steps: steps,
+          steps: [
+            { 
+              element: '#generate-demo-btn', 
+              popover: { 
+                title: '1. Generate Demo Data', 
+                description: 'Click here to generate example notes and explore the app instantly.', 
+                side: "bottom", 
+                align: 'center' 
+              } 
+            },
+            { 
+              element: '#quick-capture-area', 
+              popover: { 
+                title: '2. Quick Capture', 
+                description: 'Capture thoughts instantly. Use the text field or the mic button.', 
+                side: "top", 
+                align: 'center' 
+              } 
+            },
+            { 
+              element: '#capsule-options-btn-0', 
+              popover: { 
+                title: '3. Note Menu', 
+                description: 'Click here to manage your note - change color, set reminders, or delete.', 
+                side: "left", 
+                align: 'center' 
+              } 
+            },
+            { 
+              element: '#capsule-item-0', 
+              popover: { 
+                title: '4. Bulk Select', 
+                description: 'Long press any note to enter selection mode for bulk operations.', 
+                side: "bottom", 
+                align: 'center' 
+              } 
+            },
+            { 
+              element: '#view-mode-toggle', 
+              popover: { 
+                title: '5. Toggle Layout', 
+                description: 'Switch between list and grid views to find your favorite layout.', 
+                side: "bottom", 
+                align: 'center' 
+              } 
+            }
+          ],
           onDestroyed: () => {
             tourActive.current = false;
             localStorage.setItem('onboarding_v2_complete', 'true');
@@ -545,7 +544,7 @@ export default function App() {
         });
 
         driverObj.drive();
-      }, 500);
+      }, 800); // Give enough time for DOM to update after seeding
     };
 
     const hasSeenTutorial = localStorage.getItem('onboarding_v2_complete');
@@ -554,7 +553,7 @@ export default function App() {
          if ((window as any).startTour && !tourActive.current) {
            (window as any).startTour();
          }
-       }, 1500); // Wait a bit longer for initial data load
+       }, 2000); // Longer delay to ensure page is fully ready
     }
   }, [user, authLoading, allCapsules.length]);
 
@@ -1681,7 +1680,6 @@ export default function App() {
              </div>
 
              <motion.button 
-               id="mic-button"
                whileHover={{ scale: 1.05 }}
                whileTap={{ scale: 0.95 }}
                onMouseDown={startListening}
@@ -2002,7 +2000,7 @@ function CapsuleItem({
     if (e) {
       e.stopPropagation();
     }
-    if (isPremium && 'Notification' in window && Notification.permission === 'default') {
+    if (window.Notification && Notification.permission === 'default') {
       Notification.requestPermission();
     }
     
