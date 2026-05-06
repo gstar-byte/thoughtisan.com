@@ -34,7 +34,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AppLogo className="w-8 h-8" />
-            <span className="font-bold text-lg tracking-tight">Lightning Capsule</span>
+            <span className="font-bold text-lg tracking-tight">Idea Capsule</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogin} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
@@ -131,7 +131,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
          <div className="max-w-[1400px] mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-black mb-4">Seamlessly Integrated.<br />Flawlessly Beautiful.</h2>
-              <p className="text-white/60 text-lg">Use Lightning Capsule as list or grid, on any device.</p>
+              <p className="text-white/60 text-lg">Use Idea Capsule as list or grid, on any device.</p>
             </div>
 
             <div className="relative h-auto xl:h-[600px] py-10 xl:py-0 w-full flex flex-col xl:flex-row items-center justify-center gap-16 xl:gap-8 perspective-[1500px]">
@@ -296,7 +296,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           <div>
             <h2 className="text-4xl md:text-5xl font-black mb-8">Let's craft the future.</h2>
             <p className="text-white/60 mb-8 leading-relaxed text-lg text-balance">
-              Lightning Capsule is built with an obsession for speed, minimalism, and visual emotion. I am constantly working to make it the definitive thought-capture tool. Have feedback or want to reach out? Drop a line below.
+              Idea Capsule is built with an obsession for speed, minimalism, and visual emotion. I am constantly working to make it the definitive thought-capture tool. Have feedback or want to reach out? Drop a line below.
             </p>
             <div className="bg-white/5 p-6 rounded-2xl border border-white/10 space-y-4">
               <div className="flex flex-col">
@@ -307,7 +307,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               </div>
               <div className="flex flex-col pt-4 border-t border-white/10">
                 <span className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Direct Contact</span>
-                <a href="mailto:hello@lightningcapsule.dev" className="text-[#007AFF] hover:underline font-medium text-lg">hello@lightningcapsule.dev</a>
+                <a href="mailto:hello@ideacapsule.dev" className="text-[#007AFF] hover:underline font-medium text-lg">hello@ideacapsule.dev</a>
               </div>
             </div>
           </div>
@@ -338,7 +338,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
              <AppLogo className="w-6 h-6" />
-             <span className="font-bold text-white/80">Lightning Capsule</span>
+             <span className="font-bold text-white/80">Idea Capsule</span>
           </div>
           <p className="text-white/40 text-sm">
             Designed for speed. Engineered for precision. © {new Date().getFullYear()} All rights reserved.
