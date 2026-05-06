@@ -9,10 +9,9 @@ interface SettingsModalProps {
   user: UserProfile | null;
   onUpgradeClick: () => void;
   onDowngradeClick?: () => void;
-  onClearAllData: () => void;
 }
 
-export function SettingsModal({ isOpen, onClose, user, onUpgradeClick, onDowngradeClick, onClearAllData }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, user, onUpgradeClick, onDowngradeClick }: SettingsModalProps) {
   // Sync toggle (mock internal state)
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [reportsEnabled, setReportsEnabled] = useState(true);
@@ -59,26 +58,6 @@ export function SettingsModal({ isOpen, onClose, user, onUpgradeClick, onDowngra
           
           <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar">
              
-             {/* Data Management Section - MOVED TO TOP FOR VISIBILITY */}
-             <div className="bg-red-50 rounded-2xl p-4 border border-red-100 shadow-sm">
-                <h3 className="text-xs font-bold text-red-600 uppercase tracking-wider mb-3">System Recovery</h3>
-                <button 
-                  onClick={onClearAllData}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-red-200 text-[#FF3B30] transition-all hover:shadow-md active:scale-[0.98] group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-red-50 text-[#FF3B30] flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
-                      <X size={20} />
-                    </div>
-                    <div className="text-left">
-                      <span className="font-bold block text-sm">Clear All Cloud Data</span>
-                      <span className="text-[10px] text-red-400">Permanently delete all notes from your account</span>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} />
-                </button>
-             </div>
-
              {/* Account Section */}
              <div className="bg-white rounded-2xl p-4">
                 <div className="flex items-center gap-4">

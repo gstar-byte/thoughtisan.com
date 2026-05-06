@@ -481,48 +481,74 @@ export default function App() {
        if (window.innerWidth <= 768 && (window as any)._setIsSidebarOpen) {
           (window as any)._setIsSidebarOpen(false);
        }
-       
-       if (allCapsules.length === 0) {
-          setFilter('all');
-       }
-       
-       setTimeout(() => {
-          let steps: any[] = [];
-          
-          if (allCapsules.length === 0 && document.querySelector('#generate-demo-btn')) {
-             steps.push({ element: '#generate-demo-btn', popover: { title: 'Generate Demo Data', description: 'Click here to populate the app with example data, or type your first idea below.', side: "top", align: 'center' } });
+    (window as any).startTour = async () => {
+      if (tourActive.current) return;
+      tourActive.current = true;
+      
+      // Force all view to 'all' to ensure elements are visible
+      setFilter('all');
+
+      setTimeout(() => {
+        const steps: any[] = [
+          { 
+            element: '#generate-demo-btn', 
+            popover: { 
+              title: '1. 生成演示数据', 
+              description: '点击这里生成几条演示笔记，让我们开始探索吧！', 
+              side: "bottom", 
+              align: 'center' 
+            } 
+          },
+          { 
+            element: '#mic-button', 
+            popover: { 
+              title: '2. 随手记录', 
+              description: '点击麦克风或在输入框键入文字，随时捕捉灵感。', 
+              side: "top", 
+              align: 'center' 
+            } 
+          },
+          { 
+            element: '#capsule-options-btn-0', 
+            popover: { 
+              title: '3. 笔记菜单', 
+              description: '点击三个点可以管理这条笔记（修改颜色、设置提醒等）。', 
+              side: "left", 
+              align: 'center' 
+            } 
+          },
+          { 
+            element: '#capsule-item-0', 
+            popover: { 
+              title: '4. 长按选择', 
+              description: '长按任意笔记可以进入批量选择模式，方便快速管理。', 
+              side: "bottom", 
+              align: 'center' 
+            } 
+          },
+          { 
+            element: '#view-mode-toggle', 
+            popover: { 
+              title: '5. 切换布局', 
+              description: '在这里可以自由切换列表或网格视图，找到最适合你的展示方式。', 
+              side: "bottom", 
+              align: 'center' 
+            } 
           }
-          
-          steps.push({ element: '#thought-input', popover: { title: 'Quick Capture', description: 'Type text and press Enter, or hold the mic icon to record your voice and release to save.', side: "top", align: 'start' } });
-          steps.push({ element: '#view-mode-toggle', popover: { title: 'Layout', description: 'Toggle between list and grid views for your capsules.', side: "bottom", align: 'start' } });
-          
-          if (document.querySelector('#capsule-options-btn-0')) {
-             steps.push({ element: '#capsule-options-btn-0', popover: { title: 'Note Settings', description: 'Click the three dots on the note to change color, set a reminder, or add tags.', side: "bottom", align: 'start' } });
-          }
-          if (document.querySelector('#capsule-item-0')) {
-             steps.push({ element: '#capsule-item-0', popover: { title: 'Long Press / Select', description: 'Long press a note (or click select) for batch actions.', side: "top", align: 'start' } });
-          }
-          
-          const validSteps = steps.filter(s => document.querySelector(s.element));
-          
-          if (validSteps.length > 0) {
-            const obj = driver({
-              showProgress: true,
-              allowClose: true,
-              overlayColor: 'rgba(0,0,0,0.5)',
-              onDestroyStarted: () => {
-                tourActive.current = false;
-                localStorage.setItem('onboarding_complete', 'true');
-                obj.destroy();
-              },
-              steps: validSteps
-            });
-            obj.drive();
-          } else {
+        ];
+
+        const driverObj = driver({
+          showProgress: true,
+          overlayColor: 'rgba(0,0,0,0.5)',
+          steps: steps,
+          onDestroyed: () => {
             tourActive.current = false;
             localStorage.setItem('onboarding_complete', 'true');
           }
-       }, 500);
+        });
+
+        driverObj.drive();
+      }, 500);
     };
 
     const hasSeenTutorial = localStorage.getItem('onboarding_complete');
@@ -1238,7 +1264,6 @@ export default function App() {
           <div className="px-3 pb-3">
              <button 
                 onClick={() => {
-                   localStorage.removeItem('onboarding_complete');
                    if ((window as any).startTour) {
                      (window as any).startTour();
                    } else {
@@ -1698,7 +1723,6 @@ export default function App() {
              setShowSettingsModal(false);
            }
         }}
-        onClearAllData={clearAllData}
       />
 
       {/* Edge Swipe Panel Trigger (Mock Implementation for Edge Panel) */}
