@@ -547,7 +547,7 @@ export default function App() {
          if ((window as any).startTour && !tourActive.current) {
            (window as any).startTour();
          }
-       }, 3000); // 3s delay for stable trigger
+       }, 1500); // 1.5s delay for stable trigger
     }
   }, [user, authLoading, allCapsules.length]);
 
