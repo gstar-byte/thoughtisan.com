@@ -4,14 +4,17 @@ import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { X, LayoutGrid, Bell, MoveHorizontal, Volume2 } from 'lucide-react';
 import { UserProfile } from '../types';
 
+const cn = (...inputs: any[]) => inputs.filter(Boolean).join(' ');
+
 interface PremiumModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfile | null;
   onSuccess: () => void;
+  hideFeatures?: boolean;
 }
 
-export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalProps) {
+export function PremiumModal({ isOpen, onClose, user, onSuccess, hideFeatures = false }: PremiumModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +22,7 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -32,7 +35,10 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="relative w-full max-w-lg max-h-[90dvh] flex flex-col bg-white rounded-3xl shadow-2xl overflow-hidden"
+          className={cn(
+            "relative w-full flex flex-col bg-white rounded-3xl shadow-2xl overflow-hidden",
+            hideFeatures ? "max-w-sm" : "max-w-lg max-h-[90dvh]"
+          )}
         >
           {/* Header */}
           <div className="bg-gradient-to-br from-[#007AFF] to-[#AF52DE] shrink-0 p-6 md:p-8 text-white relative">
@@ -58,12 +64,14 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
           </div>
           
           <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden custom-scrollbar">
-             <div className="space-y-4 mb-8">
-               <Feature icon={<LayoutGrid size={20} />} title="Desktop home screen widget" description="Pin capture and glanceable notes on your launcher." />
-               <Feature icon={<Bell size={20} />} title="Persistent notification" description="Shade shortcut or ongoing tile for one-tap capture." />
-               <Feature icon={<MoveHorizontal size={20} />} title="Edge swipe capture" description="Swipe from the screen edge to start a quick note." />
-               <Feature icon={<Volume2 size={20} />} title="Volume-key quick capture" description="Hardware keys wake capture where the OS allows." />
-             </div>
+             {!hideFeatures && (
+               <div className="space-y-4 mb-8">
+                 <Feature icon={<LayoutGrid size={20} />} title="Desktop home screen widget" description="Pin capture and glanceable notes on your launcher." />
+                 <Feature icon={<Bell size={20} />} title="Persistent notification" description="Shade shortcut or ongoing tile for one-tap capture." />
+                 <Feature icon={<MoveHorizontal size={20} />} title="Edge swipe capture" description="Swipe from the screen edge to start a quick note." />
+                 <Feature icon={<Volume2 size={20} />} title="Volume-key quick capture" description="Hardware keys wake capture where the OS allows." />
+               </div>
+             )}
              
              <div className="bg-[#F2F2F7] rounded-2xl p-6 mb-6 flex flex-col items-center">
                  <p className="text-[#8E8E93] text-sm font-bold uppercase tracking-wider mb-1">Lifetime Deal</p>

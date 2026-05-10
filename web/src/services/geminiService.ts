@@ -1,9 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export async function categorizeThought(text: string): Promise<{ category?: string; tags?: string[]; refinedContent: string; isTodo?: boolean; reminder?: any }> {
+  if (!ai) {
+    return { refinedContent: text };
+  }
   try {
     const prompt = SYSTEM_PROMPT.replace('{{CURRENT_TIME}}', new Date().toLocaleString()) + '\n\nInput text: ' + text;
     

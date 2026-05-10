@@ -64,7 +64,7 @@ import {
 } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { setDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { Mail, Lock, CheckCircle2, ArrowRight, UserPlus, Apple, Facebook, ExternalLink } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, ArrowRight, UserPlus, Apple, Facebook, ExternalLink, Share2 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
@@ -73,6 +73,8 @@ import { LandingPage } from './components/LandingPage';
 import { AppLogo } from './components/AppLogo';
 import { PremiumModal } from './components/PremiumModal';
 import { SettingsModal } from './components/SettingsModal';
+
+import { CapsuleEditor } from './components/CapsuleEditor';
 
 enum OperationType {
   CREATE = 'create',
@@ -140,29 +142,126 @@ function shouldBumpUpdatedAt(updates: Partial<Capsule>): boolean {
   return !(keys.length === 1 && keys[0] === 'completed');
 }
 
-function CrownJewel({ className, size = 22 }: { className?: string; size?: number }) {
+function CrownJewel({ className, size = 32 }: { className?: string; size?: number }) {
   return (
-    <span
-      className={cn('leading-none select-none inline-flex items-center justify-center', className)}
-      style={{
-        fontSize: size,
-        filter: 'drop-shadow(0 0 4px #FFD700)',
-        textShadow: '0 0 6px rgba(255, 80, 80, 0.45)',
-      }}
-      aria-hidden
-    >
-      👑
-    </span>
+    <div className={cn("relative inline-flex items-center justify-center", className)} style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Shadow Side (Left half subtle shade) */}
+        <path d="M50 85H15V75H85V85H50Z" fill="#E67E22" />
+        
+        {/* Red Velvet Cushion */}
+        <path d="M20 70C20 40 80 40 80 70H20Z" fill="#C0392B" />
+        
+        {/* Main Golden Body */}
+        <path d="M10 40C15 45 20 55 20 75H80C80 55 85 45 90 40L80 55C75 45 80 30 70 25L75 40C70 45 60 45 50 40C40 45 30 45 25 40L30 25C20 30 25 45 20 55L10 40Z" fill="#F1C40F" stroke="#D35400" strokeWidth="1" />
+        
+        {/* Center Golden Pillar */}
+        <path d="M42 45C42 35 45 25 50 15C55 25 58 35 58 45H42Z" fill="#F1C40F" stroke="#D35400" strokeWidth="1" />
+        <circle cx="50" cy="18" r="6" fill="#F1C40F" stroke="#D35400" strokeWidth="1" />
+
+        {/* Center Red Gem */}
+        <ellipse cx="50" cy="58" rx="6" ry="9" fill="#E74C3C" stroke="#C0392B" strokeWidth="1" />
+        
+        {/* Bottom Base with Blue Gems */}
+        <rect x="15" y="75" width="70" height="12" rx="2" fill="#F39C12" />
+        <circle cx="22" cy="81" r="3" fill="#00A8E8" />
+        <circle cx="36" cy="81" r="3" fill="#00A8E8" />
+        <circle cx="50" cy="81" r="3" fill="#00A8E8" />
+        <circle cx="64" cy="81" r="3" fill="#00A8E8" />
+        <circle cx="78" cy="81" r="3" fill="#00A8E8" />
+
+        {/* Highlight details */}
+        <path d="M50 15L53 18L50 21L47 18L50 15Z" fill="white" opacity="0.3" />
+      </svg>
+      {/* Premium Glow */}
+      <div className="absolute inset-0 bg-[#FFD700] opacity-20 blur-[15px] rounded-full scale-125" />
+    </div>
   );
 }
 
 /** Open width when sidebar is expanded (mobile narrower). */
-const SIDEBAR_W = { mobile: 128, desktop: 136 } as const;
+const SIDEBAR_W = { mobile: 260, desktop: 240 } as const;
+
+/**
+ * Helper to extract plain text from Tiptap JSON or plain string
+ */
+const plainTextFromContent = (content: any): string => {
+  if (!content) return '';
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    if (!trimmed.startsWith('{')) return trimmed;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return plainTextFromContent(parsed);
+    } catch (e) {
+      return trimmed;
+    }
+  }
+  
+  // If it's a Tiptap node
+  if (content.type === 'text') return content.text || '';
+  if (content.content && Array.isArray(content.content)) {
+    return content.content.map(plainTextFromContent).filter(Boolean).join(' ').trim();
+  }
+  // If it's a Tiptap array
+  if (Array.isArray(content)) {
+    return content.map(plainTextFromContent).filter(Boolean).join(' ').trim();
+  }
+  // Fallback for weird objects
+  if (typeof content === 'object') {
+    if (content.text) return content.text;
+    if (content.value) return content.value;
+  }
+  return '';
+};
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [capsules, setCapsules] = useState<Capsule[]>([]);
+  const [capsules, setCapsules] = useState<Capsule[]>([
+    {
+      id: 'mock-1', 
+      content: 'Brainstorming for the new Idea Capsule design language. Focusing on glassmorphism and capsule shapes.', 
+      category: 'WORK', 
+      tags: ['design', 'app'], 
+      color: '#007AFF', 
+      createdAt: Date.now() - 3600000, 
+      updatedAt: Date.now() - 3600000, 
+      userId: 'mock-user', 
+      isArchived: false, 
+      isDeleted: false,
+      isTodo: false,
+      completed: false
+    },
+    { 
+      id: 'mock-2', 
+      content: 'Buy milk and eggs on the way home.', 
+      category: 'LIFE', 
+      tags: ['grocery'], 
+      color: '#FF2D55', 
+      createdAt: Date.now() - 7200000, 
+      updatedAt: Date.now() - 7200000, 
+      userId: 'mock-user', 
+      isArchived: false, 
+      isDeleted: false,
+      isTodo: true,
+      completed: false
+    },
+    { 
+      id: 'mock-3', 
+      content: 'Researching Gemini Pro API capabilities for smart categorization.', 
+      category: 'TECH', 
+      tags: ['ai', 'api'], 
+      color: '#AF52DE', 
+      createdAt: Date.now() - 10800000, 
+      updatedAt: Date.now() - 10800000, 
+      userId: 'mock-user', 
+      isArchived: false, 
+      isDeleted: false,
+      isTodo: false,
+      completed: false
+    }
+  ]);
   const [demoCapsules, setDemoCapsules] = useState<Capsule[]>([]);
   const allCapsules = [...demoCapsules, ...capsules].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const [inputText, setInputText] = useState('');
@@ -181,7 +280,9 @@ export default function App() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showProFeaturesModal, setShowProFeaturesModal] = useState(false);
   const [firedReminders, setFiredReminders] = useState<Capsule[]>([]);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
   
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
   const [isTagsExpanded, setIsTagsExpanded] = useState(false);
@@ -772,7 +873,15 @@ export default function App() {
     async (id: string, updates: Partial<Capsule>) => {
       if (!user) return;
       const now = Date.now();
-      const bump = shouldBumpUpdatedAt(updates);
+      const original = allCapsules.find(c => c.id === id);
+      let bump = shouldBumpUpdatedAt(updates);
+      
+      // If content is being updated, only bump if it actually changed
+      if (updates.content !== undefined && original && original.content === updates.content) {
+        // Content didn't change, so don't bump for THIS update if only content was provided
+        const otherKeys = Object.keys(updates).filter(k => k !== 'content' && k !== 'updatedAt');
+        if (otherKeys.length === 0) bump = false;
+      }
 
       setEditingCapsule((prev) => {
         if (!prev || prev.id !== id) return prev;
@@ -800,7 +909,7 @@ export default function App() {
         if (bump) {
           cleanUpdates.updatedAt = now;
         }
-        await updateDoc(docRef, cleanUpdates as Parameters<typeof updateDoc>[1]);
+        await updateDoc(docRef, cleanUpdates as any);
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `capsules/${id}`);
       }
@@ -1019,60 +1128,60 @@ export default function App() {
     const interval = setInterval(() => {
       const now = Date.now();
       allCapsules.forEach(cap => {
-        if (cap.reminder && cap.reminder.date && cap.reminder.date <= now && !cap.completed && !cap.isDeleted && !cap.isArchived) {
-          
-          const isAlreadyFired = firedReminders.some(f => f.id === cap.id);
-          if (!isAlreadyFired) {
-            console.log('--- REMINDER FIRED ---', cap.id);
-            setFiredReminders(prev => [...prev, cap]);
-            
-            // Play notification sound
-            try {
-              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-              audio.play().catch(e => console.log('Audio play blocked by browser policy'));
-            } catch (e) {
-              console.error('Failed to play reminder sound', e);
-            }
-            
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('Idea Capsule Reminder', {
-                body: cap.content.substring(0, 50) + (cap.content.length > 50 ? '...' : ''),
-              });
-            }
+        if (!cap.reminder?.date || cap.completed || cap.isDeleted || cap.isArchived) return;
+        
+        // Prevent spamming VERY old reminders
+        const isTooOld = now - cap.reminder.date > 1000 * 60 * 30; 
+        if (isTooOld) {
+          if (cap.reminder.type === 'once') {
+            updateCapsule(cap.id, { reminder: { ...cap.reminder, type: 'none' } });
           }
-          
-          let nextReminder = { ...cap.reminder };
-          let shouldUpdate = false;
-
-          // Only auto-advance repeating reminders, leave 'once' alone so it shows as overdue
-          if (cap.reminder.type === 'custom' && cap.reminder.customInterval) {
-             const multiplier = cap.reminder.customUnit === 'day' ? 86400000 : cap.reminder.customUnit === 'week' ? 604800000 : 2592000000;
-             nextReminder.date = now + cap.reminder.customInterval * multiplier;
-             shouldUpdate = true;
-          } else if (cap.reminder.type === 'daily') {
-            nextReminder.date = now + 86400000;
-            shouldUpdate = true;
-          } else if (cap.reminder.type === 'monthly') {
-            const nextDate = new Date(now);
-            nextDate.setMonth(nextDate.getMonth() + 1);
-            nextReminder.date = nextDate.getTime();
-            shouldUpdate = true;
-          } else if (cap.reminder.type === 'yearly') {
-            const nextDate = new Date(now);
-            nextDate.setFullYear(nextDate.getFullYear() + 1);
-            nextReminder.date = nextDate.getTime();
-            shouldUpdate = true;
-          }
-
-          if (shouldUpdate) {
-             updateCapsule(cap.id, { reminder: nextReminder as any });
-          }
+          notifiedIdsRef.current.add(cap.id);
+          return;
         }
+
+        if (cap.reminder.date > now || notifiedIdsRef.current.has(cap.id)) return;
+
+        if (window.Notification && Notification.permission === 'granted') {
+          new Notification('Idea Capsule Reminder', { body: plainTextFromContent(cap.content) });
+        }
+
+        notifiedIdsRef.current.add(cap.id);
+        setFiredReminders(prev => [...prev, cap]);
+
+        let shouldUpdate = false;
+        const nextReminder = { ...cap.reminder };
+        if (cap.reminder.type === 'custom' && cap.reminder.customInterval) {
+          const mult = cap.reminder.customUnit === 'day' ? 86400000 : cap.reminder.customUnit === 'week' ? 604800000 : 2592000000;
+          nextReminder.date = now + cap.reminder.customInterval * mult;
+          shouldUpdate = true;
+        } else if (cap.reminder.type === 'daily') {
+          nextReminder.date = now + 86400000;
+          shouldUpdate = true;
+        } else if (cap.reminder.type === 'weekly') {
+          nextReminder.date = now + 604800000;
+          shouldUpdate = true;
+        } else if (cap.reminder.type === 'monthly') {
+          const nextDate = new Date(now);
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          nextReminder.date = nextDate.getTime();
+          shouldUpdate = true;
+        } else if (cap.reminder.type === 'yearly') {
+          const nextDate = new Date(now);
+          nextDate.setFullYear(nextDate.getFullYear() + 1);
+          nextReminder.date = nextDate.getTime();
+          shouldUpdate = true;
+        } else {
+          nextReminder.type = 'none';
+          shouldUpdate = true;
+        }
+
+        if (shouldUpdate) updateCapsule(cap.id, { reminder: nextReminder as any });
       });
-    }, 10000); // Check every 10s
+    }, 10000);
     
     return () => clearInterval(interval);
-  }, [allCapsules]);
+  }, [allCapsules, updateCapsule, user]);
 
   const sortedCapsules = [...allCapsules].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   
@@ -1546,19 +1655,16 @@ export default function App() {
           </div>
 
           <div className="flex-shrink-0 flex items-center gap-2 relative">
-            {!user.isPremium && (
-               <button 
-                  onClick={() => setShowPremiumModal(true)} 
-                  className="flex bg-gradient-to-r from-[#AF52DE] to-[#FF2D55] text-white px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl text-[13px] font-bold shadow-sm hover:shadow-md transition-all active:scale-95 uppercase items-center gap-1.5"
-               >
-                 <CrownJewel size={17} className="md:scale-90" /> <span className="hidden md:inline">Upgrade</span>
-               </button>
-            )}
             <button
-              id="settings-btn"
-              onClick={() => setShowSettingsModal(true)}
-              className="flex w-10 h-10 items-center justify-center bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#1D1D1F] dark:text-[#F2F2F7] rounded-xl hover:bg-[#E5E5EA] dark:hover:bg-[#3A3A3C] transition-colors"
-              aria-label="Settings"
+              id="pro-features-btn"
+              onClick={() => setShowProFeaturesModal(true)}
+              className={cn(
+                "flex w-10 h-10 items-center justify-center rounded-xl transition-all active:scale-95",
+                user.isPremium 
+                  ? "bg-gradient-to-br from-[#AF52DE] to-[#FF2D55] text-white shadow-lg shadow-[#AF52DE]/20" 
+                  : "bg-[#F2F2F7] text-[#8E8E93] hover:bg-[#E5E5EA]"
+              )}
+              aria-label="Pro Features"
             >
               <CrownJewel size={22} />
             </button>
@@ -1623,29 +1729,46 @@ export default function App() {
 
         {/* Capsule List */}
         <div id="scroll-container" className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 custom-scrollbar scroll-smooth">
-          <div className={`w-full mx-auto pb-36 transition-all duration-300 ${
+          <div className={`w-full pb-36 transition-all duration-300 ${
             selectedIds.size > 0 ? 'mt-3' : ''
           } ${
             viewMode === 'grid' 
-              ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-8 gap-2 md:gap-4 auto-rows-auto' 
-              : 'w-full max-w-[1400px] px-1 md:px-0 mx-auto flex flex-col space-y-2.5 md:space-y-3.5'
-          }`}>
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-3 md:gap-5' 
+              : 'w-full max-w-[1200px] flex flex-col space-y-2.5 md:space-y-3.5'
+          } ${isSidebarOpen ? 'ml-0' : 'mx-auto'}`}>
             <AnimatePresence initial={false}>
               {filteredCapsules.map((capsule, index) => (
-                <CapsuleItem 
-                  key={capsule.id} 
-                  capsule={capsule}
-                  index={index}
-                  viewMode={viewMode}
-                  patchCapsule={patchCapsule}
-                  onRemovePermanently={() => removeCapsuleForever(capsule.id)}
-                  allCategories={allCategories}
-                  isSelectionMode={selectedIds.size > 0}
-                  isSelected={selectedIds.has(capsule.id)}
-                  onToggleSelection={() => toggleSelection(capsule.id)}
-                  onViewDetail={() => setEditingCapsule(capsule)}
-                  isPremium={user?.isPremium || false}
-                />
+                <div key={capsule.id} className="flex items-center gap-3 md:gap-5 group/list">
+                  {selectedIds.size > 0 && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleSelection(capsule.id); }}
+                      className={cn(
+                        "w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                        selectedIds.has(capsule.id) 
+                          ? "bg-[#007AFF] border-[#007AFF]" 
+                          : "border-[#C7C7CC] hover:border-[#8E8E93]"
+                      )}
+                    >
+                      {selectedIds.has(capsule.id) && <Check size={14} className="text-white" strokeWidth={3} />}
+                    </button>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <CapsuleItem 
+                      capsule={capsule}
+                      index={index}
+                      viewMode={viewMode}
+                      patchCapsule={patchCapsule}
+                      onRemovePermanently={() => removeCapsuleForever(capsule.id)}
+                      allCategories={allCategories}
+                      allTags={allTags}
+                      isSelectionMode={selectedIds.size > 0}
+                      isSelected={selectedIds.has(capsule.id)}
+                      onToggleSelection={() => toggleSelection(capsule.id)}
+                      onViewDetail={() => setEditingCapsule(capsule)}
+                      isPremium={user?.isPremium || false}
+                    />
+                  </div>
+                </div>
               ))}
             </AnimatePresence>
             
@@ -1691,24 +1814,26 @@ export default function App() {
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               />
               <motion.div 
-                initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                exit={{ opacity: 0, scale: 0.98, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="relative w-full max-w-4xl bg-white rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] overflow-hidden flex flex-col h-[90vh] md:h-[85vh]"
               >
-                {/* Header colored bar */}
                 <div 
-                  className="h-14 w-full flex items-center justify-between px-5"
-                  style={{ backgroundColor: editingCapsule.color || '#F2F2F7', color: editingCapsule.color === '#F2F2F7' ? '#1D1D1F' : 'white' }}
+                  className="h-20 w-full flex items-center justify-between px-8"
+                  style={{ backgroundColor: 'white', borderBottom: '1px solid #F2F2F7' }}
                 >
-                  <span className="font-bold tracking-tight text-base">Edit Capsule</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: editingCapsule.color || '#F2F2F7' }} />
+                    <span className="font-black tracking-tight text-xl text-[#1D1D1F]">Edit Note</span>
+                  </div>
                   <button 
                     type="button"
                     onClick={closeEditingModal}
-                    className="p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors"
+                    className="w-10 h-10 flex items-center justify-center bg-[#F2F2F7] hover:bg-[#E5E5EA] rounded-full transition-colors"
                   >
-                    <X size={20} />
+                    <X size={20} className="text-[#8E8E93]" />
                   </button>
                 </div>
 
@@ -1733,18 +1858,20 @@ export default function App() {
                     </div>
                   )}
 
-                  <textarea 
-                    value={editContentDraft}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      editContentDraftRef.current = v;
-                      setEditContentDraft(v);
-                      queueEditContentSave();
-                    }}
-                    className="w-full min-h-[140px] flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal"
-                    placeholder="Type your brilliant thought here..."
-                    autoFocus
-                  />
+                  <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-16 pb-20">
+                    <textarea 
+                      value={editContentDraft}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        editContentDraftRef.current = v;
+                        setEditContentDraft(v);
+                        queueEditContentSave();
+                      }}
+                      className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal"
+                      placeholder="Start typing your brilliance..."
+                      autoFocus
+                    />
+                  </div>
                   
                   <div className="mt-5 flex flex-wrap gap-2">
                     {editingCapsule.tags?.map(tag => (
@@ -1756,18 +1883,28 @@ export default function App() {
                 </div>
                 
                 <div className="p-3 md:p-5 bg-[#F8F9FA] border-t border-[#E5E5EA] flex justify-between items-center gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <label className="cursor-pointer p-2 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] rounded-xl transition-all flex hidden md:flex items-center gap-2 shrink-0">
-                      <ImageIcon size={20} />
-                      <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
-                    </label>
-                    <label className="cursor-pointer md:hidden p-2 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] rounded-xl transition-all shrink-0">
-                      <Paperclip size={20} />
-                      <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
-                    </label>
-                    <span className="text-xs text-[#8E8E93] font-medium truncate">
-                      {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString()}
-                    </span>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-3">
+                      <label className="cursor-pointer p-2 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] rounded-xl transition-all flex hidden md:flex items-center gap-2 shrink-0">
+                        <ImageIcon size={20} />
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
+                      </label>
+                      <label className="cursor-pointer md:hidden p-2 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] rounded-xl transition-all shrink-0">
+                        <Paperclip size={20} />
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
+                      </label>
+                      <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
+                        Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {editingCapsule.reminder?.date && (
+                      <div className="pl-12 flex items-center gap-1.5 -mt-1">
+                        <Bell size={10} className="text-[#007AFF]" />
+                        <span className="text-[10px] font-black text-[#007AFF] uppercase tracking-widest">
+                          Reminder: {new Date(editingCapsule.reminder.date).toLocaleDateString()} {new Date(editingCapsule.reminder.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({repeatLabelForMenu(editingCapsule.reminder)})
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <button 
                     type="button"
@@ -1947,6 +2084,7 @@ export default function App() {
         isOpen={showPremiumModal} 
         onClose={() => setShowPremiumModal(false)}
         user={user}
+        hideFeatures={showProFeaturesModal}
         onSuccess={() => {
            setShowPremiumModal(false);
            alert("Payment successful! You are now an Idea Capsule Pro member.");
@@ -1969,6 +2107,13 @@ export default function App() {
              setShowSettingsModal(false);
            }
         }}
+      />
+
+      <ProFeaturesModal
+        isOpen={showProFeaturesModal}
+        onClose={() => setShowProFeaturesModal(false)}
+        user={user}
+        onUpgrade={() => setShowPremiumModal(true)}
       />
 
       {/* Edge Swipe Panel Trigger (Mock Implementation for Edge Panel) */}
@@ -2142,6 +2287,7 @@ interface CapsuleItemProps {
   patchCapsule: (id: string, updates: Partial<Capsule>) => void;
   onRemovePermanently: () => void;
   allCategories: string[];
+  allTags: string[];
   viewMode: 'grid' | 'list';
   isSelectionMode: boolean;
   isSelected: boolean;
@@ -2150,6 +2296,15 @@ interface CapsuleItemProps {
   isPremium: boolean;
 }
 
+const formatNoteDateTime = (ts: number) => new Date(ts).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+const repeatLabelForMenu = (r: any) => {
+  if (!r || r.type === 'none') return 'None';
+  if (r.type === 'once') return 'Once';
+  if (r.type === 'custom') return `Every ${r.customInterval} ${r.customUnit}(s)`;
+  return r.type.charAt(0).toUpperCase() + r.type.slice(1);
+};
+
 const CapsuleItem = memo(function CapsuleItem({
   capsule,
   index,
@@ -2157,6 +2312,7 @@ const CapsuleItem = memo(function CapsuleItem({
   patchCapsule,
   onRemovePermanently,
   allCategories,
+  allTags,
   isSelectionMode,
   isSelected,
   onToggleSelection,
@@ -2173,6 +2329,9 @@ const CapsuleItem = memo(function CapsuleItem({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [tempReminderDate, setTempReminderDate] = useState<number | null>(capsule.reminder?.date || null);
   const [tempReminderType, setTempReminderType] = useState<ReminderType>(capsule.reminder?.type || 'none');
+  
+  const [tempCategory, setTempCategory] = useState(capsule.category || '');
+  const [tempTags, setTempTags] = useState((capsule.tags || []).join(', '));
   
   const timerRef = useRef<number | null>(null);
   const longPressDetected = useRef(false);
@@ -2274,29 +2433,6 @@ const CapsuleItem = memo(function CapsuleItem({
   
   return (
     <div className="flex items-center gap-2 md:gap-3 group w-full mb-2.5 md:mb-3.5">
-      {/* External Selection Indicator - Small circle outside */}
-      <AnimatePresence initial={false}>
-        {isSelectionMode && (
-          <motion.button
-            initial={{ opacity: 0, x: -30, width: 0 }}
-            animate={{ opacity: 1, x: 0, width: 'auto' }}
-            exit={{ opacity: 0, x: -30, width: 0 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleSelection();
-            }}
-            className={cn(
-              "shrink-0 w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center z-[100]",
-              isSelected 
-                ? "bg-[#007AFF] border-[#007AFF] text-white shadow-lg" 
-                : "bg-white border-[#C7C7CC] hover:border-[#007AFF]"
-            )}
-          >
-            {isSelected && <Check size={14} strokeWidth={4} />}
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       <motion.div
         id={index === 0 ? "capsule-item-0" : undefined}
         className={cn(
@@ -2373,9 +2509,9 @@ const CapsuleItem = memo(function CapsuleItem({
           <div className={cn(
             "text-base sm:text-lg md:text-xl font-bold leading-tight transition-all break-words select-none",
             capsule.isTodo && capsule.completed ? "line-through opacity-50 text-white/70" : "text-white",
-            viewMode === 'grid' ? "whitespace-pre-wrap line-clamp-4" : "truncate"
+            viewMode === 'grid' ? "whitespace-pre-wrap line-clamp-4" : "line-clamp-1"
           )}>
-            {capsule.content}
+            {plainTextFromContent(capsule.content)}
           </div>
           
           <div className={cn(
@@ -2437,102 +2573,143 @@ const CapsuleItem = memo(function CapsuleItem({
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                 >
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowColorPicker(true); setShowOptions(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium"
-                  >
-                    <Palette size={14} />
-                    Change Color
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowReminderPicker(true); setTempReminderDate(capsule.reminder?.date || null); setTempReminderType(capsule.reminder?.type || 'none'); setShowOptions(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium"
-                  >
-                    <Calendar size={14} />
-                    Set Reminder
-                  </button>
-                  <div className="border-t border-[#F2F2F7] my-1" />
-                  {!capsule.isDeleted && (
-                    <>
-                      <div className="px-3 py-1 text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider bg-[#F2F2F7]">Category</div>
-                      <div className="px-2 py-1.5">
+
+                  <div className="space-y-3">
+                    {/* GROUP 1: Category & Tags */}
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <div className="px-3 py-1 text-[9px] uppercase font-black tracking-widest text-[#AEAEB2]">Category</div>
                         <input 
                           type="text"
-                          placeholder="Add category..."
-                          defaultValue={capsule.category || ''}
+                          value={tempCategory}
+                          onChange={(e) => setTempCategory(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const val = (e.currentTarget.value).trim();
-                              onUpdate({ category: val || undefined });
-                              setShowOptions(false);
+                              onUpdate({ category: tempCategory });
+                              (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          className="w-full px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF]"
+                          onBlur={() => onUpdate({ category: tempCategory })}
+                          className="w-full bg-[#F2F2F7] border-none rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-[#007AFF]/20"
+                          placeholder="Category..."
                         />
+                        {tempCategory && allCategories.filter(c => c.toLowerCase().includes(tempCategory.toLowerCase()) && c !== tempCategory).length > 0 && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E5EA] rounded-xl shadow-xl z-[80] overflow-hidden">
+                            {allCategories.filter(c => c.toLowerCase().includes(tempCategory.toLowerCase()) && c !== tempCategory).slice(0, 3).map(cat => (
+                              <button key={cat} onClick={() => { setTempCategory(cat); onUpdate({ category: cat }); }} className="w-full text-left px-3 py-2 text-[11px] hover:bg-[#F2F2F7] font-semibold">{cat}</button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="border-t border-[#F2F2F7] my-1 pt-1" />
+
+                      <div className="relative">
+                        <div className="px-3 py-1 text-[9px] uppercase font-black tracking-widest text-[#AEAEB2]">Tags (comma separated)</div>
+                        <input 
+                          type="text"
+                          value={tempTags}
+                          onChange={(e) => setTempTags(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              onUpdate({ tags: tempTags.split(',').map(t => t.trim()).filter(Boolean) });
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          onBlur={() => onUpdate({ tags: tempTags.split(',').map(t => t.trim()).filter(Boolean) })}
+                          className="w-full bg-[#F2F2F7] border-none rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-[#007AFF]/20"
+                          placeholder="Tags..."
+                        />
+                        {(() => {
+                          const lastTag = tempTags.split(',').pop()?.trim() || '';
+                          const suggestions = lastTag ? allTags.filter(t => t.toLowerCase().includes(lastTag.toLowerCase()) && !tempTags.split(',').map(x => x.trim()).includes(t)) : [];
+                          return suggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E5EA] rounded-xl shadow-xl z-[80] overflow-hidden">
+                              {suggestions.slice(0, 3).map(tag => (
+                                <button 
+                                  key={tag} 
+                                  onClick={() => {
+                                    const parts = tempTags.split(',');
+                                    parts.pop();
+                                    const newVal = [...parts.map(p => p.trim()), tag].join(', ') + ', ';
+                                    setTempTags(newVal);
+                                    onUpdate({ tags: newVal.split(',').map(t => t.trim()).filter(Boolean) });
+                                  }} 
+                                  className="w-full text-left px-3 py-2 text-[11px] hover:bg-[#F2F2F7] font-semibold"
+                                >
+                                  #{tag}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-[#F2F2F7] mx-2" />
+
+                    {/* GROUP 2: Actions */}
+                    <div className="space-y-0.5">
+                      <button 
+                        onClick={async (e) => { 
+                          e.stopPropagation();
+                          const text = plainTextFromContent(capsule.content);
+                          if (navigator.share) {
+                            try {
+                              await navigator.share({ title: 'Idea Capsule', text });
+                            } catch (err) { console.log('Share error', err); }
+                          } else {
+                            navigator.clipboard.writeText(text);
+                            alert('Copied to clipboard!');
+                          }
+                          setShowOptions(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                      >
+                        <Share2 size={14} className="text-[#8E8E93]" />
+                        Share Note
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setShowColorPicker(true); setShowOptions(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                      >
+                        <Palette size={14} className="text-[#8E8E93]" />
+                        Change Color
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setShowReminderPicker(true); setShowOptions(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                      >
+                        <Calendar size={14} className="text-[#8E8E93]" />
+                        Set Reminder
+                      </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); onUpdate({ isTodo: !capsule.isTodo }); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7]"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
                       >
-                        {capsule.isTodo ? <Square size={14} /> : <CheckSquare size={14} />}
+                        {capsule.isTodo ? <Square size={14} className="text-[#8E8E93]" /> : <CheckSquare size={14} className="text-[#007AFF]" />}
                         {capsule.isTodo ? 'Cancel To-do' : 'Set To-do'}
                       </button>
-                      <div className="border-t border-[#F2F2F7] my-1 pt-1">
-                        <div className="px-3 py-1.5 text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider">Tags</div>
-                        <div className="px-2 pb-1.5">
-                          <input 
-                            type="text"
-                            placeholder="Add tag..."
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                const val = (e.currentTarget.value).trim().replace('#', '');
-                                if (val && !capsule.tags?.includes(val)) {
-                                  onUpdate({ tags: [...(capsule.tags || []), val] });
-                                  e.currentTarget.value = '';
-                                  setShowOptions(false);
-                                }
-                              }
-                            }}
-                            className="w-full px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF]"
-                          />
-                        </div>
-                      </div>
-                      <div className="border-t border-[#F2F2F7] my-1 pt-1" />
+                    </div>
+
+                    <div className="h-px bg-[#F2F2F7] mx-2" />
+
+                    {/* GROUP 3: Destructive */}
+                    <div className="space-y-0.5">
                       <button 
                         onClick={() => { onUpdate({ isArchived: !capsule.isArchived }); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7]"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
                       >
-                        {capsule.isArchived ? <RotateCcw size={14} /> : <Archive size={14} />}
+                        {capsule.isArchived ? <RotateCcw size={14} className="text-[#8E8E93]" /> : <Archive size={14} className="text-[#8E8E93]" />}
                         {capsule.isArchived ? 'Restore' : 'Archive'}
                       </button>
                       <button 
                         onClick={() => { onUpdate({ isDeleted: true }); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF3B30] hover:bg-[#FF3B30]/10"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF3B30] hover:bg-[#FF3B30]/10 font-bold rounded-lg transition-colors"
                       >
                         <Trash2 size={14} />
                         Delete
                       </button>
-                    </>
-                  )}
-                  {capsule.isDeleted && (
-                    <>
-                      <button 
-                        onClick={() => { onUpdate({ isDeleted: false }); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7]"
-                      >
-                        <RotateCcw size={14} />
-                        Restore
-                      </button>
-                      <button 
-                        onClick={() => { onRemovePermanently(); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF3B30] hover:bg-[#FF3B30]/10"
-                      >
-                        <Trash2 size={14} />
-                        Delete Forever
-                      </button>
-                    </>
-                  )}
+                    </div>
+                  </div>
                 </motion.div>
               </>
             )}
@@ -2829,4 +3006,82 @@ function TagItem({ tag, tagFilter, setTagFilter, setCategoryFilter, removeTag, o
     </div>
   );
 }
+function ProFeaturesModal({ isOpen, onClose, user, onUpgrade }: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  user: any;
+  onUpgrade: () => void;
+}) {
+  const features = [
+    { id: 'ai', icon: '🤖', title: 'AI Smart Categorization', desc: 'Auto-detect categories.' },
+    { id: 'rich', icon: '📝', title: 'Rich Text', desc: 'Advanced Tiptap editor.' },
+    { id: 'voice', icon: '🎙️', title: 'Voice Capture', desc: 'Instant transcription.' },
+    { id: 'native', icon: '🚀', title: 'Native App', desc: 'Android capture bar.' },
+  ];
 
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} 
+      />
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        className="bg-white rounded-[28px] w-full max-w-[320px] overflow-hidden shadow-2xl relative z-10"
+      >
+        <div className="bg-gradient-to-br from-[#AF52DE] to-[#FF2D55] p-5 text-white text-center relative">
+           <button onClick={onClose} className="absolute right-3 top-3 w-7 h-7 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+             <X size={16} />
+           </button>
+           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+             <CrownJewel size={28} />
+           </div>
+           <h2 className="text-xl font-black italic tracking-tight uppercase">Pro Features</h2>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {features.map((f) => (
+            <div key={f.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-[#F2F2F7] transition-colors">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">{f.icon}</span>
+                <div>
+                  <h3 className="text-[13px] font-bold text-[#1D1D1F]">{f.title}</h3>
+                  <p className="text-[10px] text-[#8E8E93] font-medium leading-none mt-0.5">{f.desc}</p>
+                </div>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!user.isPremium) {
+                    onUpgrade();
+                  }
+                }}
+                className={cn(
+                  "w-10 h-5 rounded-full relative transition-colors duration-200 p-0.5 flex-shrink-0",
+                  user.isPremium ? "bg-[#34C759]" : "bg-[#C7C7CC]"
+                )}
+              >
+                <div className={cn(
+                  "w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200",
+                  user.isPremium ? "translate-x-5" : "translate-x-0"
+                )} />
+              </button>
+            </div>
+          ))}
+          
+          {!user.isPremium && (
+            <button 
+              onClick={onUpgrade}
+              className="w-full bg-[#1D1D1F] text-white py-3 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all mt-2 uppercase tracking-widest"
+            >
+              Get Pro Access
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}

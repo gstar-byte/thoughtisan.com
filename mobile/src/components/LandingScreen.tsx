@@ -16,10 +16,11 @@ import { GoogleSignInButton } from './GoogleSignInButton';
 type Props = {
   onEmailAuth: () => void;
   onFacebookPress: () => void;
+  onGuestPress?: () => void;
 };
 
 /** 与 https://idea-capsule-ten.vercel.app/ 主文案、区块结构对齐（简化为 RN 可滚动版） */
-export function LandingScreen({ onEmailAuth, onFacebookPress }: Props) {
+export function LandingScreen({ onEmailAuth, onFacebookPress, onGuestPress }: Props) {
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactMsg, setContactMsg] = useState('');
@@ -81,6 +82,12 @@ export function LandingScreen({ onEmailAuth, onFacebookPress }: Props) {
             <Text style={styles.primaryCtaTxt}>Get Started for Free</Text>
             <ArrowRight size={20} color="#000" />
           </TouchableOpacity>
+
+          {onGuestPress && (
+            <TouchableOpacity style={styles.guestCta} onPress={onGuestPress}>
+              <Text style={styles.guestCtaTxt}>Explore App as Guest</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.socialRow}>
             <GoogleSignInButton variant="dark" />
@@ -326,6 +333,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryCtaTxt: { color: '#000', fontWeight: '900', fontSize: 16 },
+  guestCta: {
+    marginTop: 12,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  guestCtaTxt: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 15 },
   socialRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
