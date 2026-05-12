@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Svg, Rect, Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { Svg, Rect, Circle, Ellipse, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import {
   ActivityIndicator,
   Alert,
@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -19,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
@@ -26,15 +28,20 @@ import {
   Archive,
   Bell,
   Check,
+  ArrowDown,
+  ArrowUp,
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
   Calendar,
-  ExternalLink,
+  Filter,
   Folder,
   Image as ImageIcon,
   LayoutGrid,
   LayoutList,
+  Layers,
   Lock,
   LogOut,
   Mail,
@@ -42,11 +49,14 @@ import {
   MoreVertical,
   Palette,
   PanelLeft,
+  Pin,
   Plus,
   RotateCcw,
   Rocket,
   Search,
   Square,
+  Star,
+  Share as ShareIcon,
   Tag as TagIcon,
   Trash,
   Trash2,
@@ -57,11 +67,12 @@ import {
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import type { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
-import { categorizeThought } from './services/geminiService';
+import { categorizeThought, categorizeThoughtFromAudio } from './services/geminiService';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { CapsuleColorSheet } from './components/CapsuleColorSheet';
 import { CapsuleReminderSheet } from './components/CapsuleReminderSheet';
 import { CapsuleEditorMobile } from './components/CapsuleEditorMobile';
+import { AppLogo } from './components/AppLogo';
 import { LandingScreen } from './components/LandingScreen';
 import { PremiumModalMobile } from './components/PremiumModalMobile';
 import { SettingsModalMobile } from './components/SettingsModalMobile';
@@ -76,6 +87,7 @@ import {
   collection,
   createUserWithEmailAndPassword,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -89,6 +101,12 @@ import {
   where,
   writeBatch,
 } from './lib/firebaseMobile';
+import {
+  getVoiceCaptureCount,
+  incrementVoiceCaptureCount,
+  VOICE_FREE_LIMIT,
+} from './lib/voiceQuota';
+import { hasPremiumAccess, PAYWALL_ACTIVE } from './featureFlags';
 
 function CrownJewel({ size = 36 }: { size?: number }) {
   return (
@@ -118,29 +136,17 @@ function CrownJewel({ size = 36 }: { size?: number }) {
         <Circle cx="64" cy="81" r="3" fill="#00A8E8" />
         <Circle cx="78" cy="81" r="3" fill="#00A8E8" />
       </Svg>
-      {/* Background Glow */}
-      <View style={{ 
-        position: 'absolute', 
-        width: size * 1.5, 
-        height: size * 1.5, 
-        backgroundColor: '#FFD700', 
-        opacity: 0.1, 
-        borderRadius: size, 
-        zIndex: -1 
-      }} />
     </View>
   );
 }
 
 const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
-  { value: 'all', label: 'All Notes' },
-  { value: 'with-todo', label: 'Has To-do' },
-  { value: 'without-todo', label: 'No To-do' },
-  { value: 'completed-todo', label: 'Done To-do' },
-  { value: 'with-reminder', label: 'Has Reminder' },
-  { value: 'without-reminder', label: 'No Reminder' },
-  { value: 'repeat-reminder', label: 'Repeat Reminder' },
-  { value: 'pure-note', label: 'Pure Note' },
+  { value: 'all', label: 'All' },
+  { value: 'pure-note', label: 'Only Notes' },
+  { value: 'pending-todo', label: 'Pending to-do' },
+  { value: 'completed-todo', label: 'Finished to-do' },
+  { value: 'repeat-reminder', label: 'Repeat reminder' },
+  { value: 'finished-reminder', label: 'Finished reminder' },
   { value: 'archived', label: 'Archived' },
   { value: 'trash', label: 'Trash' },
 ];
@@ -164,12 +170,22 @@ function hasRepeatReminder(c: Capsule): boolean {
   return true;
 }
 
-/** Toggling to-do done alone must not change list order (no updatedAt bump). */
+/** One-shot reminder whose scheduled time has passed (not repeating). */
+function hasFinishedOneShotReminder(c: Capsule): boolean {
+  const r = c.reminder;
+  if (!r || r.type === 'none') return false;
+  if (r.type !== 'once') return false;
+  return r.date != null && r.date <= Date.now();
+}
+
+/** Toggling to-do done or pin alone must not change list order (no updatedAt bump). */
 function shouldBumpUpdatedAt(updates: Partial<Capsule>): boolean {
   const keys = (Object.keys(updates) as (keyof Capsule)[]).filter(
     (k) => updates[k] !== undefined,
   );
-  return !(keys.length === 1 && keys[0] === 'completed');
+  if (keys.length === 1 && keys[0] === 'completed') return false;
+  if (keys.length === 1 && keys[0] === 'isPinned') return false;
+  return true;
 }
 
 function formatNoteDateTime(ms?: number): string {
@@ -224,7 +240,99 @@ function capsuleMenuMeta(c: Capsule) {
   return { created, reminderAt, repeat };
 }
 
+function plainTextFromContent(raw: string): string {
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.type !== 'doc' || !Array.isArray(parsed.content)) return raw;
+    const lines: string[] = [];
+    const walk = (nodes: any[]) => {
+      for (const node of nodes) {
+        if (node.type === 'text') { lines.push(node.text || ''); }
+        else if (node.type === 'hardBreak') { lines.push(' '); }
+        else if (node.content) { walk(node.content); }
+        else if (['paragraph','heading','blockquote','listItem','bulletList','orderedList'].includes(node.type)) { lines.push(' '); }
+      }
+    };
+    walk(parsed.content);
+    return lines.join('').trim();
+  } catch { return raw; }
+}
+
+function alertCaptureEmpty() {
+  const title = 'Nothing to save';
+  const body =
+    'Type a note and tap the checkmark, or tap the mic to record and transcribe.';
+  if (Platform.OS === 'web' && typeof globalThis !== 'undefined') {
+    try {
+      (globalThis as unknown as Window).alert(`${title}\n\n${body}`);
+      return;
+    } catch {
+      /* fall through */
+    }
+  }
+  Alert.alert(title, body, [{ text: 'OK' }]);
+}
+
+/** Maps a partial capsule update to Firestore `update()` / batch fields (incl. deleteField). */
+function capsulePartialToFirestoreData(updates: Partial<Capsule>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+  Object.entries(updates).forEach(([k, v]) => {
+    if (k === 'category') {
+      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+        clean[k] = deleteField();
+      } else {
+        clean[k] = v;
+      }
+      return;
+    }
+    if (k === 'tags') {
+      if (v === undefined || v === null || (Array.isArray(v) && v.length === 0)) {
+        clean[k] = deleteField();
+      } else {
+        clean[k] = v;
+      }
+      return;
+    }
+    if (k === 'attachments') {
+      if (v === undefined || v === null || (Array.isArray(v) && v.length === 0)) {
+        clean[k] = deleteField();
+      } else {
+        clean[k] = v;
+      }
+      return;
+    }
+    if (k === 'color') {
+      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+        clean[k] = deleteField();
+      } else {
+        clean[k] = v;
+      }
+      return;
+    }
+    if (k === 'isPinned') {
+      if (!v) {
+        clean[k] = deleteField();
+      } else {
+        clean[k] = v;
+      }
+      return;
+    }
+    if (k === 'reminder') {
+      if (v === undefined || v === null) {
+        clean[k] = deleteField();
+      } else {
+        clean[k] = v;
+      }
+      return;
+    }
+    clean[k] = v === undefined ? null : v;
+  });
+  return clean;
+}
+
 export default function IdeaCapsuleApp() {
+  const searchInputRef = useRef<TextInput>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuthScreen, setShowAuthScreen] = useState(false);
@@ -236,6 +344,22 @@ export default function IdeaCapsuleApp() {
 
   const [capsules, setCapsules] = useState<Capsule[]>([]);
 
+  const handleShareMultiple = async () => {
+    if (selectedIds.length === 0) return;
+    const selectedCaps = capsules.filter(c => selectedIds.includes(c.id));
+    const combinedText = selectedCaps
+      .map(c => plainTextFromContent(c.content))
+      .join('\n\n---\n\n');
+    try {
+      await Share.share({
+        message: combinedText,
+        title: `Share ${selectedIds.length} Notes`,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -246,14 +370,57 @@ export default function IdeaCapsuleApp() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(true);
 
-  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(true);
-  const [isTagsExpanded, setIsTagsExpanded] = useState(true);
+  const [isFilterSectionExpanded, setIsFilterSectionExpanded] = useState(false);
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+  const [isTagsExpanded, setIsTagsExpanded] = useState(false);
+
+  useEffect(() => {
+    const valid =
+      FILTER_OPTIONS.some((o) => o.value === filter) || filter === 'starred';
+    if (!valid) {
+      setFilter('all');
+    }
+  }, [filter]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt'>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncInFlightRef = useRef(false);
+
+  const syncCapsules = useCallback(async () => {
+    if (syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    setIsSyncing(true);
+    try {
+      await new Promise((r) => setTimeout(r, 1000));
+    } finally {
+      syncInFlightRef.current = false;
+      setIsSyncing(false);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncCapsules();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [syncCapsules]);
 
   const [editingCapsule, setEditingCapsule] = useState<Capsule | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [editCategoryDraft, setEditCategoryDraft] = useState('');
+  const [editTagsDraft, setEditTagsDraft] = useState('');
+  const [editCategoryFocused, setEditCategoryFocused] = useState(false);
+  const [editTagsFocused, setEditTagsFocused] = useState(false);
+  const editModalCapsuleIdRef = useRef<string | null>(null);
+  const editingCapsuleRef = useRef<Capsule | null>(null);
+  editingCapsuleRef.current = editingCapsule;
   const [activeMenuCapsule, setActiveMenuCapsule] = useState<Capsule | null>(null);
 
   const [menuCategory, setMenuCategory] = useState('');
@@ -269,41 +436,30 @@ export default function IdeaCapsuleApp() {
 
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [batchColorMultiOpen, setBatchColorMultiOpen] = useState(false);
+  const [batchReminderMultiOpen, setBatchReminderMultiOpen] = useState(false);
 
   const [colorPickerCapsule, setColorPickerCapsule] = useState<Capsule | null>(null);
   const [reminderTarget, setReminderTarget] = useState<Capsule | null>(null);
 
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [isWebListening, setIsWebListening] = useState(false);
+  const voiceRecordingRef = useRef<Audio.Recording | null>(null);
+  const webSpeechRef = useRef<any>(null);
+
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  /** 平台感知 */
+  /** Platform flags */
   const isAndroid = Platform.OS === 'android';
   const isIOS = Platform.OS === 'ios';
 
-  /** Extract readable plain text from either a Tiptap JSON string or legacy plain text. */
-  function plainTextFromContent(raw: string): string {
-    if (!raw) return '';
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed?.type !== 'doc' || !Array.isArray(parsed.content)) return raw;
-      const lines: string[] = [];
-      const walk = (nodes: any[]) => {
-        for (const node of nodes) {
-          if (node.type === 'text') { lines.push(node.text || ''); }
-          else if (node.type === 'hardBreak') { lines.push(' '); }
-          else if (node.content) { walk(node.content); }
-          else if (['paragraph','heading','blockquote','listItem','bulletList','orderedList'].includes(node.type)) { lines.push(' '); }
-        }
-      };
-      walk(parsed.content);
-      return lines.join('').trim();
-    } catch { return raw; }
-  }
+
 
   const sidebarWidth = useMemo(() => {
     if (Platform.OS === 'web') {
-      return Math.min(340, Math.max(220, Math.round(windowWidth * 0.62)));
+      return Math.min(300, Math.max(200, Math.round(windowWidth * 0.45)));
     }
-    return Math.min(200, Math.max(156, Math.round(windowWidth * 0.44)));
+    return Math.min(220, Math.max(160, Math.round(windowWidth * 0.5)));
   }, [windowWidth]);
   const isWideWeb = Platform.OS === 'web' && windowWidth >= 680;
 
@@ -311,7 +467,7 @@ export default function IdeaCapsuleApp() {
 
   useEffect(() => {
     Animated.timing(sidebarAnim, {
-      toValue: isSidebarOpen ? 0 : -sidebarWidth,
+      toValue: isSidebarOpen ? 0 : -sidebarWidth - 50,
       duration: 250,
       useNativeDriver: Platform.OS !== 'web',
     }).start();
@@ -343,6 +499,7 @@ export default function IdeaCapsuleApp() {
                 displayName: firebaseUser.displayName,
                 photoURL: firebaseUser.photoURL,
                 isPremium: false,
+                onboarded: false,
               });
               void setDoc(
                 userDocRef,
@@ -352,6 +509,7 @@ export default function IdeaCapsuleApp() {
                   displayName: firebaseUser.displayName,
                   photoURL: firebaseUser.photoURL,
                   isPremium: false,
+                  onboarded: false,
                   updatedAt: Date.now(),
                 },
                 { merge: true },
@@ -392,36 +550,39 @@ export default function IdeaCapsuleApp() {
         demoSeedInFlightRef.current = false;
         return;
       }
-
-      void (async () => {
-        if (demoSeedInFlightRef.current) return;
-        const key = autoDemoSeedStorageKey(uid);
-        try {
-          const already = await AsyncStorage.getItem(key);
-          if (already === '1') return;
-          demoSeedInFlightRef.current = true;
-          await AsyncStorage.setItem(key, '1');
-          const batch = writeBatch(db);
-          const now = Date.now();
-          for (const seed of AUTO_DEMO_CAPSULES) {
-            const ref = doc(collection(db, 'capsules'));
-            batch.set(ref, {
-              ...seed,
-              userId: uid,
-              createdAt: seed.createdAt ?? now,
-              updatedAt: seed.updatedAt ?? now,
-            });
-          }
-          await batch.commit();
-        } catch (e) {
-          console.error(e);
-          demoSeedInFlightRef.current = false;
-          await AsyncStorage.removeItem(key);
-        }
-      })();
+      // Auto-seeding removed as per new rule: demo data comes from onboarding process.
     });
     return () => unsub();
-  }, [user]);
+  }, [user, sortBy, sortOrder]);
+
+
+  const seedDemoData = async () => {
+    if (!user) return;
+    const uid = user.uid;
+    if (demoSeedInFlightRef.current) return;
+    demoSeedInFlightRef.current = true;
+    setAuthProcessing(true);
+    try {
+      const batch = writeBatch(db);
+      const now = Date.now();
+      for (const seed of AUTO_DEMO_CAPSULES) {
+        const ref = doc(collection(db, 'capsules'));
+        batch.set(ref, {
+          ...seed,
+          userId: uid,
+          createdAt: seed.createdAt ?? now,
+          updatedAt: seed.updatedAt ?? now,
+        });
+      }
+      await batch.commit();
+      await updateDoc(doc(db, 'users', uid), { onboarded: true });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      demoSeedInFlightRef.current = false;
+      setAuthProcessing(false);
+    }
+  };
 
   useEffect(() => {
     if (!user && isGuestMode) {
@@ -446,10 +607,17 @@ export default function IdeaCapsuleApp() {
     return false;
   }, [user]);
 
-  const sortedCapsules = useMemo(
-    () => [...capsules].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
-    [capsules],
-  );
+  const sortedCapsules = useMemo(() => {
+    return [...capsules].sort((a, b) => {
+      const ap = a.isPinned ? 1 : 0;
+      const bp = b.isPinned ? 1 : 0;
+      if (bp !== ap) return bp - ap;
+      const valA = a[sortBy] || 0;
+      const valB = b[sortBy] || 0;
+      if (sortOrder === 'desc') return valB - valA;
+      return valA - valB;
+    });
+  }, [capsules, sortBy, sortOrder]);
 
   const allTags = useMemo(
     () =>
@@ -478,11 +646,11 @@ export default function IdeaCapsuleApp() {
 
   const filteredCapsules = useMemo(() => {
     return sortedCapsules.filter((c) => {
-      const matchesSearch =
-        c.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.tags?.some((t) =>
-          t.toLowerCase().includes(searchQuery.toLowerCase()),
-        ) ?? false);
+      const searchLower = searchQuery.toLowerCase().trim();
+      const matchesSearch = !searchLower || 
+        plainTextFromContent(c.content).toLowerCase().includes(searchLower) ||
+        (c.category?.toLowerCase().includes(searchLower)) ||
+        (c.tags?.some((t) => t.toLowerCase().includes(searchLower)) ?? false);
       const matchesCategory =
         categoryFilter === 'all' || c.category === categoryFilter;
       const matchesTag = !tagFilter || (c.tags && c.tags.includes(tagFilter));
@@ -497,23 +665,32 @@ export default function IdeaCapsuleApp() {
         );
       if (filter === 'trash')
         return matchesSearch && matchesCategory && matchesTag && c.isDeleted;
+      if (filter === 'starred')
+        return (
+          matchesSearch &&
+          matchesCategory &&
+          matchesTag &&
+          !!c.isStarred &&
+          !c.isArchived &&
+          !c.isDeleted
+        );
 
       if (c.isArchived || c.isDeleted) return false;
 
       const matchesAdvanced = (() => {
         switch (filter) {
-          case 'with-todo':
-            return c.isTodo;
+          case 'pending-todo':
+            return c.isTodo && !c.completed;
           case 'without-todo':
             return !c.isTodo;
           case 'completed-todo':
             return c.isTodo && c.completed;
-          case 'with-reminder':
-            return hasActiveReminder(c);
-          case 'without-reminder':
-            return !hasActiveReminder(c);
           case 'repeat-reminder':
             return hasRepeatReminder(c);
+          case 'without-reminder':
+            return !hasActiveReminder(c);
+          case 'finished-reminder':
+            return hasFinishedOneShotReminder(c);
           case 'pure-note':
             return !c.isTodo && !hasActiveReminder(c);
           default:
@@ -524,6 +701,17 @@ export default function IdeaCapsuleApp() {
       return matchesSearch && matchesCategory && matchesTag && matchesAdvanced;
     });
   }, [sortedCapsules, searchQuery, categoryFilter, tagFilter, filter]);
+
+  const allFilteredSelected = useMemo(() => {
+    if (filteredCapsules.length === 0) return false;
+    return filteredCapsules.every((c) => selectedIds.includes(c.id));
+  }, [filteredCapsules, selectedIds]);
+
+  const firstSelectedCapsule = useMemo(
+    () => capsules.find((c) => selectedIds.includes(c.id)),
+    [capsules, selectedIds],
+  );
+
 
   const handleEmailAuth = async () => {
     setAuthError(null);
@@ -566,25 +754,91 @@ export default function IdeaCapsuleApp() {
     }
   };
 
+  const mergeCapsuleUpdates = (c: Capsule, updates: Partial<Capsule>): Capsule => {
+    let n: Capsule = { ...c, ...updates };
+    if (Object.prototype.hasOwnProperty.call(updates, 'category')) {
+      const v = updates.category;
+      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+        const { category: _omit, ...rest } = n;
+        n = rest as Capsule;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'tags')) {
+      const t = updates.tags;
+      if (t === undefined || t === null || (Array.isArray(t) && t.length === 0)) {
+        const { tags: _omit, ...rest } = n;
+        n = rest as Capsule;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'attachments')) {
+      const a = updates.attachments;
+      if (a === undefined || a === null || (Array.isArray(a) && a.length === 0)) {
+        const { attachments: _omit, ...rest } = n;
+        n = rest as Capsule;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'color')) {
+      const col = updates.color;
+      if (col === undefined || col === null || (typeof col === 'string' && col.trim() === '')) {
+        const { color: _omit, ...rest } = n;
+        n = rest as Capsule;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'isPinned')) {
+      if (updates.isPinned !== true) {
+        const { isPinned: _omit, ...rest } = n;
+        n = rest as Capsule;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'reminder')) {
+      const r = updates.reminder;
+      if (r === undefined || r === null) {
+        const { reminder: _omit, ...rest } = n;
+        n = rest as Capsule;
+      }
+    }
+    return n;
+  };
+
   const updateCapsule = useCallback(
     async (id: string, updates: Partial<Capsule>) => {
-      if (requireAuth()) return;
-      if (!user) return;
       const now = Date.now();
-      const bump = shouldBumpUpdatedAt(updates);
-      if (editingCapsule?.id === id) {
-        setEditingCapsule((prev) =>
-          prev
-            ? { ...prev, ...updates, ...(bump ? { updatedAt: now } : {}) }
-            : null,
+      const original = capsules.find((c) => c.id === id);
+      let bump = shouldBumpUpdatedAt(updates);
+      if (updates.content !== undefined && original && original.content === updates.content) {
+        const otherKeys = Object.keys(updates).filter((k) => k !== 'content' && k !== 'updatedAt');
+        if (otherKeys.length === 0) bump = false;
+      }
+
+      if (id.startsWith('demo-')) {
+        setCapsules((prev) =>
+          prev.map((c) => {
+            if (c.id !== id) return c;
+            const merged = mergeCapsuleUpdates(c, updates);
+            return bump ? { ...merged, updatedAt: now } : merged;
+          }),
         );
+        if (editingCapsule?.id === id) {
+          setEditingCapsule((prev) => {
+            if (!prev) return null;
+            const merged = mergeCapsuleUpdates(prev, updates);
+            return bump ? { ...merged, updatedAt: now } : merged;
+          });
+        }
+        return;
+      }
+
+      if (requireAuth()) return;
+      if (editingCapsule?.id === id) {
+        setEditingCapsule((prev) => {
+          if (!prev) return null;
+          const merged = mergeCapsuleUpdates(prev, updates);
+          return bump ? { ...merged, updatedAt: now } : merged;
+        });
       }
       try {
         const docRef = doc(db, 'capsules', id);
-        const clean: Record<string, unknown> = {};
-        Object.entries(updates).forEach(([k, v]) => {
-          clean[k] = v === undefined ? null : v;
-        });
+        const clean = capsulePartialToFirestoreData(updates);
         if (bump) {
           clean.updatedAt = now;
         }
@@ -594,7 +848,7 @@ export default function IdeaCapsuleApp() {
         Alert.alert('Sync failed', 'Could not update the note. Check your network.');
       }
     },
-    [user, editingCapsule?.id],
+    [user, editingCapsule?.id, capsules, requireAuth],
   );
 
   const updateCapsuleRef = useRef(updateCapsule);
@@ -661,6 +915,7 @@ export default function IdeaCapsuleApp() {
       const randomColor =
         PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       const norm = normalizeReminder(reminder);
+      const isTodoResolved = Boolean(isTodo || (norm != null && norm.type !== 'none'));
 
       await addDoc(collection(db, 'capsules'), {
         userId: user.uid,
@@ -670,7 +925,7 @@ export default function IdeaCapsuleApp() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         completed: false,
-        isTodo: isTodo ?? false,
+        isTodo: isTodoResolved,
         isArchived: false,
         isDeleted: false,
         reminder: norm,
@@ -695,25 +950,97 @@ export default function IdeaCapsuleApp() {
     }
   };
 
-  const batchUpdate = async (updates: Partial<Capsule>) => {
-    if (requireAuth()) return;
-    if (!user || selectedIds.length === 0) return;
-    try {
-      const batch = writeBatch(db);
-      const now = Date.now();
-      const bump = shouldBumpUpdatedAt(updates);
-      selectedIds.forEach((id) => {
-        batch.update(
-          doc(db, 'capsules', id),
-          bump ? { ...updates, updatedAt: now } : { ...updates },
-        );
-      });
-      await batch.commit();
-      setSelectedIds([]);
-      setIsMultiSelectMode(false);
-    } catch (e) {
-      console.error(e);
+  const handleCreateCapsuleRef = useRef(handleCreateCapsule);
+  handleCreateCapsuleRef.current = handleCreateCapsule;
+  const userForVoiceRef = useRef<UserProfile | null>(null);
+  userForVoiceRef.current = user;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const win = typeof globalThis !== 'undefined' ? (globalThis as unknown as Window & {
+      webkitSpeechRecognition?: new () => any;
+      SpeechRecognition?: new () => any;
+    }) : null;
+    const SpeechRec =
+      win &&
+      (typeof win.webkitSpeechRecognition === 'function'
+        ? win.webkitSpeechRecognition
+        : typeof win.SpeechRecognition === 'function'
+          ? win.SpeechRecognition
+          : null);
+    if (!win || !SpeechRec) {
+      return;
     }
+    const recognition = new SpeechRec();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'zh-CN';
+
+    recognition.onresult = (event: any) => {
+      const transcript = event?.results?.[0]?.[0]?.transcript as string | undefined;
+      if (transcript?.trim()) {
+        void (async () => {
+          await handleCreateCapsuleRef.current(transcript.trim());
+          const u = userForVoiceRef.current;
+          if (u && !hasPremiumAccess(u)) {
+            await incrementVoiceCaptureCount(u.uid);
+          }
+        })();
+      }
+      setIsWebListening(false);
+    };
+    recognition.onerror = () => setIsWebListening(false);
+    recognition.onend = () => setIsWebListening(false);
+    webSpeechRef.current = recognition;
+    return () => {
+      webSpeechRef.current = null;
+    };
+  }, []);
+
+  const batchUpdate = async (updates: Partial<Capsule>) => {
+    if (selectedIds.length === 0) return;
+
+    const demoIds = selectedIds.filter((id) => id.startsWith('demo-'));
+    const realIds = selectedIds.filter((id) => !id.startsWith('demo-'));
+
+    if (realIds.length > 0) {
+      if (requireAuth()) return;
+      if (!user) return;
+    }
+
+    const now = Date.now();
+    const bump = shouldBumpUpdatedAt(updates);
+
+    if (demoIds.length > 0) {
+      setCapsules((prev) =>
+        prev.map((c) => {
+          if (!demoIds.includes(c.id)) return c;
+          const merged = mergeCapsuleUpdates(c, updates);
+          return bump ? { ...merged, updatedAt: now } : merged;
+        }),
+      );
+    }
+
+    if (realIds.length > 0) {
+      try {
+        const batch = writeBatch(db);
+        const clean = capsulePartialToFirestoreData(updates);
+        if (bump) {
+          clean.updatedAt = now;
+        }
+        realIds.forEach((id) => {
+          batch.update(doc(db, 'capsules', id), { ...clean } as Record<string, unknown>);
+        });
+        await batch.commit();
+      } catch (e) {
+        console.error(e);
+        Alert.alert('Sync failed', 'Could not update notes. Check your network.');
+        return;
+      }
+    }
+
+    setSelectedIds([]);
+    setIsMultiSelectMode(false);
   };
 
   const batchRemovePermanently = async () => {
@@ -784,7 +1111,7 @@ export default function IdeaCapsuleApp() {
     const asset = res.assets[0];
     const isVideo = asset.type === 'video';
 
-    if (!user?.isPremium && (isVideo || (asset.fileSize ?? 0) > 5 * 1024 * 1024)) {
+    if (!hasPremiumAccess(user) && (isVideo || (asset.fileSize ?? 0) > 5 * 1024 * 1024)) {
       setShowPremiumModal(true);
       return;
     }
@@ -812,24 +1139,156 @@ export default function IdeaCapsuleApp() {
   };
 
   const removeAttachmentAt = async (index: number) => {
-    const cap = editingCapsule;
+    const cap = editingCapsuleRef.current;
     if (!cap) return;
     const prev = cap.attachments || [];
     if (index < 0 || index >= prev.length) return;
     const next = prev.filter((_, j) => j !== index);
-    await updateCapsule(cap.id, { attachments: next.length > 0 ? next : [] });
+    await updateCapsule(cap.id, {
+      attachments: next.length > 0 ? next : undefined,
+    });
     setEditingCapsule((e) =>
-      e?.id === cap.id ? { ...e, attachments: next.length ? next : undefined } : e,
+      e?.id === cap.id
+        ? mergeCapsuleUpdates(e, {
+            attachments: next.length > 0 ? next : undefined,
+          })
+        : e,
     );
   };
 
-  const startVoice = () => {
+  const startVoice = async () => {
     if (requireAuth()) return;
-    if (!user?.isPremium) {
-      setShowPremiumModal(true);
+    if (!user) return;
+
+    if (Platform.OS === 'web') {
+      if (!hasPremiumAccess(user)) {
+        const used = await getVoiceCaptureCount(user.uid);
+        if (used >= VOICE_FREE_LIMIT) {
+          setShowPremiumModal(true);
+          return;
+        }
+      }
+      const rec = webSpeechRef.current;
+      if (!rec) {
+        Alert.alert(
+          'Voice',
+          'This browser does not support dictation. Try Chrome or Edge.',
+        );
+        return;
+      }
+      try {
+        setIsWebListening(true);
+        rec.start();
+      } catch {
+        setIsWebListening(false);
+        Alert.alert('Voice', 'Could not start dictation. Check microphone permission.');
+      }
       return;
     }
-    Alert.alert('Coming soon', 'Voice capture on Android will arrive in a future update.');
+
+    if (!hasPremiumAccess(user)) {
+      const used = await getVoiceCaptureCount(user.uid);
+      if (used >= VOICE_FREE_LIMIT) {
+        setShowPremiumModal(true);
+        return;
+      }
+    }
+
+    if (isVoiceRecording && voiceRecordingRef.current) {
+      const prev = voiceRecordingRef.current;
+      voiceRecordingRef.current = null;
+      try {
+        await prev.stopAndUnloadAsync();
+      } catch (e) {
+        console.error(e);
+        setIsVoiceRecording(false);
+        return;
+      }
+      setIsVoiceRecording(false);
+      const uri = prev.getURI();
+      if (!uri) {
+        Alert.alert('Voice', 'Could not save the recording file.');
+        return;
+      }
+      let base64: string;
+      try {
+        base64 = await readAsStringAsync(uri, {
+          encoding: EncodingType.Base64,
+        });
+      } catch (e) {
+        console.error(e);
+        Alert.alert('Voice', 'Could not read the recording.');
+        return;
+      }
+      setIsProcessing(true);
+      try {
+        const meta = await categorizeThoughtFromAudio(base64, 'audio/mp4');
+        const refined = meta.refinedContent?.trim() || '';
+        if (!refined) {
+          Alert.alert(
+            'Voice',
+            'Could not transcribe audio. Check your network and Gemini API key.',
+          );
+          return;
+        }
+        const randomColor =
+          PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+        const norm = normalizeReminder(meta.reminder);
+        const isTodoResolved = Boolean(
+          meta.isTodo || (norm != null && norm.type !== 'none'),
+        );
+        await addDoc(collection(db, 'capsules'), {
+          userId: user.uid,
+          content: JSON.stringify({
+            type: 'doc',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: refined }],
+              },
+            ],
+          }),
+          category: meta.category || undefined,
+          tags: meta.tags && meta.tags.length > 0 ? meta.tags : undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          completed: false,
+          isTodo: isTodoResolved,
+          isArchived: false,
+          isDeleted: false,
+          reminder: norm,
+          color: randomColor,
+        });
+        if (!hasPremiumAccess(user)) {
+          await incrementVoiceCaptureCount(user.uid);
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    try {
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Microphone', 'Microphone access is required to record a voice note.');
+        return;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+      const rec = new Audio.Recording();
+      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await rec.startAsync();
+      voiceRecordingRef.current = rec;
+      setIsVoiceRecording(true);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Voice', 'Could not start recording.');
+      setIsVoiceRecording(false);
+      voiceRecordingRef.current = null;
+    }
   };
 
   const openMenu = (c: Capsule) => {
@@ -942,6 +1401,30 @@ export default function IdeaCapsuleApp() {
     [activeMenuCapsule, updateCapsule],
   );
 
+  const removeMenuTag = useCallback(
+    (tagToRemove: string) => {
+      if (!activeMenuCapsule || activeMenuCapsule.isDeleted) return;
+      const id = activeMenuCapsule.id;
+      const nextTags = (activeMenuCapsule.tags || []).filter((t) => t !== tagToRemove);
+      void updateCapsule(id, { tags: nextTags.length ? nextTags : undefined });
+      setActiveMenuCapsule((prev) =>
+        prev?.id === id ? { ...prev, tags: nextTags.length ? nextTags : undefined } : prev,
+      );
+    },
+    [activeMenuCapsule, updateCapsule],
+  );
+
+  const clearMenuCategory = useCallback(() => {
+    if (!activeMenuCapsule || activeMenuCapsule.isDeleted) return;
+    const id = activeMenuCapsule.id;
+    setMenuCategory('');
+    categoryMenuSentRef.current = '';
+    void updateCapsule(id, { category: undefined });
+    setActiveMenuCapsule((prev) =>
+      prev?.id === id ? { ...prev, category: undefined } : prev,
+    );
+  }, [activeMenuCapsule, updateCapsule]);
+
   /** Category autocomplete while focused—prefix match. */
   const menuCategoryAutocomplete = useMemo(() => {
     if (!menuCategoryFocused) return [];
@@ -971,24 +1454,85 @@ export default function IdeaCapsuleApp() {
       .slice(0, 12);
   }, [menuTagFocused, menuTagInput, allTags, activeMenuCapsule]);
 
+  const editCategorySuggestions = useMemo(() => {
+    if (!editCategoryFocused) return [];
+    const q = editCategoryDraft.trim();
+    if (!q) return [];
+    const ql = q.toLowerCase();
+    return allCategories
+      .filter((c) => {
+        const cl = c.toLowerCase();
+        return cl.startsWith(ql) && cl !== ql;
+      })
+      .slice(0, 8);
+  }, [editCategoryFocused, editCategoryDraft, allCategories]);
+
+  const editTagSuggestions = useMemo(() => {
+    if (!editTagsFocused) return [];
+    const parts = editTagsDraft.split(',');
+    const raw = (parts[parts.length - 1] || '').trim().replace(/^#/, '');
+    if (!raw) return [];
+    const ql = raw.toLowerCase();
+    const existing = new Set(
+      parts
+        .slice(0, -1)
+        .map((p) => p.trim().toLowerCase())
+        .filter(Boolean),
+    );
+    return allTags
+      .filter((t) => {
+        const tl = t.toLowerCase();
+        return tl.includes(ql) && !existing.has(tl) && tl !== ql;
+      })
+      .slice(0, 8);
+  }, [editTagsFocused, editTagsDraft, allTags]);
+
   const saveEdit = useCallback(() => {
     if (!editingCapsule) return;
     const id = editingCapsule.id;
+    const original = capsules.find((c) => c.id === id);
     const content = editContent;
-    const original = allCapsules.find(c => c.id === id);
-    const updates: Partial<Capsule> = { content };
-    
-    // Only bump updatedAt if the content has actually changed
-    if (original && original.content !== content) {
-      updates.updatedAt = Date.now();
+    const catTrim = editCategoryDraft.trim();
+    const tagParts = editTagsDraft.split(',').map((t) => t.trim()).filter(Boolean);
+
+    const tagSig = (arr: string[]) =>
+      [...arr].map((t) => t.trim()).filter(Boolean).sort().join('\0');
+
+    const updates: Partial<Capsule> = {};
+    if (!original || original.content !== content) {
+      updates.content = content;
     }
-    
+    const prevCat = (original?.category || '').trim();
+    if (prevCat !== catTrim) {
+      updates.category = catTrim ? catTrim : undefined;
+    }
+    if (tagSig(original?.tags || []) !== tagSig(tagParts)) {
+      updates.tags = tagParts.length ? tagParts : undefined;
+    }
+
     setEditingCapsule(null);
+    if (Object.keys(updates).length === 0) return;
     void updateCapsule(id, updates);
-  }, [editingCapsule, editContent, updateCapsule, allCapsules]);
+  }, [
+    editingCapsule,
+    editContent,
+    editCategoryDraft,
+    editTagsDraft,
+    updateCapsule,
+    capsules,
+  ]);
 
   useEffect(() => {
-    if (editingCapsule) setEditContent(editingCapsule.content);
+    if (!editingCapsule) {
+      editModalCapsuleIdRef.current = null;
+      return;
+    }
+    if (editModalCapsuleIdRef.current !== editingCapsule.id) {
+      editModalCapsuleIdRef.current = editingCapsule.id;
+      setEditContent(editingCapsule.content);
+      setEditCategoryDraft(editingCapsule.category || '');
+      setEditTagsDraft((editingCapsule.tags || []).join(', '));
+    }
   }, [editingCapsule]);
 
   if (authLoading) {
@@ -1110,27 +1654,37 @@ export default function IdeaCapsuleApp() {
     );
   }
 
-  const filterLabel = FILTER_OPTIONS.find((f) => f.value === filter)?.label ?? 'All Notes';
+  const filterLabel = FILTER_OPTIONS.find((f) => f.value === filter)?.label ?? 'Filter';
   const scrollPadX = 8;
   const gridGap = 8;
-  const gridColWidth = Math.max(
-    136,
-    Math.floor((windowWidth - scrollPadX * 2 - gridGap) / 2),
+  const layoutInnerWidth =
+    isWideWeb ? Math.min(windowWidth, 720) : windowWidth;
+  const gridAvail = Math.max(0, layoutInnerWidth - scrollPadX * 2);
+  const minGridTile = 148;
+  const gridCols = Math.min(
+    8,
+    Math.max(2, Math.floor((gridAvail + gridGap) / (minGridTile + gridGap))),
+  );
+  const gridColWidth = Math.floor(
+    (gridAvail - gridGap * (gridCols - 1)) / gridCols,
   );
   const menuSheetWidth = Math.min(236, windowWidth - 36);
   const filterMenuTop = insets.top + 60;
   const listBottomPad = 14;
 
+  const isSidebarScopeFilterActive =
+    categoryFilter !== 'all' || tagFilter !== null || filter !== 'all';
   const isSidebarListScopeActive =
-    categoryFilter !== 'all' || tagFilter !== null;
+    categoryFilter !== 'all' || tagFilter !== null || filter === 'starred';
   const topFilterShowsNA =
     isSidebarListScopeActive && filter !== 'archived' && filter !== 'trash';
 
   const filterChipLabel = (() => {
     if (topFilterShowsNA) return 'N/A';
     const lbl = filterLabel;
-    return lbl.length > 11 ? `${lbl.slice(0, 10)}…` : lbl;
+    return lbl;
   })();
+
 
   return (
     <View
@@ -1158,52 +1712,33 @@ export default function IdeaCapsuleApp() {
               style={s.headerIconHit}
               accessibilityRole="button"
               accessibilityLabel={
-                isSidebarListScopeActive
-                  ? 'Categories and tags — sidebar filter is active'
+                isSidebarScopeFilterActive
+                  ? 'Open sidebar — a filter is active'
                   : 'Categories and tags'
               }
             >
               <PanelLeft size={24} color="#007AFF" />
             </TouchableOpacity>
-            {isSidebarListScopeActive ? (
+            {isSidebarScopeFilterActive ? (
               <View style={s.sidebarScopeDot} pointerEvents="none" />
             ) : null}
           </View>
-          <View style={s.searchWrap}>
+          <TouchableOpacity 
+            style={s.searchWrap} 
+            activeOpacity={1} 
+            onPress={() => searchInputRef.current?.focus()}
+          >
             <Search size={17} color="#8E8E93" />
             <TextInput
+              ref={searchInputRef}
               style={s.searchIn}
               placeholder="Search…"
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor="#8E8E93"
+              returnKeyType="search"
             />
-          </View>
-          {topFilterShowsNA ? (
-            <View
-              style={[s.filterPillInline, s.filterPillInlineMuted]}
-              accessibilityRole="text"
-              accessibilityLabel="Filter not available while category or tag is selected in the sidebar"
-            >
-              <Text
-                style={[s.filterPillInlineTxt, s.filterPillInlineTxtMuted]}
-                numberOfLines={1}
-              >
-                {filterChipLabel}
-              </Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={s.filterPillInline}
-              onPress={() => setIsFilterMenuOpen(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={s.filterPillInlineTxt} numberOfLines={1}>
-                {filterChipLabel}
-              </Text>
-              <ChevronDown size={12} color="#8E8E93" />
-            </TouchableOpacity>
-          )}
+          </TouchableOpacity>
           <View style={s.iconsRow}>
             <TouchableOpacity
               style={s.headerIconHit}
@@ -1213,15 +1748,22 @@ export default function IdeaCapsuleApp() {
               accessibilityLabel={viewMode === 'list' ? 'Switch to grid view' : 'Switch to list view'}
             >
               {viewMode === 'list' ? (
-                <LayoutGrid size={23} color="#1D1D1F" />
+                <LayoutGrid size={22} color="#1D1D1F" />
               ) : (
-                <LayoutList size={23} color="#1D1D1F" />
+                <LayoutList size={22} color="#1D1D1F" />
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.headerIconHit}
+              onPress={() => setIsSortMenuOpen(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ArrowDownNarrowWide size={22} color="#1D1D1F" />
             </TouchableOpacity>
             <TouchableOpacity
               style={s.headerIconHit}
               onPress={() => {
-                if (requireAuth()) return;
                 setShowSettings(true);
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1239,6 +1781,15 @@ export default function IdeaCapsuleApp() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={Platform.OS === 'android'}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing || isSyncing}
+              onRefresh={onRefresh}
+              tintColor="#007AFF"
+              title={isSyncing || refreshing ? 'Syncing…' : 'Pull to sync'}
+              titleColor="#8E8E93"
+            />
+          }
         >
           <View style={viewMode === 'grid' ? s.gridRow : s.listCol}>
             {filteredCapsules.map((item) => (
@@ -1297,35 +1848,76 @@ export default function IdeaCapsuleApp() {
                 />
               </View>
             ))}
+            {filteredCapsules.length === 0 && (
+              <View style={s.emptyWrap}>
+                <View style={s.emptyCircle}>
+                  <Plus size={32} color="#8E8E93" />
+                </View>
+                <Text style={s.emptyTxt}>No capsules found in this view.</Text>
+                {!user?.onboarded && (
+                  <TouchableOpacity 
+                    style={s.demoBtn} 
+                    onPress={seedDemoData}
+                    disabled={authProcessing}
+                  >
+                    <Zap size={16} color="#FFF" />
+                    <Text style={s.demoBtnTxt}>{authProcessing ? 'Generating...' : 'Generate Demo Data'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         </ScrollView>
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? Math.max(insets.top, 12) + 8 : 0}
           style={s.captureBarWrap}
         >
-          <View style={[s.captureBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <TouchableOpacity onPress={startVoice} style={s.iconBtn}>
-              <Mic size={22} color="#1D1D1F" />
+          <View style={[s.captureBar, { paddingBottom: Math.max(insets.bottom, 12), paddingTop: 8 }]}>
+            <TouchableOpacity
+              onPress={startVoice}
+              style={[s.iconBtn, s.captureBarHit]}
+              disabled={(isProcessing && !isVoiceRecording) || isWebListening}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {isVoiceRecording || isWebListening ? (
+                <ActivityIndicator size="small" color="#FF3B30" />
+              ) : (
+                <Mic size={22} color="#1D1D1F" />
+              )}
             </TouchableOpacity>
             <TextInput
               style={s.captureInput}
               placeholder="Capture an idea…"
               value={inputText}
               onChangeText={setInputText}
-              onSubmitEditing={() => handleCreateCapsule(inputText)}
+              onSubmitEditing={() => {
+                if (!inputText.trim()) {
+                  alertCaptureEmpty();
+                  return;
+                }
+                handleCreateCapsule(inputText);
+              }}
               placeholderTextColor="#8E8E93"
+              multiline={false}
+              returnKeyType="done"
             />
             <TouchableOpacity
-              style={s.fab}
+              style={[s.fab, s.captureBarHit]}
               disabled={isProcessing}
-              onPress={() => handleCreateCapsule(inputText)}
+              onPress={() => {
+                if (!inputText.trim()) {
+                  alertCaptureEmpty();
+                  return;
+                }
+                handleCreateCapsule(inputText);
+              }}
             >
               {isProcessing ? (
                 <ActivityIndicator color="#FFF" size="small" />
               ) : (
-                <Plus size={24} color="#FFF" />
+                <Check size={22} color="#FFF" strokeWidth={3} />
               )}
             </TouchableOpacity>
           </View>
@@ -1341,40 +1933,209 @@ export default function IdeaCapsuleApp() {
           pointerEvents={isSidebarOpen ? 'auto' : 'none'}
           style={[
             s.sidebar,
-            { width: sidebarWidth, transform: [{ translateX: sidebarAnim }] },
+            { 
+              width: sidebarWidth, 
+              paddingTop: insets.top,
+              transform: [{ translateX: sidebarAnim }] 
+            },
           ]}
         >
-          <View style={s.sideTop}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={s.logoBox}>
-                <Rocket size={20} color="#FF3B30" />
+          <View style={s.sideHead}>
+            <View style={s.sideHeadLeft}>
+              <View style={s.logoMini}>
+                <AppLogo width={36} height={36} />
               </View>
-              <Text style={s.brand}>Idea Capsule</Text>
-            </View>
-            <View style={s.sideCloseBtnWrap}>
-              <TouchableOpacity onPress={() => setIsSidebarOpen(false)}>
-                <ChevronLeft size={24} color="#C7C7CC" />
-              </TouchableOpacity>
-              {isSidebarListScopeActive ? (
-                <View style={s.sidebarScopeDotSide} pointerEvents="none" />
-              ) : null}
             </View>
           </View>
           <ScrollView
             style={s.sideScroll}
             contentContainerStyle={s.sideScrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing || isSyncing}
+                onRefresh={onRefresh}
+                tintColor="#007AFF"
+                title={isSyncing || refreshing ? 'Syncing…' : 'Pull to sync'}
+                titleColor="#8E8E93"
+              />
+            }
           >
-            <SidebarRow
-              label="All Notes"
-              count={sortedCapsules.filter((c) => !c.isArchived && !c.isDeleted).length}
-              active={categoryFilter === 'all' && !tagFilter}
-              onPress={() => {
-                setCategoryFilter('all');
-                setTagFilter(null);
-                setIsSidebarOpen(false);
-              }}
-            />
+
+            <View
+              style={[
+                s.sideNavPillWrap,
+                filter === 'all' &&
+                  categoryFilter === 'all' &&
+                  tagFilter === null && {
+                    backgroundColor: 'transparent',
+                    borderWidth: 0,
+                  },
+              ]}
+            >
+              <SidebarRow
+                label="All"
+                count={
+                  capsules.filter((c) => !c.isArchived && !c.isDeleted).length
+                }
+                active={
+                  filter === 'all' &&
+                  categoryFilter === 'all' &&
+                  tagFilter === null
+                }
+                icon="all"
+                onPress={() => {
+                  setFilter('all');
+                  setCategoryFilter('all');
+                  setTagFilter(null);
+                  setIsSidebarOpen(false);
+                }}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                s.sideSectionHead,
+                isFilterSectionExpanded && {
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                  marginBottom: 0,
+                },
+              ]}
+              onPress={() => setIsFilterSectionExpanded(!isFilterSectionExpanded)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Filter size={20} color="#007AFF" strokeWidth={2.2} />
+                <Text style={s.sideSectionTitle}>Filter</Text>
+              </View>
+              <ChevronDown
+                size={18}
+                color="#636366"
+                style={{ transform: [{ rotate: isFilterSectionExpanded ? '0deg' : '-90deg' }] }}
+              />
+            </TouchableOpacity>
+
+            {isFilterSectionExpanded && (
+              <View style={{ backgroundColor: '#F9F9F9', borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingBottom: 4, marginBottom: 10 }}>
+                <SidebarRow
+                  label="Only Notes"
+                  count={
+                    capsules.filter(
+                      (c) =>
+                        !c.isDeleted && !c.isArchived && !c.isTodo && !hasActiveReminder(c),
+                    ).length
+                  }
+                  isSub
+                  active={filter === 'pure-note'}
+                  onPress={() => {
+                    setFilter('pure-note');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+                <SidebarRow
+                  label="Pending to-do"
+                  count={capsules.filter(c => !c.isDeleted && !c.isArchived && c.isTodo && !c.completed).length}
+                  isSub
+                  active={filter === 'pending-todo'}
+                  onPress={() => {
+                    setFilter('pending-todo');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+                <SidebarRow
+                  label="Finished to-do"
+                  count={capsules.filter(c => !c.isDeleted && !c.isArchived && c.isTodo && c.completed).length}
+                  isSub
+                  active={filter === 'completed-todo'}
+                  onPress={() => {
+                    setFilter('completed-todo');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+                <SidebarRow
+                  label="Repeat reminder"
+                  count={capsules.filter(c => !c.isDeleted && !c.isArchived && hasRepeatReminder(c)).length}
+                  isSub
+                  active={filter === 'repeat-reminder'}
+                  onPress={() => {
+                    setFilter('repeat-reminder');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+                <SidebarRow
+                  label="Finished reminder"
+                  count={capsules.filter(c => !c.isDeleted && !c.isArchived && hasFinishedOneShotReminder(c)).length}
+                  isSub
+                  active={filter === 'finished-reminder'}
+                  onPress={() => {
+                    setFilter('finished-reminder');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+                <SidebarRow
+                  label="Archived"
+                  count={capsules.filter(c => c.isArchived && !c.isDeleted).length}
+                  isSub
+                  active={filter === 'archived'}
+                  onPress={() => {
+                    setFilter('archived');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+                <SidebarRow
+                  label="Trash"
+                  count={capsules.filter(c => c.isDeleted).length}
+                  isSub
+                  active={filter === 'trash'}
+                  onPress={() => {
+                    setFilter('trash');
+                    setCategoryFilter('all');
+                    setTagFilter(null);
+                    setIsSidebarOpen(false);
+                  }}
+                />
+              </View>
+            )}
+
+            <View
+              style={[
+                s.sideNavPillWrap,
+                filter === 'starred' && {
+                  backgroundColor: 'transparent',
+                  borderWidth: 0,
+                },
+              ]}
+            >
+              <SidebarRow
+                label="Starred"
+                count={
+                  capsules.filter(
+                    (c) => c.isStarred && !c.isArchived && !c.isDeleted,
+                  ).length
+                }
+                active={filter === 'starred'}
+                icon="star"
+                onPress={() => {
+                  setFilter('starred');
+                  setCategoryFilter('all');
+                  setTagFilter(null);
+                  setIsSidebarOpen(false);
+                }}
+              />
+            </View>
+
             <TouchableOpacity
               style={s.sideSectionHead}
               onPress={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
@@ -1402,6 +2163,7 @@ export default function IdeaCapsuleApp() {
                   onPress={() => {
                     setCategoryFilter(cat);
                     setTagFilter(null);
+                    if (filter === 'starred' || filter === 'archived' || filter === 'trash') setFilter('all');
                     setIsSidebarOpen(false);
                   }}
                 />
@@ -1430,6 +2192,8 @@ export default function IdeaCapsuleApp() {
                   active={tagFilter === t}
                   onPress={() => {
                     setTagFilter(tagFilter === t ? null : t);
+                    setCategoryFilter('all');
+                    if (filter === 'starred' || filter === 'archived' || filter === 'trash') setFilter('all');
                     setIsSidebarOpen(false);
                   }}
                 />
@@ -1437,8 +2201,8 @@ export default function IdeaCapsuleApp() {
           </ScrollView>
           <View style={[s.sideFooter, { paddingBottom: Math.max(insets.bottom, 10) }]}>
             <View style={s.userCard}>
-              {user.photoURL ? (
-                <Image source={{ uri: user.photoURL }} style={s.userAvatar} />
+              {user?.photoURL ? (
+                <Image source={{ uri: user?.photoURL }} style={s.userAvatar} />
               ) : (
                 <View style={s.userAvatarPlaceholder}>
                   <UserIcon size={20} color="#FFF" />
@@ -1447,9 +2211,9 @@ export default function IdeaCapsuleApp() {
               <View style={s.userMeta}>
                 <View style={s.userTitleRow}>
                   <Text style={s.userName} numberOfLines={1}>
-                    {user.displayName || 'User'}
+                    {user?.displayName || (user ? 'User' : 'Guest')}
                   </Text>
-                  {user.isPremium ? (
+                  {PAYWALL_ACTIVE && user?.isPremium ? (
                     <View style={s.userProBadge}>
                       <Text style={s.userProCrown}>👑</Text>
                       <Text style={s.userProTxt}>PRO</Text>
@@ -1460,11 +2224,18 @@ export default function IdeaCapsuleApp() {
                   style={s.signOutRow}
                   onPress={() => {
                     setIsSidebarOpen(false);
-                    void signOut(auth);
+                    if (!user) {
+                      setIsGuestMode(false);
+                      setShowAuthScreen(true);
+                    } else {
+                      void signOut(auth);
+                    }
                   }}
                 >
-                  <LogOut size={12} color="#FF3B30" />
-                  <Text style={s.signOutTxt}>Sign Out</Text>
+                  <LogOut size={12} color={user ? "#FF3B30" : "#007AFF"} />
+                  <Text style={[s.signOutTxt, !user && { color: '#007AFF' }]}>
+                    {user ? 'Sign Out' : 'Sign In'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1488,6 +2259,8 @@ export default function IdeaCapsuleApp() {
                     style={s.mItem}
                     onPress={() => {
                       setFilter(opt.value);
+                      setCategoryFilter('all');
+                      setTagFilter(null);
                       setIsFilterMenuOpen(false);
                     }}
                   >
@@ -1505,21 +2278,21 @@ export default function IdeaCapsuleApp() {
         </Modal>
 
         <Modal transparent visible={!!activeMenuCapsule} animationType="fade">
-          <View style={s.modalRoot}>
-            <Pressable
-              style={[StyleSheet.absoluteFillObject, s.modalBackdrop]}
-              onPress={closeNotesMenu}
-            />
-            <View
-              style={[StyleSheet.absoluteFillObject, s.modalFrontCenter]}
-              pointerEvents="box-none"
+          <Pressable
+            style={[
+              s.modalRoot,
+              s.modalBackdrop,
+              s.modalFrontCenter,
+            ]}
+            onPress={closeNotesMenu}
+            accessibilityRole="button"
+            accessibilityLabel="Close menu"
+          >
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              style={{ maxHeight: windowHeight * 0.85, width: menuSheetWidth }}
+              contentContainerStyle={{ paddingBottom: 6 }}
             >
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                style={{ maxHeight: windowHeight * 0.85, width: menuSheetWidth }}
-                contentContainerStyle={{ paddingBottom: 6 }}
-                pointerEvents="auto"
-              >
                 <View style={[s.threeDotsBox, { width: menuSheetWidth }]}>
                   {/* Menu Header - Just categories/tags inputs now */}
                   {activeMenuCapsule && !activeMenuCapsule.isDeleted ? (
@@ -1529,9 +2302,9 @@ export default function IdeaCapsuleApp() {
                         <View style={[s.menuSec, s.menuSecTightTop, { backgroundColor: 'transparent' }]}>
                           <Text style={s.menuSecTxt}>Category & Tags</Text>
                         </View>
-                        <View style={s.menuInputWrap}>
+                        <View style={[s.menuInputWrap, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
                           <TextInput
-                            style={s.menuInput}
+                            style={[s.menuInput, { flex: 1 }]}
                             value={menuCategory}
                             onChangeText={setMenuCategory}
                             placeholder="Category..."
@@ -1546,6 +2319,11 @@ export default function IdeaCapsuleApp() {
                             blurOnSubmit={true}
                             returnKeyType="done"
                           />
+                          {(menuCategory.trim() || activeMenuCapsule.category) ? (
+                            <Pressable onPress={clearMenuCategory} hitSlop={12} accessibilityLabel="Clear category">
+                              <X size={18} color="#8E8E93" />
+                            </Pressable>
+                          ) : null}
                         </View>
                         {menuCategoryAutocomplete.length > 0 && (
                           <View style={s.menuAutocompleteBox}>
@@ -1568,7 +2346,16 @@ export default function IdeaCapsuleApp() {
                           <View style={[s.menuTagChipsRow, { marginTop: 6 }]}>
                             {(activeMenuCapsule.tags || []).map((t) => (
                               <View key={t} style={s.menuTagChip}>
-                                <Text style={s.menuTagChipTxt}>#{t}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                  <Text style={s.menuTagChipTxt}>#{t}</Text>
+                                  <Pressable
+                                    onPress={() => removeMenuTag(t)}
+                                    hitSlop={10}
+                                    accessibilityLabel={`Remove tag ${t}`}
+                                  >
+                                    <X size={14} color="#007AFF" />
+                                  </Pressable>
+                                </View>
                               </View>
                             ))}
                           </View>
@@ -1609,25 +2396,26 @@ export default function IdeaCapsuleApp() {
 
                       <View style={s.menuHairline} />
 
-                      {/* GROUP 2: Actions */}
+                      {/* GROUP 2: Actions (single note only) */}
                       <View style={{ paddingVertical: 4 }}>
                         <TouchableOpacity
                           style={s.mItem}
-                          onPress={async () => {
-                            try {
-                              const text = plainTextFromContent(activeMenuCapsule.content);
-                              await Share.share({
-                                message: text,
-                                title: 'Share Note',
-                              });
-                            } catch (error) {
-                              console.error('Share failed:', error);
-                            }
-                            closeNotesMenu();
+                          onPress={() => {
+                            if (!activeMenuCapsule) return;
+                            const merged = flushMenuTag() ?? activeMenuCapsule;
+                            void updateCapsule(merged.id, { isStarred: !merged.isStarred });
+                            setMenuTagInput('');
+                            setActiveMenuCapsule(null);
                           }}
                         >
-                          <ExternalLink size={18} color="#8E8E93" />
-                          <Text style={s.mItemTxt}>Share</Text>
+                          <Star
+                            size={18}
+                            color="#007AFF"
+                            fill={activeMenuCapsule.isStarred ? '#FFB800' : 'transparent'}
+                          />
+                          <Text style={[s.mItemTxt, { color: '#007AFF' }]}>
+                            {activeMenuCapsule.isStarred ? 'Unstar' : 'Star'}
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={s.mItem}
@@ -1677,46 +2465,6 @@ export default function IdeaCapsuleApp() {
                           </Text>
                         </TouchableOpacity>
                       </View>
-
-                      <View style={s.menuHairline} />
-
-                      {/* GROUP 3: Destructive */}
-                      <View style={{ paddingVertical: 4 }}>
-                        <TouchableOpacity
-                          style={s.mItem}
-                          onPress={() => {
-                            if (!activeMenuCapsule) return;
-                            const merged = flushMenuTag() ?? activeMenuCapsule;
-                            void updateCapsule(merged.id, {
-                              isArchived: !merged.isArchived,
-                            });
-                            setMenuTagInput('');
-                            setActiveMenuCapsule(null);
-                          }}
-                        >
-                          {activeMenuCapsule.isArchived ? (
-                            <RotateCcw size={18} color="#8E8E93" />
-                          ) : (
-                            <Archive size={18} color="#8E8E93" />
-                          )}
-                          <Text style={s.mItemTxt}>
-                            {activeMenuCapsule.isArchived ? 'Restore' : 'Archive'}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={s.mItem}
-                          onPress={() => {
-                            if (!activeMenuCapsule) return;
-                            const merged = flushMenuTag() ?? activeMenuCapsule;
-                            void updateCapsule(merged.id, { isDeleted: true });
-                            setMenuTagInput('');
-                            setActiveMenuCapsule(null);
-                          }}
-                        >
-                          <Trash size={18} color="#FF3B30" />
-                          <Text style={[s.mItemTxt, { color: '#FF3B30' }]}>Delete</Text>
-                        </TouchableOpacity>
-                      </View>
                     </>
                   ) : activeMenuCapsule?.isDeleted ? (
                     <>
@@ -1750,9 +2498,8 @@ export default function IdeaCapsuleApp() {
                     </>
                   ) : null}
                 </View>
-              </ScrollView>
-            </View>
-          </View>
+            </ScrollView>
+          </Pressable>
         </Modal>
 
         <Modal transparent visible={!!colorPickerCapsule} animationType="fade">
@@ -1813,52 +2560,195 @@ export default function IdeaCapsuleApp() {
           </View>
         </Modal>
 
+        <Modal transparent visible={batchColorMultiOpen && selectedIds.length > 0} animationType="fade">
+          <View style={s.modalRoot}>
+            <Pressable
+              style={[StyleSheet.absoluteFillObject, s.modalBackdropStrong]}
+              onPress={() => setBatchColorMultiOpen(false)}
+            />
+            <View
+              style={[StyleSheet.absoluteFillObject, s.modalFrontCenter]}
+              pointerEvents="box-none"
+            >
+              <View style={{ width: Math.min(340, windowWidth - 32) }} pointerEvents="auto">
+                {firstSelectedCapsule ? (
+                  <CapsuleColorSheet
+                    capsule={firstSelectedCapsule}
+                    onSelectPreset={(hex) => {
+                      void batchUpdate({ color: hex });
+                      setBatchColorMultiOpen(false);
+                    }}
+                    onReset={() => {
+                      void batchUpdate({ color: undefined });
+                      setBatchColorMultiOpen(false);
+                    }}
+                    onCustomColor={(hex) => {
+                      void batchUpdate({ color: hex });
+                      setBatchColorMultiOpen(false);
+                    }}
+                    onClose={() => setBatchColorMultiOpen(false)}
+                  />
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal transparent visible={batchReminderMultiOpen && selectedIds.length > 0} animationType="fade">
+          <View style={s.modalRoot}>
+            <Pressable
+              style={[StyleSheet.absoluteFillObject, s.modalBackdropStrong]}
+              onPress={() => setBatchReminderMultiOpen(false)}
+            />
+            <View
+              style={[StyleSheet.absoluteFillObject, s.modalFrontCenter]}
+              pointerEvents="box-none"
+            >
+              <View style={{ width: Math.min(400, windowWidth - 32) }} pointerEvents="auto">
+                {firstSelectedCapsule ? (
+                  <CapsuleReminderSheet
+                    capsule={firstSelectedCapsule}
+                    onClose={() => setBatchReminderMultiOpen(false)}
+                    onSave={(r) => {
+                      void batchUpdate({ reminder: r });
+                      setBatchReminderMultiOpen(false);
+                    }}
+                  />
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {isMultiSelectMode ? (
-          <View style={s.floatingBar}>
-            <Text style={s.barTitle}>{selectedIds.length} selected</Text>
-            <View style={s.divider} />
-            {filter === 'trash' ? (
-              <>
-                <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isDeleted: false })}>
-                  <Text style={{ color: '#34C759', fontWeight: '700' }}>Restore</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.mItem} onPress={() => batchRemovePermanently()}>
-                  <Trash2 size={16} color="#FF3B30" />
-                  <Text style={{ color: '#FF3B30' }}>Delete forever</Text>
-                </TouchableOpacity>
-              </>
-            ) : filter === 'archived' ? (
-              <>
-                <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isArchived: false })}>
-                  <Text style={{ color: '#34C759', fontWeight: '700' }}>Unarchive</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isDeleted: true })}>
-                  <Trash size={16} color="#FF3B30" />
-                  <Text style={{ color: '#FF3B30' }}>Delete</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
+          <View style={s.sideMenuFloating}>
+            <View style={s.sideMenuHead}>
+              <Text style={s.sideMenuTitle}>{selectedIds.length} Selected</Text>
+            </View>
+            
+            <TouchableOpacity
+              style={s.mItem}
+              onPress={() =>
+                allFilteredSelected
+                  ? setSelectedIds([])
+                  : setSelectedIds(filteredCapsules.map((c) => c.id))
+              }
+            >
+              <CheckSquare size={18} color="#007AFF" />
+              <Text style={[s.mItemTxt, { color: '#007AFF' }]}>
+                {allFilteredSelected ? 'Deselect All' : 'Select All'}
+              </Text>
+            </TouchableOpacity>
+
+            {filter !== 'archived' && filter !== 'trash' ? (
               <>
                 <TouchableOpacity
                   style={s.mItem}
-                  onPress={() =>
-                    setSelectedIds(filteredCapsules.map((c) => c.id))
-                  }
+                  onPress={() => {
+                    const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                    const allPinned = sel.length > 0 && sel.every((c) => c.isPinned);
+                    void batchUpdate({ isPinned: allPinned ? false : true });
+                  }}
                 >
-                  <CheckSquare size={16} color="#007AFF" />
-                  <Text style={{ color: '#007AFF', fontWeight: '700' }}>Select all</Text>
+                  <Pin size={18} color="#007AFF" />
+                  <Text style={[s.mItemTxt, { color: '#007AFF' }]}>
+                    {(() => {
+                      const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                      return sel.length > 0 && sel.every((c) => c.isPinned)
+                        ? 'Unpin'
+                        : 'Pin to top';
+                    })()}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isArchived: true })}>
-                  <Archive size={16} color="#8E8E93" />
-                  <Text style={{ color: '#8E8E93' }}>Archive</Text>
+                <TouchableOpacity
+                  style={s.mItem}
+                  onPress={() => {
+                    const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                    const allStarred = sel.length > 0 && sel.every((c) => c.isStarred);
+                    void batchUpdate({ isStarred: allStarred ? false : true });
+                  }}
+                >
+                  <Star
+                    size={18}
+                    color="#007AFF"
+                    fill={(() => {
+                      const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                      return sel.length > 0 && sel.every((c) => c.isStarred)
+                        ? '#FFB800'
+                        : 'transparent';
+                    })()}
+                  />
+                  <Text style={[s.mItemTxt, { color: '#007AFF' }]}>
+                    {(() => {
+                      const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                      return sel.length > 0 && sel.every((c) => c.isStarred)
+                        ? 'Unstar'
+                        : 'Star';
+                    })()}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isDeleted: true })}>
-                  <Trash size={16} color="#FF3B30" />
-                  <Text style={{ color: '#FF3B30' }}>Delete</Text>
+                <TouchableOpacity
+                  style={s.mItem}
+                  onPress={() => {
+                    const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                    const allTodo = sel.length > 0 && sel.every((c) => c.isTodo);
+                    void batchUpdate(
+                      allTodo ? { isTodo: false, completed: false } : { isTodo: true },
+                    );
+                  }}
+                >
+                  {(() => {
+                    const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                    const allTodo = sel.length > 0 && sel.every((c) => c.isTodo);
+                    return allTodo ? (
+                      <Square size={18} color="#8E8E93" />
+                    ) : (
+                      <CheckSquare size={18} color="#007AFF" />
+                    );
+                  })()}
+                  <Text style={[s.mItemTxt, { color: '#007AFF' }]}>
+                    {(() => {
+                      const sel = capsules.filter((c) => selectedIds.includes(c.id));
+                      return sel.length > 0 && sel.every((c) => c.isTodo)
+                        ? 'Remove to-do'
+                        : 'Set to-do';
+                    })()}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.mItem}
+                  onPress={() => setBatchColorMultiOpen(true)}
+                >
+                  <Palette size={18} color="#007AFF" />
+                  <Text style={[s.mItemTxt, { color: '#007AFF' }]}>Change color</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.mItem}
+                  onPress={() => setBatchReminderMultiOpen(true)}
+                >
+                  <Calendar size={18} color="#007AFF" />
+                  <Text style={[s.mItemTxt, { color: '#007AFF' }]}>Set reminder</Text>
                 </TouchableOpacity>
               </>
-            )}
-            <View style={s.divider} />
+            ) : null}
+
+            <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isArchived: true })}>
+              <Archive size={18} color="#8E8E93" />
+              <Text style={s.mItemTxt}>Archive</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.mItem} onPress={() => batchUpdate({ isDeleted: true })}>
+              <Trash2 size={18} color="#FF3B30" />
+              <Text style={[s.mItemTxt, { color: '#FF3B30' }]}>Delete</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.mItem} onPress={handleShareMultiple}>
+              <ShareIcon size={18} color="#007AFF" />
+              <Text style={[s.mItemTxt, { color: '#007AFF' }]}>Share</Text>
+            </TouchableOpacity>
+
+            <View style={s.menuDivider} />
+
             <TouchableOpacity
               style={s.mItem}
               onPress={() => {
@@ -1866,8 +2756,8 @@ export default function IdeaCapsuleApp() {
                 setSelectedIds([]);
               }}
             >
-              <X size={16} color="#8E8E93" />
-              <Text style={{ color: '#8E8E93' }}>Cancel</Text>
+              <X size={18} color="#8E8E93" />
+              <Text style={s.mItemTxt}>Cancel</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -1891,99 +2781,296 @@ export default function IdeaCapsuleApp() {
 
         <Modal transparent visible={!!editingCapsule} animationType="fade">
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
             style={s.editKeyboardWrap}
           >
             <Pressable
               style={[StyleSheet.absoluteFillObject, s.editBackdropTint]}
               onPress={() => setEditingCapsule(null)}
             />
-            <View style={s.editBoxCenter} pointerEvents="box-none">
+            <View style={[s.editBoxCenter, { paddingBottom: Math.max(insets.bottom, 8) }]}>
               <View style={s.editBox}>
-              <View
-                style={[
-                  s.editHeader,
-                  { backgroundColor: editingCapsule?.color || '#FFB900' },
-                ]}
-              >
-                <Text style={s.editTitle}>Edit note</Text>
-                <TouchableOpacity onPress={() => setEditingCapsule(null)}>
-                  <X size={20} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={s.editBody}>
-                <CapsuleEditorMobile
-                  content={editContent}
-                  onChange={(json) => setEditContent(json)}
-                  placeholder="Type your brilliant thought here..."
-                  autoFocus
-                />
-                {editingCapsule?.attachments?.map((a, i) => (
-                  <View
-                    key={`att-${editingCapsule.id}-${i}-${a.url.slice(0, 24)}`}
-                    style={{ marginTop: 12 }}
+                <View
+                  style={[
+                    s.editHeader,
+                    { backgroundColor: editingCapsule?.color || '#FFB900' },
+                  ]}
+                >
+                  <View style={s.editHeaderActions}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (!editingCapsule) return;
+                        const id = editingCapsule.id;
+                        const next = !editingCapsule.isPinned;
+                        void updateCapsule(id, { isPinned: next });
+                        setEditingCapsule({ ...editingCapsule, isPinned: next });
+                      }}
+                      style={s.editStarFab}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        editingCapsule?.isPinned ? 'Unpin note' : 'Pin note'
+                      }
+                    >
+                      <Pin
+                        size={22}
+                        color={editingCapsule?.isPinned ? '#0051D5' : '#3C3C43'}
+                        fill={editingCapsule?.isPinned ? '#007AFF' : 'transparent'}
+                        strokeWidth={2.2}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (!editingCapsule) return;
+                        const id = editingCapsule.id;
+                        const next = !editingCapsule.isStarred;
+                        void updateCapsule(id, { isStarred: next });
+                        setEditingCapsule({ ...editingCapsule, isStarred: next });
+                      }}
+                      style={s.editStarFab}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        editingCapsule?.isStarred ? 'Unstar note' : 'Star note'
+                      }
+                    >
+                      <Star
+                        size={22}
+                        color={editingCapsule?.isStarred ? '#B45309' : '#3C3C43'}
+                        fill={editingCapsule?.isStarred ? '#FFB800' : 'transparent'}
+                        strokeWidth={2.2}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity onPress={() => setEditingCapsule(null)}>
+                    <X size={24} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+                {editingCapsule ? (
+                  <View style={s.editMetaForm}>
+                    <Text style={s.editFieldLbl}>Category</Text>
+                    <TextInput
+                      value={editCategoryDraft}
+                      onChangeText={setEditCategoryDraft}
+                      onFocus={() => setEditCategoryFocused(true)}
+                      onBlur={() => setEditCategoryFocused(false)}
+                      placeholder="e.g. Work"
+                      placeholderTextColor="#AEAEB2"
+                      style={s.editFieldIn}
+                    />
+                    {editCategorySuggestions.length > 0 ? (
+                      <View style={s.editSuggestBox}>
+                        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={{ maxHeight: 120 }}>
+                          {editCategorySuggestions.map((c) => (
+                            <TouchableOpacity
+                              key={c}
+                              style={s.editSuggestRow}
+                              onPress={() => {
+                                setEditCategoryDraft(c);
+                                setEditCategoryFocused(false);
+                              }}
+                            >
+                              <Text style={s.editSuggestTxt}>{c}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : null}
+
+                    <Text style={[s.editFieldLbl, { marginTop: 10 }]}>Tags (comma separated)</Text>
+                    <TextInput
+                      value={editTagsDraft}
+                      onChangeText={setEditTagsDraft}
+                      onFocus={() => setEditTagsFocused(true)}
+                      onBlur={() => setEditTagsFocused(false)}
+                      placeholder="idea, follow-up"
+                      placeholderTextColor="#AEAEB2"
+                      style={s.editFieldIn}
+                    />
+                    {editTagSuggestions.length > 0 ? (
+                      <View style={s.editSuggestBox}>
+                        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={{ maxHeight: 120 }}>
+                          {editTagSuggestions.map((t) => (
+                            <TouchableOpacity
+                              key={t}
+                              style={s.editSuggestRow}
+                              onPress={() => {
+                                const parts = editTagsDraft.split(',');
+                                parts.pop();
+                                const prefix = parts.map((p) => p.trim()).filter(Boolean);
+                                setEditTagsDraft([...prefix, t].join(', '));
+                                setEditTagsFocused(false);
+                              }}
+                            >
+                              <Text style={s.editSuggestTxt}>#{t}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                >
+                  <View style={s.editBodyContainer}>
+                    <CapsuleEditorMobile
+                      content={editContent}
+                      onChange={(json) => setEditContent(json)}
+                      placeholder="Type your brilliant thought here..."
+                      autoFocus
+                    />
+                    {editingCapsule?.attachments?.length ? (
+                      <View style={s.editAttachments}>
+                        {editingCapsule.attachments.map((a, i) => (
+                          <View
+                            key={`att-${editingCapsule.id}-${i}-${a.url.slice(0, 20)}`}
+                            style={{ marginTop: 12 }}
+                          >
+                            <View style={{ position: 'relative' }}>
+                              {a.type === 'image' ? (
+                                <Image
+                                  source={{ uri: a.url }}
+                                  style={{ width: '100%', height: 180, borderRadius: 12 }}
+                                />
+                              ) : (
+                                <View
+                                  style={{
+                                    width: '100%',
+                                    height: 120,
+                                    borderRadius: 12,
+                                    backgroundColor: '#000',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <Text style={{ color: '#FFF' }}>Video</Text>
+                                </View>
+                              )}
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e?.stopPropagation?.();
+                                  void removeAttachmentAt(i);
+                                }}
+                                style={s.removeAttBtn}
+                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                              >
+                                <X size={18} color="#FFF" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                </ScrollView>
+                <View style={s.editFooter}>
+                  <TouchableOpacity
+                    onPress={() => editingCapsule && pickImageForCapsule(editingCapsule)}
+                    style={{ padding: 8 }}
                   >
-                    <View style={{ position: 'relative' }}>
-                      {a.type === 'image' ? (
-                        <Image
-                          source={{ uri: a.url }}
-                          style={{ width: '100%', height: 180, borderRadius: 12 }}
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            width: '100%',
-                            height: 120,
-                            borderRadius: 12,
-                            backgroundColor: 'rgba(0,0,0,0.75)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Text style={{ color: '#FFF', fontWeight: '800' }}>Video</Text>
-                        </View>
-                      )}
-                      <TouchableOpacity
-                        accessibilityLabel="Remove attachment"
-                        onPress={() => removeAttachmentAt(i)}
+                    <ImageIcon size={22} color="#8E8E93" />
+                  </TouchableOpacity>
+
+                  <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: '#AEAEB2',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Created: {editingCapsule ? formatNoteDateTime(editingCapsule.createdAt) : ''}
+                    </Text>
+                    {editingCapsule?.reminder && editingCapsule.reminder.type !== 'none' && (
+                      <Text
                         style={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          backgroundColor: 'rgba(0,0,0,0.5)',
-                          borderRadius: 16,
-                          padding: 6,
+                          fontSize: 10,
+                          fontWeight: '800',
+                          color: '#007AFF',
+                          textTransform: 'uppercase',
+                          marginTop: 1,
                         }}
                       >
-                        <X size={18} color="#FFF" />
-                      </TouchableOpacity>
-                    </View>
+                        Reminder: {formatNoteDateTime(editingCapsule.reminder.date)} (
+                        {repeatLabelForMenu(editingCapsule.reminder)})
+                      </Text>
+                    )}
                   </View>
-                ))}
-              </ScrollView>
-              <View style={s.editFooter}>
-                <TouchableOpacity onPress={() => editingCapsule && pickImageForCapsule(editingCapsule)} style={{ padding: 8 }}>
-                  <ImageIcon size={22} color="#8E8E93" />
-                </TouchableOpacity>
-                
-                <View style={{ flex: 1, paddingHorizontal: 12 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#AEAEB2', textTransform: 'uppercase' }}>
-                    Created: {editingCapsule ? formatNoteDateTime(editingCapsule.createdAt) : ''}
-                  </Text>
-                  {editingCapsule?.reminder && editingCapsule.reminder.type !== 'none' && (
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#007AFF', textTransform: 'uppercase', marginTop: 1 }}>
-                      Reminder: {formatNoteDateTime(editingCapsule.reminder.date)} ({repeatLabelForMenu(editingCapsule.reminder)})
-                    </Text>
-                  )}
-                </View>
 
-                <TouchableOpacity style={s.doneBtnBlack} onPress={saveEdit}>
-                  <Text style={{ color: '#FFF', fontWeight: '800' }}>Done</Text>
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity style={s.doneBtnBlack} onPress={saveEdit}>
+                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Done</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </KeyboardAvoidingView>
+        </Modal>
+
+        <Modal transparent visible={isSortMenuOpen} animationType="fade">
+          <View style={s.modalRoot}>
+            <Pressable
+              style={[StyleSheet.absoluteFillObject, s.modalBackdrop]}
+              onPress={() => setIsSortMenuOpen(false)}
+            />
+            <View
+              style={[StyleSheet.absoluteFillObject, s.modalFrontCenter]}
+              pointerEvents="box-none"
+            >
+              <View style={[s.threeDotsBox, { width: 220 }]} pointerEvents="auto">
+                <View style={[s.menuSec, s.menuSecTightTop]}>
+                  <Text style={s.menuSecTxt}>SORT BY</Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.mItem, sortBy === 'updatedAt' && { backgroundColor: 'rgba(0,122,255,0.06)' }]}
+                  onPress={() => setSortBy('updatedAt')}
+                >
+                  <Text style={[s.mItemTxt, sortBy === 'updatedAt' && { color: '#007AFF', fontWeight: '800' }]}>Modification Time</Text>
+                  {sortBy === 'updatedAt' && <ArrowDown size={16} color="#007AFF" />}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.mItem, sortBy === 'createdAt' && { backgroundColor: 'rgba(0,122,255,0.06)' }]}
+                  onPress={() => setSortBy('createdAt')}
+                >
+                  <Text style={[s.mItemTxt, sortBy === 'createdAt' && { color: '#007AFF', fontWeight: '800' }]}>Creation Time</Text>
+                  {sortBy === 'createdAt' && <ArrowDown size={16} color="#007AFF" />}
+                </TouchableOpacity>
+
+                <View style={s.menuDivider} />
+
+                <View style={s.menuSec}>
+                  <Text style={s.menuSecTxt}>ORDER</Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.mItem, sortOrder === 'desc' && { backgroundColor: 'rgba(0,122,255,0.06)' }]}
+                  onPress={() => setSortOrder('desc')}
+                >
+                  <Text style={[s.mItemTxt, sortOrder === 'desc' && { color: '#007AFF', fontWeight: '800' }]}>Newest First</Text>
+                  {sortOrder === 'desc' && <Check size={16} color="#007AFF" />}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.mItem, sortOrder === 'asc' && { backgroundColor: 'rgba(0,122,255,0.06)' }]}
+                  onPress={() => setSortOrder('asc')}
+                >
+                  <Text style={[s.mItemTxt, sortOrder === 'asc' && { color: '#007AFF', fontWeight: '800' }]}>Oldest First</Text>
+                  {sortOrder === 'asc' && <Check size={16} color="#007AFF" />}
+                </TouchableOpacity>
+                
+                <View style={s.menuDivider} />
+                <TouchableOpacity
+                  style={[s.mItem, { justifyContent: 'center', backgroundColor: '#F2F2F7', borderRadius: 12, marginTop: 4 }]}
+                  onPress={() => setIsSortMenuOpen(false)}
+                >
+                  <Text style={{ fontWeight: '800', color: '#007AFF' }}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     </View>
@@ -2009,6 +3096,7 @@ function CapsuleCard({
   onMenu: () => void;
   onToggleTodo: () => void;
 }) {
+  const bellRight = isMulti ? 10 : 48;
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -2017,7 +3105,7 @@ function CapsuleCard({
       style={[
         isGrid ? s.cardGrid : s.cardList,
         isGrid && s.cardGridFill,
-        { backgroundColor: item.color || PRESET_COLORS[0] },
+        { backgroundColor: item.color || PRESET_COLORS[0], position: 'relative' as const },
         isSelected && { borderWidth: 2, borderColor: '#007AFF' },
       ]}
     >
@@ -2035,46 +3123,24 @@ function CapsuleCard({
         </View>
       ) : null}
       <View style={s.cardBody}>
-        <Text
-          style={[
-            s.cardText,
-            item.isTodo && item.completed ? s.cardTextDone : null,
-          ]}
-          numberOfLines={isGrid ? 3 : 1}
-          ellipsizeMode="tail"
-        >
-          {plainTextFromContent(item.content)}
-        </Text>
-        <View style={s.cardFoot}>
-          <View style={s.badge}>
-            <View style={s.dot} />
-            <Text style={s.badgeTxt}>
-              {(item.category || 'Note').toUpperCase()}
-            </Text>
-          </View>
-
-          {/* 💊 Capsule-shaped tags */}
-          {item.tags && item.tags.slice(0, isGrid ? 1 : 2).map((tag, i) => (
-            <View key={tag} style={s.pillTag}>
-              <View style={[s.pillTagLeft, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Text style={s.pillTagTxt}>#{tag}</Text>
-              </View>
-              <View style={[s.pillTagRight, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                <Text style={s.pillTagTxt}>{i + 1}</Text>
-              </View>
-            </View>
-          ))}
-
-          {hasActiveReminder(item) ? (
-            <Bell
-              size={12}
-              color="rgba(255,255,255,0.95)"
-              strokeWidth={2.5}
-              style={{ marginLeft: 8 }}
-            />
-          ) : null}
+        <View style={s.cardHeaderRow}>
+          <Text
+            style={[
+              s.cardText,
+              item.isTodo && item.completed ? s.cardTextDone : null,
+            ]}
+            numberOfLines={isGrid ? 3 : 1}
+            ellipsizeMode="tail"
+          >
+            {plainTextFromContent(item.content)}
+          </Text>
         </View>
       </View>
+      {hasActiveReminder(item) ? (
+        <View style={[s.cardBellCorner, { right: bellRight }]} pointerEvents="none">
+          <Bell size={12} color="rgba(255,255,255,0.95)" strokeWidth={2.5} />
+        </View>
+      ) : null}
       {!isMulti ? (
         <View style={s.cardMenuCol}>
           <TouchableOpacity
@@ -2098,28 +3164,49 @@ function SidebarRow({
   active,
   isSub,
   onPress,
+  icon,
 }: {
   label: string;
   count: number;
   active?: boolean;
   isSub?: boolean;
   onPress: () => void;
+  icon?: 'star' | 'all';
 }) {
   return (
     <TouchableOpacity
       style={[s.sideRow, active && s.sideActive]}
       onPress={onPress}
     >
-      <View
-        style={[
-          s.mark,
-          active
-            ? { backgroundColor: '#FFF' }
-            : { backgroundColor: '#8E8E93', opacity: 0.3 },
-        ]}
-      />
+      {icon === 'star' ? (
+        <Star
+          size={18}
+          color="#007AFF"
+          fill="transparent"
+          strokeWidth={2.2}
+          style={{ marginRight: 10 }}
+        />
+      ) : icon === 'all' ? (
+        <Layers
+          size={18}
+          color="#007AFF"
+          strokeWidth={2.2}
+          style={{ marginRight: 10 }}
+        />
+      ) : (
+        <View
+          style={[
+            s.mark,
+            active
+              ? { backgroundColor: '#FFF' }
+              : { backgroundColor: '#8E8E93', opacity: 0.3 },
+          ]}
+        />
+      )}
       <Text style={[s.sideLabel, active && { color: '#FFF' }]}>{label}</Text>
-      <Text style={[s.sideCount, active && { color: '#FFF' }]}>{count}</Text>
+      {count > 0 && (
+        <Text style={[s.sideCount, active && { color: '#FFF' }]}>{count}</Text>
+      )}
     </TouchableOpacity>
   );
 }
@@ -2188,7 +3275,17 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   container: { flex: 1, backgroundColor: '#F2F2F7' },
-  safeMain: { flex: 1 },
+  safeMain: {
+    flex: 1,
+    ...Platform.select({
+      web: {
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
+      },
+      default: {},
+    }),
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2199,10 +3296,19 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
+    ...Platform.select({
+      web: {
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
+        boxSizing: 'border-box',
+      },
+      default: {},
+    }),
   },
   searchWrap: {
     flex: 1,
-    minWidth: 72,
+    minWidth: 0,
     minHeight: 40,
     backgroundColor: '#F2F2F7',
     borderRadius: 12,
@@ -2219,7 +3325,8 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   filterPillInline: {
-    flexShrink: 0,
+    flexShrink: 1,
+    minWidth: 72,
     maxWidth: 118,
     minHeight: 40,
     paddingHorizontal: 10,
@@ -2264,10 +3371,19 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFF',
   },
-  sideCloseBtnWrap: {
-    position: 'relative',
-    padding: 4,
-    marginRight: -4,
+  sideCloseBtn: {
+    padding: 6,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 999,
+  },
+  sideHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
   },
   sidebarScopeDotSide: {
     position: 'absolute',
@@ -2287,28 +3403,98 @@ const s = StyleSheet.create({
   filterPillInlineTxtMuted: {
     color: '#8E8E93',
   },
-  scrollFill: { flex: 1 },
-  scrollBody: { paddingHorizontal: 8, paddingTop: 2, flexGrow: 1 },
+  scrollFill: {
+    flex: 1,
+    ...Platform.select({
+      web: { width: '100%', minWidth: 0 },
+      default: {},
+    }),
+  },
+  scrollBody: {
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    flexGrow: 1,
+    ...Platform.select({
+      web: { width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' },
+      default: {},
+    }),
+  },
   gridRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     alignItems: 'flex-start',
     alignContent: 'flex-start',
+    ...Platform.select({
+      web: { width: '100%', maxWidth: '100%', minWidth: 0 },
+      default: {},
+    }),
   },
-  listCol: { flexDirection: 'column' },
+  listCol: {
+    flexDirection: 'column',
+    ...Platform.select({
+      web: { width: '100%', maxWidth: '100%', minWidth: 0 },
+      default: {},
+    }),
+  },
+  emptyWrap: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F2F2F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTxt: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 20,
+  },
+  demoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  demoBtnTxt: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   cardWrapList: {
     flexDirection: 'row',
     alignItems: 'stretch',
     marginBottom: 8,
+    ...Platform.select({
+      web: { width: '100%', maxWidth: '100%', minWidth: 0 },
+      default: {},
+    }),
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   cardWrapGrid: {
     position: 'relative',
     marginBottom: 8,
   },
   cardGrid: {
-    minHeight: 96,
-    maxHeight: 120,
+    aspectRatio: 1,
     borderRadius: 18,
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -2373,9 +3559,21 @@ const s = StyleSheet.create({
   },
   cardFoot: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginTop: 6,
+    minHeight: 14,
+  },
+  cardBellCorner: {
+    position: 'absolute',
+    bottom: 8,
+    zIndex: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     backgroundColor: 'rgba(0,0,0,0.12)',
@@ -2452,8 +3650,6 @@ const s = StyleSheet.create({
     left: 0,
     backgroundColor: '#FFF',
     zIndex: 2000,
-    paddingHorizontal: 14,
-    paddingTop: 10,
     flexDirection: 'column',
     borderRightWidth: 1,
     borderRightColor: '#E5E5EA',
@@ -2463,12 +3659,13 @@ const s = StyleSheet.create({
     shadowRadius: 8,
     elevation: 12,
   },
-  sideScroll: { flex: 1 },
-  sideScrollContent: { paddingBottom: 12 },
+  sideScroll: { flex: 1, paddingHorizontal: 14 },
+  sideScrollContent: { paddingTop: 8, paddingBottom: 12 },
   sideFooter: {
     borderTopWidth: 1,
     borderTopColor: '#E5E5EA',
     paddingTop: 10,
+    paddingHorizontal: 14,
     paddingBottom: 6,
     flexShrink: 0,
   },
@@ -2513,27 +3710,37 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     zIndex: 1500,
   },
-  sideTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, justifyContent: 'space-between' },
-  logoBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F2F2F7',
+  sideHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sideTitle: { fontSize: 17, fontWeight: '900' },
+  logoMini: {
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  brand: { fontSize: 18, fontWeight: '900' },
+  sideNavPillWrap: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
   sideSectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 18,
+    marginTop: 0,
+    marginBottom: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
     backgroundColor: '#F2F2F7',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E5E5EA',
+  },
+  sideSectionHeadFirst: {
+    marginTop: 0,
   },
   sideSectionTitle: {
     fontSize: 15,
@@ -2551,8 +3758,8 @@ const s = StyleSheet.create({
   },
   sideActive: { backgroundColor: '#007AFF' },
   mark: { width: 6, height: 6, borderRadius: 3 },
-  sideLabel: { flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '800', color: '#8E8E93' },
-  sideCount: { fontSize: 11, fontWeight: '900', color: '#C7C7CC' },
+  sideLabel: { flex: 1, marginLeft: 6, fontSize: 13, fontWeight: '700', color: '#8E8E93' },
+  sideCount: { fontSize: 10, fontWeight: '800', color: '#C7C7CC', marginRight: 2 },
   modalRoot: { flex: 1, backgroundColor: 'transparent' },
   modalBackdrop: { backgroundColor: 'rgba(0,0,0,0.35)' },
   modalBackdropStrong: { backgroundColor: 'rgba(0,0,0,0.45)' },
@@ -2568,10 +3775,10 @@ const s = StyleSheet.create({
   editKeyboardWrap: { flex: 1 },
   editBackdropTint: { backgroundColor: 'rgba(0,0,0,0.45)' },
   editBoxCenter: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
+    flex: 1,
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: 16,
+    backgroundColor: 'transparent',
   },
   filterMenuBox: {
     position: 'absolute',
@@ -2608,7 +3815,16 @@ const s = StyleSheet.create({
   menuMetaLine: { fontSize: 12, fontWeight: '500', color: '#636366', lineHeight: 16 },
   menuHairline: { height: 1, backgroundColor: '#E5E5EA', marginVertical: 5 },
   menuInputWrap: { paddingHorizontal: 8, paddingVertical: 2 },
-  menuInput: { backgroundColor: '#F2F2F7', height: 34, borderRadius: 8, paddingHorizontal: 10, fontSize: 13 },
+  menuInput: { 
+    backgroundColor: '#F2F2F7', 
+    height: 38, 
+    borderRadius: 10, 
+    paddingHorizontal: 12, 
+    fontSize: 14,
+    color: '#1D1D1F',
+    textAlignVertical: 'center',
+    paddingVertical: 0,
+  },
   menuTagChipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2645,14 +3861,17 @@ const s = StyleSheet.create({
   menuAutocompleteRowTxt: { fontSize: 14, fontWeight: '600', color: '#1D1D1F' },
   floatingBar: {
     position: 'absolute',
-    right: 16,
-    top: 120,
-    width: 168,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 8,
-    elevation: 15,
+    left: 20,
+    right: 20,
     zIndex: 2000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 12,
   },
   barTitle: { fontSize: 12, fontWeight: '800', padding: 8 },
   divider: { height: 1, backgroundColor: '#E5E5EA', marginVertical: 4 },
@@ -2680,16 +3899,184 @@ const s = StyleSheet.create({
   proLblRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1C1C1E', padding: 12 },
   doneBtn: { alignItems: 'center', padding: 10 },
   doneTxt: { color: '#007AFF', fontWeight: '800' },
-  editBox: { width: '90%', backgroundColor: '#FFF', borderRadius: 16, maxHeight: '88%' },
+  sideMenuFloating: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 200,
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 8,
+    elevation: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    zIndex: 1000,
+  },
+  sideMenuHead: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+    marginBottom: 4,
+  },
+  sideMenuTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#1D1D1F',
+  },
+  editBox: { 
+    width: '94%', 
+    backgroundColor: '#FFF', 
+    borderRadius: 24, 
+    maxHeight: '92%',
+    minHeight: '60%',
+    overflow: 'hidden',
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+  },
   editHeader: {
-    height: 50,
+    height: 56,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
   },
+  editHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  editStarFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  editMetaForm: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  editFieldLbl: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#636366',
+    letterSpacing: 0.3,
+    marginBottom: 6,
+  },
+  editFieldIn: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  editSuggestBox: {
+    marginTop: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    backgroundColor: '#FFF',
+    overflow: 'hidden',
+  },
+  editSuggestRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+  },
+  editSuggestTxt: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  editMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    gap: 10,
+  },
+  editMetaLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  editMetaHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+  },
+  editMetaPill: {
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    maxWidth: '100%',
+  },
+  editMetaPillTxt: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1D1D1F',
+  },
+  editMetaPillTag: {
+    backgroundColor: 'rgba(0,122,255,0.12)',
+  },
+  editMetaPillTagTxt: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#007AFF',
+  },
   editTitle: { color: '#FFF', fontSize: 17, fontWeight: '800' },
-  editBody: { padding: 12, maxHeight: 440 },
+  editBodyContainer: {
+    minHeight: 300,
+    backgroundColor: '#FFF',
+  },
+  editAttachments: {
+    marginTop: 8,
+    paddingBottom: 8,
+  },
+  removeAttBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 50,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
+    marginVertical: 8,
+  },
+  editBody: { padding: 16, flex: 1 },
   editInput: { minHeight: 130, fontSize: 17, fontWeight: '500', color: '#1D1D1F' },
   editFooter: {
     minHeight: 52,
@@ -2702,9 +4089,15 @@ const s = StyleSheet.create({
   },
   doneBtnBlack: { backgroundColor: '#1D1D1F', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 10 },
   captureBarWrap: {
+    zIndex: 500,
+    elevation: 28,
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E5EA',
+    ...Platform.select({
+      web: { width: '100%', maxWidth: '100%', minWidth: 0 },
+      default: {},
+    }),
   },
   captureBar: {
     flexDirection: 'row',
@@ -2714,10 +4107,20 @@ const s = StyleSheet.create({
     paddingBottom: 8,
     backgroundColor: '#FFF',
     gap: 8,
+    zIndex: 1,
+    ...Platform.select({
+      web: { width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' },
+      default: {},
+    }),
+  },
+  captureBarHit: {
+    zIndex: 2,
+    elevation: 6,
   },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   captureInput: {
     flex: 1,
+    minWidth: 0,
     minHeight: 40,
     maxHeight: 100,
     backgroundColor: '#F2F2F7',

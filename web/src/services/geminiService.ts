@@ -9,7 +9,22 @@ export async function categorizeThought(text: string): Promise<{ category?: stri
     return { refinedContent: text };
   }
   try {
-    const prompt = SYSTEM_PROMPT.replace('{{CURRENT_TIME}}', new Date().toLocaleString()) + '\n\nInput text: ' + text;
+    const now = new Date();
+    const prompt =
+      SYSTEM_PROMPT.replace(
+        '{{CURRENT_TIME_ZH}}',
+        now.toLocaleString('zh-CN', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+      ).replace('{{CURRENT_TIME_ISO}}', now.toISOString()) +
+      '\n\nInput text: ' +
+      text;
     
     // Add a 10 second timeout
     const timeoutPromise = new Promise<never>((_, reject) => 

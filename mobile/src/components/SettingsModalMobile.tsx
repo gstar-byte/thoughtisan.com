@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { User as UserIcon, X } from 'lucide-react-native';
 import type { UserProfile } from '../types';
+import { PAYWALL_ACTIVE } from '../featureFlags';
 
 function CrownJewel({ size = 22 }: { size?: number }) {
   return (
@@ -33,7 +34,7 @@ function CrownJewel({ size = 22 }: { size?: number }) {
 type Props = {
   visible: boolean;
   onClose: () => void;
-  user: UserProfile;
+  user: UserProfile | null;
   onUpgrade: () => void;
   onDowngrade: () => void;
 };
@@ -54,6 +55,7 @@ const PRO_FEATURE_ROWS: ProFeatureRow[] = [
   {
     label: 'Desktop home screen widget',
     sub: 'Pin capture and glanceable notes on your launcher (Pro).',
+    openPaywallOnToggle: true,
   },
   {
     label: 'Persistent notification',
@@ -78,6 +80,8 @@ export function SettingsModalMobile({
 }: Props) {
   if (!visible) return null;
 
+  const isPro = !!user?.isPremium;
+
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -86,7 +90,7 @@ export function SettingsModalMobile({
           <View style={styles.head}>
             <View style={styles.headLeft}>
               <CrownJewel size={24} />
-              <Text style={styles.title}>Pro</Text>
+              <Text style={styles.title}>Settings</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <X size={20} color="#8E8E93" />
@@ -94,7 +98,14 @@ export function SettingsModalMobile({
           </View>
 
           <ScrollView contentContainerStyle={styles.body}>
-            {!user.isPremium ? (
+            {!PAYWALL_ACTIVE ? (
+              <View style={styles.proBanner}>
+                <Text style={styles.proBannerCrown}>👑</Text>
+                <Text style={styles.proBannerTxt}>
+                  All features available. Paywall is off until billing is connected.
+                </Text>
+              </View>
+            ) : !user?.isPremium ? (
               <TouchableOpacity style={styles.upgradeHero} onPress={onUpgrade} activeOpacity={0.9}>
                 <CrownJewel size={22} />
                 <Text style={styles.upgradeHeroTxt}>Upgrade to Pro</Text>
@@ -108,7 +119,7 @@ export function SettingsModalMobile({
 
             <View style={styles.card}>
               <View style={styles.accountRow}>
-                {user.photoURL ? (
+                {user?.photoURL ? (
                   <Image source={{ uri: user.photoURL }} style={styles.avatar} />
                 ) : (
                   <View style={styles.avatarPh}>
@@ -117,10 +128,10 @@ export function SettingsModalMobile({
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name} numberOfLines={1}>
-                    {user.displayName || 'User'}
+                    {user?.displayName || (user ? 'User' : 'Guest')}
                   </Text>
                   <Text style={styles.email} numberOfLines={1}>
-                    {user.email}
+                    {user?.email || 'Not signed in'}
                   </Text>
                 </View>
               </View>
@@ -128,7 +139,9 @@ export function SettingsModalMobile({
               <View style={styles.tierRow}>
                 <View>
                   <Text style={styles.tierLbl}>ACCOUNT</Text>
-                  {user.isPremium ? (
+                  {!PAYWALL_ACTIVE ? (
+                    <Text style={styles.tierFree}>Full access</Text>
+                  ) : user?.isPremium ? (
                     <View style={styles.tierPro}>
                       <Text style={styles.tierCrown}>👑</Text>
                       <Text style={styles.tierProTxt}>Idea Capsule Pro</Text>
@@ -137,7 +150,7 @@ export function SettingsModalMobile({
                     <Text style={styles.tierFree}>Free</Text>
                   )}
                 </View>
-                {user.isPremium ? (
+                {PAYWALL_ACTIVE && user?.isPremium ? (
                   <TouchableOpacity style={styles.downBtn} onPress={onDowngrade}>
                     <Text style={styles.downBtnTxt}>Downgrade</Text>
                   </TouchableOpacity>
@@ -159,48 +172,25 @@ export function SettingsModalMobile({
                     <Text style={styles.rowTitle}>{row.label}</Text>
                     <Text style={styles.rowSub}>{row.sub}</Text>
                   </View>
-                  {user.isPremium ? (
+                  <View style={styles.switchHit}>
                     <Switch
-                      value
-                      disabled
-                      trackColor={{ false: '#E5E5EA', true: '#34C759' }}
-                      thumbColor="#FFF"
-                      ios_backgroundColor="#E5E5EA"
-                    />
-                  ) : row.openPaywallOnToggle ? (
-                    <Switch
-                      value={false}
-                      onValueChange={(on) => {
-                        if (on) onUpgrade();
+                      value={isPro}
+                      onValueChange={(next) => {
+                        if (next && !isPro) {
+                          onUpgrade();
+                        }
                       }}
+                      disabled={isPro}
                       trackColor={{ false: '#E5E5EA', true: '#34C759' }}
                       thumbColor="#FFF"
                       ios_backgroundColor="#E5E5EA"
-                      accessibilityLabel={`${row.label} — requires Pro`}
                     />
-                  ) : (
-                    <View style={styles.switchHit}>
-                      <Switch
-                        value={false}
-                        disabled
-                        pointerEvents="none"
-                        trackColor={{ false: '#E5E5EA', true: '#34C759' }}
-                        thumbColor="#FFF"
-                        ios_backgroundColor="#E5E5EA"
-                      />
-                      <Pressable
-                        style={StyleSheet.absoluteFill}
-                        onPress={onUpgrade}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Upgrade for ${row.label}`}
-                      />
-                    </View>
-                  )}
+                  </View>
                 </View>
               ))}
-              {!user.isPremium ? (
+              {!isPro ? (
                 <Text style={styles.proHint}>
-                  Turn a switch on to learn about Pro — subscribe to unlock everything.
+                  Turn a switch on to open checkout — subscribe to unlock everything.
                 </Text>
               ) : null}
             </View>

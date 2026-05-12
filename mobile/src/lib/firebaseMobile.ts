@@ -15,6 +15,7 @@ import {
   writeBatch,
   getDocs,
   setDoc,
+  deleteField,
 } from 'firebase/firestore';
 import firebaseConfigJson from '../firebase-applet-config.json';
 
@@ -83,6 +84,7 @@ export {
   writeBatch,
   getDocs,
   setDoc,
+  deleteField,
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,

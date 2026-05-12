@@ -22,6 +22,9 @@ export interface Capsule {
   tags?: string[];
   reminder?: ReminderConfig;
   attachments?: { url: string; type: 'image' | 'video' }[];
+  isStarred?: boolean;
+  /** Pinned notes sort to the top (after multi-select / sidebar filters). */
+  isPinned?: boolean;
 }
 
 export interface UserProfile {
@@ -30,16 +33,18 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   isPremium?: boolean;
+  onboarded?: boolean;
 }
 
 export type FilterType = 
   | 'all' 
-  | 'with-todo' 
   | 'without-todo' 
+  | 'pending-todo'
   | 'completed-todo' 
-  | 'with-reminder' 
   | 'without-reminder'
   | 'repeat-reminder'
+  | 'finished-reminder'
   | 'pure-note'
+  | 'starred'
   | 'archived' 
   | 'trash';

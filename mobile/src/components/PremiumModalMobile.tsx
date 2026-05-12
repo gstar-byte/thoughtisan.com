@@ -3,13 +3,12 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Sparkles, Cloud, Zap, Volume2, X } from 'lucide-react-native';
+import { Zap, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import type { UserProfile } from '../types';
@@ -66,32 +65,11 @@ export function PremiumModalMobile({
             </View>
             <Text style={styles.h2}>Upgrade to Pro</Text>
             <Text style={styles.subH}>
-              Unlock the full Idea Capsule experience—the same Pro benefits as on the web.
+              Lifetime access. One payment — unlock everything on mobile and web.
             </Text>
           </LinearGradient>
 
-          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-            <Feature
-              icon={<Sparkles size={20} color="#007AFF" />}
-              title="Desktop home screen widget"
-              desc="Capture and glanceable notes on your launcher (when available on your OS)."
-            />
-            <Feature
-              icon={<Cloud size={20} color="#007AFF" />}
-              title="Persistent notification"
-              desc="Shade shortcut or ongoing tile for one-tap capture."
-            />
-            <Feature
-              icon={<Zap size={20} color="#007AFF" />}
-              title="Edge swipe capture"
-              desc="Swipe from the screen edge to start a quick note."
-            />
-            <Feature
-              icon={<Volume2 size={20} color="#007AFF" />}
-              title="Volume-key quick capture"
-              desc="Hardware keys wake capture where the OS allows."
-            />
-
+          <View style={styles.body}>
             <View style={styles.priceBox}>
               <Text style={styles.priceLbl}>LIFETIME</Text>
               <View style={styles.priceRow}>
@@ -99,7 +77,7 @@ export function PremiumModalMobile({
                 <Text style={styles.priceStrike}>$129.99</Text>
               </View>
               <Text style={styles.paypalNote}>
-                Checkout on the web uses PayPal (sandbox vs production via Vite env on web).
+                Complete checkout on the web with PayPal (sandbox vs production uses Vite env on web).
               </Text>
               <TouchableOpacity
                 style={styles.linkBtn}
@@ -121,33 +99,12 @@ export function PremiumModalMobile({
             )}
 
             <Text style={styles.disclaimer}>
-              PayPal Web SDK is not embedded in this app yet. Production may use RevenueCat or Play
-              Billing, aligned with `users.isPremium`. Signed in as: {user?.email ?? '—'}
+              Signed in as: {user?.email ?? '—'}
             </Text>
-          </ScrollView>
+          </View>
         </View>
       </View>
     </Modal>
-  );
-}
-
-function Feature({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <View style={styles.fRow}>
-      <View style={styles.fIcon}>{icon}</View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.fTitle}>{title}</Text>
-        <Text style={styles.fDesc}>{desc}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -190,24 +147,11 @@ const styles = StyleSheet.create({
   },
   h2: { color: '#FFF', fontSize: 26, fontWeight: '900' },
   subH: { color: 'rgba(255,255,255,0.88)', fontSize: 14, marginTop: 8, lineHeight: 20 },
-  body: { maxHeight: 420 },
-  bodyContent: { padding: 20, paddingBottom: 28 },
-  fRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  fIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,122,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fTitle: { fontWeight: '800', color: '#1D1D1F', fontSize: 15 },
-  fDesc: { color: '#8E8E93', fontSize: 13, lineHeight: 18, marginTop: 2 },
+  body: { padding: 20, paddingBottom: 28 },
   priceBox: {
     backgroundColor: '#F2F2F7',
     borderRadius: 20,
     padding: 18,
-    marginTop: 8,
     marginBottom: 12,
   },
   priceLbl: {

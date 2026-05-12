@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { PAYWALL_ACTIVE } from '../featureFlags';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ export function SettingsModal({
   onDowngradeClick,
 }: SettingsModalProps) {
   const [isConfirmingDowngrade, setIsConfirmingDowngrade] = useState(false);
+  const isPro = !!user?.isPremium;
 
   if (!isOpen) return null;
 
@@ -92,7 +94,12 @@ export function SettingsModal({
           </div>
 
           <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar">
-            {!user?.isPremium ? (
+            {!PAYWALL_ACTIVE ? (
+              <div className="flex items-center gap-2 bg-[#AF52DE]/10 rounded-2xl px-4 py-3 text-sm font-extrabold text-[#1D1D1F]">
+                <span>👑</span>
+                All features available. Paywall is off until billing is connected.
+              </div>
+            ) : !user?.isPremium ? (
               <button
                 type="button"
                 onClick={onUpgradeClick}
@@ -136,7 +143,9 @@ export function SettingsModal({
                     <span className="text-sm font-bold text-[#8E8E93] uppercase tracking-wider block mb-0.5">
                       Account
                     </span>
-                    {user?.isPremium ? (
+                    {!PAYWALL_ACTIVE ? (
+                      <span className="font-bold text-[#1D1D1F]">Full access</span>
+                    ) : user?.isPremium ? (
                       <div className="flex items-center gap-1.5 text-[#AF52DE] font-bold">
                         <span>👑</span>
                         <span>Idea Capsule Pro</span>
@@ -145,7 +154,7 @@ export function SettingsModal({
                       <span className="font-bold text-[#1D1D1F]">Free</span>
                     )}
                   </div>
-                  {user?.isPremium ? (
+                  {PAYWALL_ACTIVE && user?.isPremium ? (
                     isConfirmingDowngrade ? (
                       <div className="flex items-center gap-2">
                         <button
@@ -193,17 +202,17 @@ export function SettingsModal({
                     icon={f.icon}
                     title={f.title}
                     description={f.description}
-                    checked={!!user?.isPremium}
+                    checked={isPro}
                     onChange={() => {
-                      if (!user?.isPremium) onUpgradeClick();
+                      if (!isPro) onUpgradeClick();
                     }}
-                    locked={!!user?.isPremium}
+                    locked={isPro}
                   />
                 ))}
               </div>
-              {!user?.isPremium ? (
+              {!isPro ? (
                 <p className="text-xs font-semibold text-[#8E8E93] px-4 py-3 bg-white">
-                  Flip a switch to see how Pro unlocks these shortcuts.
+                  Flip a switch on to open checkout — subscribe to unlock these shortcuts.
                 </p>
               ) : null}
             </div>

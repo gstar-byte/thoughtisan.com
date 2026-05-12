@@ -19,6 +19,8 @@ import {
   ChevronDown,
   Bell,
   ChevronLeft,
+  Folder,
+  Tag as TagLucideIcon,
   PanelLeft,
   RotateCcw,
   Square,
@@ -36,9 +38,24 @@ import {
   XCircle,
   PlayCircle,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  RefreshCw,
+  Pin,
+  Star,
+  Mail, 
+  Lock, 
+  CheckCircle2, 
+  ArrowRight, 
+  UserPlus, 
+  Apple, 
+  Facebook, 
+  ExternalLink, 
+  Share2,
+  Layers
 } from 'lucide-react';
-import { Capsule, FilterType, ReminderType, UserProfile } from './types';
+import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
 import { categorizeThought } from './services/geminiService';
 import { 
@@ -60,11 +77,12 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  doc
+  doc,
+  deleteField,
 } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { setDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { Mail, Lock, CheckCircle2, ArrowRight, UserPlus, Apple, Facebook, ExternalLink, Share2 } from 'lucide-react';
+
 import { cn } from './lib/utils';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
@@ -73,8 +91,35 @@ import { LandingPage } from './components/LandingPage';
 import { AppLogo } from './components/AppLogo';
 import { PremiumModal } from './components/PremiumModal';
 import { SettingsModal } from './components/SettingsModal';
+import { hasPremiumAccess, PAYWALL_ACTIVE } from './featureFlags';
 
 import { CapsuleEditor } from './components/CapsuleEditor';
+
+const ONBOARDING_STORAGE_KEY = 'onboarding_v4_complete';
+
+function safeLocalStorageGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* Embedded preview / disabled storage must not white-screen the app */
+  }
+}
+
+function safeLocalStorageRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
 
 enum OperationType {
   CREATE = 'create',
@@ -134,12 +179,134 @@ function hasRepeatReminder(c: Capsule): boolean {
   return true;
 }
 
+/** One-shot reminder whose scheduled time has passed. */
+function hasFinishedOneShotReminder(c: Capsule): boolean {
+  const r = c.reminder;
+  if (!r || r.type === 'none') return false;
+  if (r.type !== 'once') return false;
+  return r.date != null && r.date <= Date.now();
+}
+
 /** Toggling to-do done alone must not change list order (no updatedAt bump). */
 function shouldBumpUpdatedAt(updates: Partial<Capsule>): boolean {
   const keys = (Object.keys(updates) as (keyof Capsule)[]).filter(
     (k) => updates[k] !== undefined,
   );
-  return !(keys.length === 1 && keys[0] === 'completed');
+  if (keys.length === 1 && keys[0] === 'completed') return false;
+  if (keys.length === 1 && keys[0] === 'isPinned') return false;
+  return true;
+}
+
+/** Merge updates into a capsule and drop `category` / `tags` / `attachments` when cleared (Firestore deleteField). */
+function mergeCapsulePatch(c: Capsule, updates: Partial<Capsule>): Capsule {
+  let n: Capsule = { ...c, ...updates };
+  if (Object.prototype.hasOwnProperty.call(updates, 'category')) {
+    const v = updates.category;
+    if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+      const { category: _omit, ...rest } = n;
+      n = rest as Capsule;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, 'tags')) {
+    const t = updates.tags;
+    if (t === undefined || t === null || (Array.isArray(t) && t.length === 0)) {
+      const { tags: _omit, ...rest } = n;
+      n = rest as Capsule;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, 'attachments')) {
+    const a = updates.attachments;
+    if (a === undefined || a === null || (Array.isArray(a) && a.length === 0)) {
+      const { attachments: _omit, ...rest } = n;
+      n = rest as Capsule;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, 'color')) {
+    const col = updates.color;
+    if (col === undefined || col === null || (typeof col === 'string' && col.trim() === '')) {
+      const { color: _omit, ...rest } = n;
+      n = rest as Capsule;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, 'isPinned')) {
+    if (updates.isPinned !== true) {
+      const { isPinned: _omit, ...rest } = n;
+      n = rest as Capsule;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, 'reminder')) {
+    const r = updates.reminder;
+    if (r === undefined || r === null) {
+      const { reminder: _omit, ...rest } = n;
+      n = rest as Capsule;
+    }
+  }
+  return n;
+}
+
+/** Firestore `update()` fields for batch writes (aligned with `updateCapsule` cleaning). */
+function partialCapsuleToFirestore(updates: Partial<Capsule>): Record<string, unknown> {
+  const cleanUpdates: Record<string, unknown> = {};
+  Object.entries(updates).forEach(([key, value]) => {
+    if (key === 'category') {
+      if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+        cleanUpdates[key] = deleteField();
+      } else {
+        cleanUpdates[key] = value;
+      }
+      return;
+    }
+    if (key === 'tags') {
+      if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+        cleanUpdates[key] = deleteField();
+      } else {
+        cleanUpdates[key] = value;
+      }
+      return;
+    }
+    if (key === 'attachments') {
+      if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+        cleanUpdates[key] = deleteField();
+      } else {
+        cleanUpdates[key] = value;
+      }
+      return;
+    }
+    if (key === 'color') {
+      if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+        cleanUpdates[key] = deleteField();
+      } else {
+        cleanUpdates[key] = value;
+      }
+      return;
+    }
+    if (key === 'isPinned') {
+      if (!value) {
+        cleanUpdates[key] = deleteField();
+      } else {
+        cleanUpdates[key] = value;
+      }
+      return;
+    }
+    if (key === 'reminder') {
+      if (value === undefined || value === null) {
+        cleanUpdates[key] = deleteField();
+      } else {
+        cleanUpdates[key] = value;
+      }
+      return;
+    }
+    if (value !== undefined) {
+      cleanUpdates[key] = value;
+    } else {
+      cleanUpdates[key] = null;
+    }
+  });
+  return cleanUpdates;
+}
+
+function tagsSignature(tags: string[] | undefined): string {
+  return [...(tags || [])].map((t) => t.trim()).filter(Boolean).sort().join('\0');
 }
 
 function CrownJewel({ className, size = 32 }: { className?: string; size?: number }) {
@@ -173,8 +340,6 @@ function CrownJewel({ className, size = 32 }: { className?: string; size?: numbe
         {/* Highlight details */}
         <path d="M50 15L53 18L50 21L47 18L50 15Z" fill="white" opacity="0.3" />
       </svg>
-      {/* Premium Glow */}
-      <div className="absolute inset-0 bg-[#FFD700] opacity-20 blur-[15px] rounded-full scale-125" />
     </div>
   );
 }
@@ -263,15 +428,32 @@ export default function App() {
     }
   ]);
   const [demoCapsules, setDemoCapsules] = useState<Capsule[]>([]);
-  const allCapsules = [...demoCapsules, ...capsules].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt'>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+
+  const allCapsules = React.useMemo(() => {
+    return [...demoCapsules, ...capsules].sort((a, b) => {
+      const ap = a.isPinned ? 1 : 0;
+      const bp = b.isPinned ? 1 : 0;
+      if (bp !== ap) return bp - ap;
+      const valA = a[sortBy] || a.createdAt || 0;
+      const valB = b[sortBy] || b.createdAt || 0;
+      return sortOrder === 'desc' ? valB - valA : valA - valB;
+    });
+  }, [demoCapsules, capsules, sortBy, sortOrder]);
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth > 768,
+  );
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= 768,
+  );
   
   useEffect(() => {
     (window as any)._setIsSidebarOpen = setIsSidebarOpen;
@@ -283,7 +465,29 @@ export default function App() {
   const [showProFeaturesModal, setShowProFeaturesModal] = useState(false);
   const [firedReminders, setFiredReminders] = useState<Capsule[]>([]);
   const notifiedIdsRef = useRef<Set<string>>(new Set());
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(Date.now());
+  const [dataLoading, setDataLoading] = useState(true);
+
+  const handleSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    // Artificial delay to show animation and "simulate" a refresh, 
+    // though Firestore is real-time. This also clears any local staleness.
+    await new Promise(r => setTimeout(r, 1000));
+    setLastSyncTime(Date.now());
+    setIsSyncing(false);
+  }, [isSyncing]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleSync();
+    }, 1000 * 60 * 60); // 1 hour
+    return () => clearInterval(interval);
+  }, [handleSync]);
   
+  const [isFilterNavExpanded, setIsFilterNavExpanded] = useState(false);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
   const [isTagsExpanded, setIsTagsExpanded] = useState(false);
 
@@ -523,7 +727,8 @@ export default function App() {
               email: firebaseUser.email,
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
-              isPremium: docSnap.data().isPremium || false
+              isPremium: docSnap.data().isPremium || false,
+              onboarded: docSnap.data().onboarded || false
             });
           } else {
             setUser({
@@ -531,7 +736,8 @@ export default function App() {
               email: firebaseUser.email,
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
-              isPremium: false
+              isPremium: false,
+              onboarded: false
             });
             // Initial sync
             setDoc(userDocRef, {
@@ -540,12 +746,14 @@ export default function App() {
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
               isPremium: false,
+              onboarded: false,
               updatedAt: Date.now()
             }, { merge: true });
           }
            setAuthLoading(false);
         }, (error) => {
           console.error("user doc snapshot error", error);
+          setAuthLoading(false);
         });
       } else {
         if (userDocUnsubscribe) {
@@ -555,6 +763,7 @@ export default function App() {
         setCapsules([]);
         setDemoCapsules([]);
         setAuthLoading(false);
+        setDataLoading(true);
       }
     });
     return () => {
@@ -582,6 +791,7 @@ export default function App() {
       // Sort by createdAt descending locally
       console.log('--- FIRESTORE DATA LOADED ---', docs.length, 'items');
       setCapsules(docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+      setDataLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
     });
@@ -670,7 +880,10 @@ export default function App() {
           ],
           onDestroyed: () => {
             tourActive.current = false;
-            localStorage.setItem('onboarding_v4_complete', 'true');
+            safeLocalStorageSet(ONBOARDING_STORAGE_KEY, 'true');
+            if (user) {
+              updateDoc(doc(db, 'users', user.uid), { onboarded: true });
+            }
           }
         });
 
@@ -678,15 +891,17 @@ export default function App() {
       }, 800); // Give enough time for DOM to update after seeding
     };
 
-    const hasSeenTutorial = localStorage.getItem('onboarding_v4_complete');
-    if (!hasSeenTutorial && !tourActive.current) {
+    const hasSeenTutorial =
+      safeLocalStorageGet(ONBOARDING_STORAGE_KEY) || user.onboarded;
+    // Only trigger tour if no tutorial seen AND no real data exists yet
+    if (!hasSeenTutorial && !tourActive.current && allCapsules.length === 0 && !dataLoading) {
        setTimeout(() => {
          if ((window as any).startTour && !tourActive.current) {
            (window as any).startTour();
          }
        }, 1500); // 1.5s delay for stable trigger
     }
-  }, [user, authLoading, allCapsules.length]);
+  }, [user, authLoading, dataLoading, allCapsules.length]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const recognition = useRef<any>(null);
@@ -695,6 +910,10 @@ export default function App() {
   const allCategories = Array.from(new Set(allCapsules.map(c => c.category).filter(Boolean) as string[])).sort();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchColorOpen, setBatchColorOpen] = useState(false);
+  const [batchReminderOpen, setBatchReminderOpen] = useState(false);
+  const [batchRemDate, setBatchRemDate] = useState<number | null>(null);
+  const [batchRemType, setBatchRemType] = useState<ReminderType>('once');
 
   const toggleSelection = (id: string) => {
     const newSelection = new Set(selectedIds);
@@ -716,11 +935,11 @@ export default function App() {
         const bump = shouldBumpUpdatedAt(updates);
         const ts = Date.now();
         setDemoCapsules((prev) =>
-          prev.map((c) =>
-            demoIds.includes(c.id)
-              ? { ...c, ...updates, ...(bump ? { updatedAt: ts } : {}) }
-              : c,
-          ),
+          prev.map((c) => {
+            if (!demoIds.includes(c.id)) return c;
+            const merged = mergeCapsulePatch(c, updates);
+            return bump ? { ...merged, updatedAt: ts } : merged;
+          }),
         );
       }
 
@@ -728,9 +947,13 @@ export default function App() {
         const batch = writeBatch(db);
         const now = Date.now();
         const bump = shouldBumpUpdatedAt(updates);
+        const clean = partialCapsuleToFirestore(updates);
+        if (bump) {
+          clean.updatedAt = now;
+        }
         realIds.forEach((id: string) => {
           const docRef = doc(db, 'capsules', id);
-          batch.update(docRef, bump ? { ...updates, updatedAt: now } : { ...updates });
+          batch.update(docRef, clean as Record<string, unknown>);
         });
         await batch.commit();
       }
@@ -791,6 +1014,30 @@ export default function App() {
   const editContentDraftRef = useRef('');
   const editSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [editDetailCategory, setEditDetailCategory] = useState('');
+  const [editDetailTags, setEditDetailTags] = useState('');
+  const editDetailCategoryRef = useRef('');
+  const editDetailTagsRef = useRef('');
+  const editDetailCapsuleIdRef = useRef<string | null>(null);
+  const editingCapsuleRef = useRef<Capsule | null>(null);
+  editingCapsuleRef.current = editingCapsule;
+
+  useEffect(() => {
+    if (!editingCapsule) {
+      editDetailCapsuleIdRef.current = null;
+      return;
+    }
+    if (editDetailCapsuleIdRef.current !== editingCapsule.id) {
+      editDetailCapsuleIdRef.current = editingCapsule.id;
+      const c = editingCapsule.category || '';
+      const t = (editingCapsule.tags || []).join(', ');
+      setEditDetailCategory(c);
+      setEditDetailTags(t);
+      editDetailCategoryRef.current = c;
+      editDetailTagsRef.current = t;
+    }
+  }, [editingCapsule]);
+
   const clearAllData = async () => {
     if (!user) return;
     if (!window.confirm('Are you sure you want to delete ALL your data? This cannot be undone.')) return;
@@ -837,7 +1084,13 @@ export default function App() {
         createdAt: Date.now(),
         updatedAt: Date.now(), // Added for float-to-top
         completed: false,
-        isTodo: isTodo ?? false,
+        isTodo: Boolean(
+          isTodo ||
+            (reminder &&
+              typeof reminder === 'object' &&
+              (reminder as { type?: string }).type &&
+              (reminder as { type?: string }).type !== 'none'),
+        ),
         isArchived: false,
         isDeleted: false,
         reminder,
@@ -885,14 +1138,17 @@ export default function App() {
 
       setEditingCapsule((prev) => {
         if (!prev || prev.id !== id) return prev;
-        return { ...prev, ...updates, ...(bump ? { updatedAt: now } : {}) };
+        const merged = mergeCapsulePatch(prev, updates);
+        return bump ? { ...merged, updatedAt: now } : merged;
       });
 
       if (id.startsWith('demo-')) {
         setDemoCapsules((prev) =>
-          prev.map((c) =>
-            c.id === id ? { ...c, ...updates, ...(bump ? { updatedAt: now } : {}) } : c,
-          ),
+          prev.map((c) => {
+            if (c.id !== id) return c;
+            const merged = mergeCapsulePatch(c, updates);
+            return bump ? { ...merged, updatedAt: now } : merged;
+          }),
         );
         return;
       }
@@ -900,6 +1156,38 @@ export default function App() {
         const docRef = doc(db, 'capsules', id);
         const cleanUpdates: Record<string, unknown> = {};
         Object.entries(updates).forEach(([key, value]) => {
+          if (key === 'category') {
+            if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+              cleanUpdates[key] = deleteField();
+            } else {
+              cleanUpdates[key] = value;
+            }
+            return;
+          }
+          if (key === 'tags') {
+            if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+              cleanUpdates[key] = deleteField();
+            } else {
+              cleanUpdates[key] = value;
+            }
+            return;
+          }
+          if (key === 'attachments') {
+            if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+              cleanUpdates[key] = deleteField();
+            } else {
+              cleanUpdates[key] = value;
+            }
+            return;
+          }
+          if (key === 'isPinned') {
+            if (!value) {
+              cleanUpdates[key] = deleteField();
+            } else {
+              cleanUpdates[key] = value;
+            }
+            return;
+          }
           if (value !== undefined) {
             cleanUpdates[key] = value;
           } else {
@@ -914,7 +1202,7 @@ export default function App() {
         handleFirestoreError(error, OperationType.UPDATE, `capsules/${id}`);
       }
     },
-    [user],
+    [user, allCapsules],
   );
 
   const updateCapsuleRef = useRef(updateCapsule);
@@ -967,6 +1255,22 @@ export default function App() {
       clearTimeout(editSaveTimerRef.current);
       editSaveTimerRef.current = null;
     }
+    const cap = editingCapsuleRef.current;
+    if (cap) {
+      const cat = editDetailCategoryRef.current.trim();
+      const tagParts = editDetailTagsRef.current.split(',').map((t) => t.trim()).filter(Boolean);
+      const prevCat = (cap.category || '').trim();
+      const patch: Partial<Capsule> = {};
+      if (prevCat !== cat) {
+        patch.category = cat ? cat : undefined;
+      }
+      if (tagsSignature(cap.tags) !== tagsSignature(tagParts)) {
+        patch.tags = tagParts.length ? tagParts : undefined;
+      }
+      if (Object.keys(patch).length > 0) {
+        void updateCapsuleRef.current(cap.id, patch);
+      }
+    }
     setEditingCapsule(null);
   }, []);
 
@@ -986,7 +1290,7 @@ export default function App() {
       }
     }
     
-    if (!user?.isPremium && (file.size > 5 * 1024 * 1024 || isVideo)) {
+    if (!hasPremiumAccess(user) && (file.size > 5 * 1024 * 1024 || isVideo)) {
        alert("Large images (>5MB) and video uploads require Idea Capsule Pro.");
        setShowPremiumModal(true);
        return;
@@ -1015,22 +1319,27 @@ export default function App() {
   };
 
   const removeAttachment = (capsule: Capsule, index: number) => {
-    if (editingCapsule?.id === capsule.id) {
-      const draft = editContentDraftRef.current;
-      void updateCapsule(capsule.id, { content: draft });
-      setEditingCapsule((prev) =>
-        prev?.id === capsule.id ? { ...prev, content: draft } : prev,
-      );
-      if (editSaveTimerRef.current) {
-        clearTimeout(editSaveTimerRef.current);
-        editSaveTimerRef.current = null;
-      }
+    if (editSaveTimerRef.current) {
+      clearTimeout(editSaveTimerRef.current);
+      editSaveTimerRef.current = null;
     }
+    const draft = editContentDraftRef.current;
     const newAttachments = [...(capsule.attachments || [])];
     newAttachments.splice(index, 1);
-    updateCapsule(capsule.id, { attachments: newAttachments });
+    const patch: Partial<Capsule> = {
+      attachments: newAttachments.length ? newAttachments : undefined,
+    };
+    if (editingCapsule?.id === capsule.id) {
+      patch.content = draft;
+    }
+    void updateCapsule(capsule.id, patch);
     setEditingCapsule((prev) =>
-      prev?.id === capsule.id ? { ...prev, attachments: newAttachments } : prev,
+      prev?.id === capsule.id
+        ? mergeCapsulePatch(
+            { ...prev, content: draft },
+            { attachments: newAttachments.length ? newAttachments : undefined },
+          )
+        : prev,
     );
   };
 
@@ -1049,7 +1358,7 @@ export default function App() {
   };
 
   const startListening = () => {
-    if (!user?.isPremium) {
+    if (!hasPremiumAccess(user)) {
        alert("Unlimited Voice Transcription requires Idea Capsule Pro.");
        setShowPremiumModal(true);
        return;
@@ -1121,7 +1430,7 @@ export default function App() {
 
   // Real Reminder Engine
   useEffect(() => {
-    if (user?.isPremium && 'Notification' in window && Notification.permission === 'default') {
+    if (hasPremiumAccess(user) && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
     
@@ -1183,7 +1492,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [allCapsules, updateCapsule, user]);
 
-  const sortedCapsules = [...allCapsules].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const sortedCapsules = allCapsules;
   
   const filteredCapsules = sortedCapsules.filter(c => {
     const matchesSearch = c.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -1192,6 +1501,7 @@ export default function App() {
     const matchesTag = !tagFilter || (c.tags && c.tags.includes(tagFilter));
     
     // Hard state filters (Archive/Trash)
+    if (filter === 'starred') return matchesSearch && matchesCategory && matchesTag && c.isStarred && !c.isArchived && !c.isDeleted;
     if (filter === 'archived') return matchesSearch && matchesCategory && matchesTag && c.isArchived && !c.isDeleted;
     if (filter === 'trash') return matchesSearch && matchesCategory && matchesTag && c.isDeleted;
     
@@ -1201,12 +1511,12 @@ export default function App() {
     // Advanced filters
     const matchesAdvanced = (() => {
       switch (filter) {
-        case 'with-todo': return c.isTodo;
+        case 'pending-todo': return c.isTodo && !c.completed;
         case 'without-todo': return !c.isTodo;
         case 'completed-todo': return c.isTodo && c.completed;
-        case 'with-reminder': return hasActiveReminder(c);
-        case 'without-reminder': return !hasActiveReminder(c);
         case 'repeat-reminder': return hasRepeatReminder(c);
+        case 'without-reminder': return !hasActiveReminder(c);
+        case 'finished-reminder': return hasFinishedOneShotReminder(c);
         case 'pure-note': return !c.isTodo && !hasActiveReminder(c);
         default: return true;
       }
@@ -1215,31 +1525,71 @@ export default function App() {
     return matchesSearch && matchesCategory && matchesTag && matchesAdvanced;
   });
 
+  const countForFilterType = (f: FilterType): number =>
+    allCapsules.filter((c) => {
+      if (f === 'starred') return c.isStarred && !c.isArchived && !c.isDeleted;
+      if (f === 'archived') return c.isArchived && !c.isDeleted;
+      if (f === 'trash') return c.isDeleted;
+      if (c.isArchived || c.isDeleted) return false;
+      switch (f) {
+        case 'all':
+          return true;
+        case 'pending-todo':
+          return c.isTodo && !c.completed;
+        case 'completed-todo':
+          return c.isTodo && !!c.completed;
+        case 'repeat-reminder':
+          return hasRepeatReminder(c);
+        case 'finished-reminder':
+          return hasFinishedOneShotReminder(c);
+        case 'pure-note':
+          return !c.isTodo && !hasActiveReminder(c);
+        default:
+          return true;
+      }
+    }).length;
+
   const filterOptions: { value: FilterType, label: string }[] = [
-    { value: 'all', label: 'All Notes' },
-    { value: 'with-todo', label: 'Has To-do' },
-    { value: 'without-todo', label: 'No To-do' },
-    { value: 'completed-todo', label: 'Done To-do' },
-    { value: 'with-reminder', label: 'Has Reminder' },
-    { value: 'without-reminder', label: 'No Reminder' },
-    { value: 'repeat-reminder', label: 'Repeat Reminder' },
-    { value: 'pure-note', label: 'Pure Note' },
+    { value: 'all', label: 'All' },
+    { value: 'pure-note', label: 'Only Notes' },
+    { value: 'pending-todo', label: 'Pending to-do' },
+    { value: 'completed-todo', label: 'Finished to-do' },
+    { value: 'repeat-reminder', label: 'Repeat reminder' },
+    { value: 'finished-reminder', label: 'Finished reminder' },
     { value: 'archived', label: 'Archived' },
     { value: 'trash', label: 'Trash' },
   ];
 
-  /** Category or tag chosen in sidebar (primary list scope). */
-  const isSidebarListScopeActive = categoryFilter !== 'all' || tagFilter !== null;
+  useEffect(() => {
+    const allowed: FilterType[] = [
+      'all',
+      'pure-note',
+      'pending-todo',
+      'completed-todo',
+      'repeat-reminder',
+      'finished-reminder',
+      'archived',
+      'trash',
+      'starred',
+    ];
+    if (!allowed.includes(filter)) setFilter('all');
+  }, [filter]);
+
+  /** Category, tag, or Starred narrowing (top pill shows N/A in some cases). */
+  const isSidebarListScopeActive = categoryFilter !== 'all' || tagFilter !== null || filter === 'starred';
+  /** Any active list filter: type, category, or tag (red dot on sidebar controls). */
+  const isSidebarScopeFilterActive =
+    categoryFilter !== 'all' || tagFilter !== null || filter !== 'all';
   /** Top pill shows N/A when sidebar drives scope; Archived/Trash stay explicit. */
   const topFilterTriggerLabel =
     isSidebarListScopeActive && filter !== 'archived' && filter !== 'trash'
       ? 'N/A'
-      : (filterOptions.find((o) => o.value === filter)?.label ?? 'All Notes');
+      : (filterOptions.find((o) => o.value === filter)?.label ?? 'Filter');
   const topFilterTitle = isSidebarListScopeActive
     ? 'List is narrowed by sidebar (category or tag). Type filters still apply on top of that scope.'
     : undefined;
 
-  if (authLoading) {
+  if (authLoading || (user && dataLoading)) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-white">
         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
@@ -1322,7 +1672,7 @@ export default function App() {
                       placeholder="name@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-[#F2F2F7] border-2 border-transparent focus:border-[#007AFF] focus:bg-white rounded-2xl text-sm font-semibold transition-all outline-none"
+                      className="w-full pl-12 pr-4 py-4 bg-[#F2F2F7] border-2 border-transparent focus:border-[#007AFF] focus:bg-white rounded-2xl text-sm font-semibold transition-all outline-none placeholder:text-[#1D1D1F]/15"
                     />
                   </div>
                 </div>
@@ -1337,7 +1687,7 @@ export default function App() {
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-[#F2F2F7] border-2 border-transparent focus:border-[#007AFF] focus:bg-white rounded-2xl text-sm font-semibold transition-all outline-none"
+                      className="w-full pl-12 pr-4 py-4 bg-[#F2F2F7] border-2 border-transparent focus:border-[#007AFF] focus:bg-white rounded-2xl text-sm font-semibold transition-all outline-none placeholder:text-[#1D1D1F]/15"
                     />
                   </div>
                 </div>
@@ -1451,114 +1801,322 @@ export default function App() {
             <button 
               id="sidebar-toggle"
               onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 hover:bg-[#F2F2F7] rounded-lg transition-colors text-[#8E8E93] group"
+              className="relative p-1.5 hover:bg-[#F2F2F7] rounded-lg transition-colors text-[#8E8E93] group"
             >
               <ChevronLeft size={20} className="group-hover:text-[#007AFF] transition-colors" />
+              {isSidebarScopeFilterActive && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#FF3B30] ring-1 ring-white pointer-events-none" />
+              )}
             </button>
           )}
         </div>
 
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-          <SidebarItem 
-            id="cat-all"
-            icon={null} 
-            label="All" 
-            isActive={categoryFilter === 'all' && !tagFilter} 
-            onClick={() => { 
-              setCategoryFilter('all'); 
-              setTagFilter(null); 
-              if (isMobile) setIsSidebarOpen(false);
-            }}
-            isSidebarOpen={isSidebarOpen}
-          />
-          
-          {allCategories.length > 0 && isSidebarOpen && (
+          {!isSidebarOpen && (
             <>
-              <div 
-                className="mt-4 mb-1 px-2 text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest flex items-center justify-between cursor-pointer hover:bg-[#F2F2F7] py-1.5 rounded-lg transition-colors"
-                onClick={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
+              <button
+                type="button"
+                id="nav-compact-all"
+                onClick={() => {
+                  setFilter('all');
+                  setCategoryFilter('all');
+                  setTagFilter(null);
+                  if (isMobile) setIsSidebarOpen(false);
+                }}
+                className={cn(
+                  'w-full mb-1 flex items-center justify-center p-3 rounded-xl border transition-all',
+                  filter === 'all' && categoryFilter === 'all' && !tagFilter
+                    ? 'bg-[#007AFF] border-[#007AFF] shadow-lg'
+                    : 'bg-[#F2F2F7] border-[#E5E5EA] hover:bg-[#ECECEC]',
+                )}
+                aria-label="All notes"
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">📂</span> Categories
-                </div>
-                <ChevronDown size={14} className={`transition-transform flex-shrink-0 text-[#8E8E93] ${isCategoriesExpanded ? 'rotate-180' : ''}`} />
-              </div>
-              <div className={`overflow-hidden transition-all duration-200 ${isCategoriesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                {allCategories.map((cat) => {
-                  return (
-                    <SidebarItem 
-                      key={`cat-${cat}`}
-                      id={`cat-${cat}`}
-                      icon={null} 
-                      label={cat} 
-                      isActive={categoryFilter === cat} 
-                      onClick={() => { 
-                        setCategoryFilter(categoryFilter === cat ? 'all' : cat); 
-                        setTagFilter(null); 
-                        if (isMobile) setIsSidebarOpen(false);
-                      }}
-                      onRename={(newName) => {
-                        setCapsules(prev => prev.map(c => c.category === cat ? { ...c, category: newName } : c));
-                        if (categoryFilter === cat) setCategoryFilter(newName);
-                      }}
-                      onDelete={() => {
-                        setCapsules(prev => prev.filter(c => c.category !== cat));
-                        if (categoryFilter === cat) setCategoryFilter('all');
-                      }}
-                      isSidebarOpen={isSidebarOpen}
-                      isCustom={true}
-                    />
-                  )
-                })}
-              </div>
+                <Layers
+                  size={18}
+                  strokeWidth={2.2}
+                  className={cn(
+                    filter === 'all' && categoryFilter === 'all' && !tagFilter
+                      ? 'text-white'
+                      : 'text-[#007AFF]',
+                  )}
+                />
+              </button>
+              <button
+                type="button"
+                id="cat-starred-compact"
+                onClick={() => {
+                  setFilter('starred');
+                  setCategoryFilter('all');
+                  setTagFilter(null);
+                  if (isMobile) setIsSidebarOpen(false);
+                }}
+                className={cn(
+                  'w-full mb-1 flex items-center justify-center p-3 rounded-xl border transition-all',
+                  filter === 'starred'
+                    ? 'bg-[#007AFF] border-[#007AFF] shadow-lg'
+                    : 'bg-[#F2F2F7] border-[#E5E5EA] hover:bg-[#ECECEC]',
+                )}
+                aria-label="Starred"
+              >
+                <Star
+                  size={18}
+                  strokeWidth={2.2}
+                  className={cn(
+                    'fill-none',
+                    filter === 'starred' ? 'text-white' : 'text-[#007AFF]',
+                  )}
+                />
+              </button>
             </>
           )}
 
-          {allTags.length > 0 && isSidebarOpen && (
+          {isSidebarOpen && (
             <>
-              <div 
-                className="mt-4 mb-1 px-2 text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest flex items-center justify-between cursor-pointer hover:bg-[#F2F2F7] py-1.5 rounded-lg transition-colors"
-                onClick={() => setIsTagsExpanded(!isTagsExpanded)}
+              <button
+                type="button"
+                id="nav-all-expanded"
+                onClick={() => {
+                  setFilter('all');
+                  setCategoryFilter('all');
+                  setTagFilter(null);
+                  if (isMobile) setIsSidebarOpen(false);
+                }}
+                className={cn(
+                  'w-full mb-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border transition-all text-left',
+                  filter === 'all' && categoryFilter === 'all' && !tagFilter
+                    ? 'bg-[#007AFF] border-[#007AFF] text-white shadow-lg'
+                    : 'bg-[#F2F2F7] border-[#E5E5EA] hover:bg-[#ECECEC]',
+                )}
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">🏷️</span> Tags
+                <div className="flex items-center gap-2 min-w-0">
+                  <Layers
+                    size={18}
+                    strokeWidth={2.2}
+                    className={cn(
+                      'flex-shrink-0',
+                      filter === 'all' && categoryFilter === 'all' && !tagFilter
+                        ? 'text-white'
+                        : 'text-[#007AFF]',
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'text-xs font-bold tracking-normal',
+                      filter === 'all' && categoryFilter === 'all' && !tagFilter
+                        ? 'text-white'
+                        : 'text-[#1D1D1F]',
+                    )}
+                  >
+                    All
+                  </span>
                 </div>
-                <ChevronDown size={14} className={`transition-transform flex-shrink-0 text-[#8E8E93] ${isTagsExpanded ? 'rotate-180' : ''}`} />
+                {countForFilterType('all') > 0 ? (
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0',
+                      filter === 'all' && categoryFilter === 'all' && !tagFilter
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#E5E5EA] text-[#8E8E93]',
+                    )}
+                  >
+                    {countForFilterType('all')}
+                  </span>
+                ) : null}
+              </button>
+              <div
+                className="mt-1 mb-1 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors bg-[#F2F2F7] border border-[#E5E5EA] hover:bg-[#ECECEC]"
+                onClick={() => setIsFilterNavExpanded(!isFilterNavExpanded)}
+              >
+                <div className="flex items-center gap-2">
+                  <Filter size={18} className="text-[#007AFF]" strokeWidth={2.2} />
+                  <span className="text-[#1D1D1F] normal-case text-xs font-bold tracking-normal">
+                    Filter
+                  </span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform flex-shrink-0 text-[#8E8E93] ${isFilterNavExpanded ? 'rotate-180' : ''}`}
+                />
               </div>
-              <div className={`overflow-hidden transition-all duration-200 space-y-1 ${isTagsExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                {allTags.map((tag) => {
-                  return (
-                    <TagItem 
-                      key={tag}
-                      tag={tag}
-                      tagFilter={tagFilter}
-                      setTagFilter={setTagFilter}
-                      setCategoryFilter={setCategoryFilter}
-                      removeTag={removeTag}
-                      isMobile={isMobile}
-                      setIsSidebarOpen={setIsSidebarOpen}
-                      onRename={(oldTag: string, newTag: string) => {
-                        setCapsules(prev => prev.map(c => {
-                          if (c.tags?.includes(oldTag)) {
-                            return { ...c, tags: c.tags.map(t => t === oldTag ? newTag : t) };
-                          }
-                          return c;
-                        }));
-                        if (tagFilter === oldTag) setTagFilter(newTag);
+              <div
+                className={`overflow-hidden transition-all duration-200 space-y-1 ${isFilterNavExpanded ? 'max-h-[900px] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}
+              >
+                {filterOptions
+                  .filter((o) => o.value !== 'all')
+                  .map((opt) => (
+                    <SidebarItem
+                      key={`filter-${opt.value}`}
+                      id={`filter-${opt.value}`}
+                      icon={null}
+                      label={opt.label}
+                      isActive={filter === opt.value && categoryFilter === 'all' && !tagFilter}
+                      count={countForFilterType(opt.value)}
+                      onClick={() => {
+                        setFilter(opt.value);
+                        setCategoryFilter('all');
+                        setTagFilter(null);
+                        if (isMobile) setIsSidebarOpen(false);
                       }}
+                      isSidebarOpen={isSidebarOpen}
                     />
-                  )
-                })}
+                  ))}
               </div>
+
+              <button
+                type="button"
+                id="cat-starred-expanded"
+                onClick={() => {
+                  setFilter('starred');
+                  setCategoryFilter('all');
+                  setTagFilter(null);
+                  if (isMobile) setIsSidebarOpen(false);
+                }}
+                className={cn(
+                  'w-full mb-1 flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border transition-all text-left',
+                  filter === 'starred'
+                    ? 'bg-[#007AFF] border-[#007AFF] text-white shadow-lg'
+                    : 'bg-[#F2F2F7] border-[#E5E5EA] hover:bg-[#ECECEC]',
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Star
+                    size={18}
+                    strokeWidth={2.2}
+                    className={cn(
+                      'flex-shrink-0 fill-none',
+                      filter === 'starred' ? 'text-white' : 'text-[#007AFF]',
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'text-xs font-bold tracking-normal',
+                      filter === 'starred' ? 'text-white' : 'text-[#1D1D1F]',
+                    )}
+                  >
+                    Starred
+                  </span>
+                </div>
+                {countForFilterType('starred') > 0 ? (
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0',
+                      filter === 'starred'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#E5E5EA] text-[#8E8E93]',
+                    )}
+                  >
+                    {countForFilterType('starred')}
+                  </span>
+                ) : null}
+              </button>
+
+              {allCategories.length > 0 && (
+                <>
+                  <div
+                    className="mt-4 mb-1 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors bg-[#F2F2F7] border border-[#E5E5EA] hover:bg-[#ECECEC]"
+                    onClick={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Folder size={16} className="text-[#007AFF]" strokeWidth={2.2} />
+                      <span className="text-[#1D1D1F] normal-case text-xs font-bold tracking-normal">
+                        Categories
+                      </span>
+                    </div>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform flex-shrink-0 text-[#8E8E93] ${isCategoriesExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </div>
+                  <div
+                    className={`overflow-hidden transition-all duration-200 ${isCategoriesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                  >
+                    {allCategories.map((cat) => {
+                      return (
+                        <SidebarItem
+                          key={`cat-${cat}`}
+                          id={`cat-${cat}`}
+                          icon={null}
+                          label={cat}
+                          isActive={categoryFilter === cat}
+                          count={allCapsules.filter((c) => c.category === cat && !c.isArchived && !c.isDeleted).length}
+                          onClick={() => {
+                            setCategoryFilter(categoryFilter === cat ? 'all' : cat);
+                            setTagFilter(null);
+                            if (isMobile) setIsSidebarOpen(false);
+                          }}
+                          onRename={(newName) => {
+                            setCapsules((prev) => prev.map((c) => (c.category === cat ? { ...c, category: newName } : c)));
+                            if (categoryFilter === cat) setCategoryFilter(newName);
+                          }}
+                          onDelete={() => {
+                            setCapsules((prev) => prev.filter((c) => c.category !== cat));
+                            if (categoryFilter === cat) setCategoryFilter('all');
+                          }}
+                          isSidebarOpen={isSidebarOpen}
+                          isCustom={true}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {allTags.length > 0 && (
+                <>
+                  <div
+                    className="mt-4 mb-1 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors bg-[#F2F2F7] border border-[#E5E5EA] hover:bg-[#ECECEC]"
+                    onClick={() => setIsTagsExpanded(!isTagsExpanded)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <TagLucideIcon size={16} className="text-[#007AFF]" strokeWidth={2.2} />
+                      <span className="text-[#1D1D1F] normal-case text-xs font-bold tracking-normal">Tags</span>
+                    </div>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform flex-shrink-0 text-[#8E8E93] ${isTagsExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </div>
+                  <div
+                    className={`overflow-hidden transition-all duration-200 space-y-1 ${isTagsExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                  >
+                    {allTags.map((tag) => {
+                      return (
+                        <TagItem
+                          key={tag}
+                          tag={tag}
+                          tagFilter={tagFilter}
+                          setTagFilter={setTagFilter}
+                          setCategoryFilter={setCategoryFilter}
+                          removeTag={removeTag}
+                          isMobile={isMobile}
+                          setIsSidebarOpen={setIsSidebarOpen}
+                          count={allCapsules.filter((c) => c.tags?.includes(tag) && !c.isArchived && !c.isDeleted).length}
+                          onRename={(oldTag: string, newTag: string) => {
+                            setCapsules((prev) =>
+                              prev.map((c) => {
+                                if (c.tags?.includes(oldTag)) {
+                                  return { ...c, tags: c.tags.map((t) => (t === oldTag ? newTag : t)) };
+                                }
+                                return c;
+                              }),
+                            );
+                            if (tagFilter === oldTag) setTagFilter(newTag);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </>
           )}
         </nav>
 
-        {isSidebarOpen && !localStorage.getItem('onboarding_v4_complete') && (
+        {isSidebarOpen && !safeLocalStorageGet(ONBOARDING_STORAGE_KEY) && (
           <div className="px-3 pb-3">
              <button 
                 onClick={() => {
-                   localStorage.removeItem('onboarding_v4_complete');
+                   safeLocalStorageRemove(ONBOARDING_STORAGE_KEY);
                    if ((window as any).startTour) {
                      (window as any).startTour();
                    } else {
@@ -1587,7 +2145,7 @@ export default function App() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
                     <p className="text-sm font-bold truncate">{user.displayName || 'User'}</p>
-                    {user.isPremium && (
+                    {PAYWALL_ACTIVE && user.isPremium && (
                        <span className="flex items-center gap-0.5 bg-gradient-to-r from-[#AF52DE] to-[#FF2D55] text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shadow-sm">
                          <CrownJewel size={11} /> Pro
                        </span>
@@ -1600,6 +2158,16 @@ export default function App() {
                     >
                       <LogOut size={10} />
                       Sign Out
+                    </button>
+                    <div className="w-1 h-1 rounded-full bg-[#E5E5EA]" />
+                    <button 
+                      onClick={handleSync}
+                      disabled={isSyncing}
+                      title={`Last synced: ${new Date(lastSyncTime).toLocaleTimeString()}`}
+                      className="text-[10px] font-bold text-[#007AFF] uppercase tracking-wider hover:opacity-70 transition-opacity flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <RefreshCw size={10} className={isSyncing ? "animate-spin" : ""} />
+                      {isSyncing ? 'Syncing' : 'Sync'}
                     </button>
                   </div>
                 </div>
@@ -1627,13 +2195,13 @@ export default function App() {
                 onClick={() => setIsSidebarOpen(true)}
                 className="relative p-2 hover:bg-[#F2F2F7] border border-[#E5E5EA] shadow-sm bg-white rounded-xl text-[#007AFF] transition-all flex items-center justify-center shrink-0 active:scale-95"
                 aria-label={
-                  isSidebarListScopeActive
-                    ? 'Open sidebar — category or tag filter is active'
+                  isSidebarScopeFilterActive
+                    ? 'Open sidebar — a filter is active'
                     : 'Open sidebar'
                 }
               >
                 <PanelLeft size={22} strokeWidth={2.25} />
-                {isSidebarListScopeActive ? (
+                {isSidebarScopeFilterActive ? (
                   <span
                     className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF3B30] ring-2 ring-white pointer-events-none"
                     aria-hidden
@@ -1655,6 +2223,14 @@ export default function App() {
           </div>
 
           <div className="flex-shrink-0 flex items-center gap-2 relative">
+            {PAYWALL_ACTIVE && !hasPremiumAccess(user) && (
+               <button 
+                  onClick={() => setShowPremiumModal(true)} 
+                  className="flex bg-gradient-to-r from-[#AF52DE] to-[#FF2D55] text-white px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl text-[13px] font-bold shadow-sm hover:shadow-md transition-all active:scale-95 uppercase items-center gap-1.5"
+               >
+                 <CrownJewel size={17} className="md:scale-90" /> <span className="hidden md:inline">Upgrade</span>
+               </button>
+            )}
             <button
               id="pro-features-btn"
               onClick={() => setShowProFeaturesModal(true)}
@@ -1675,18 +2251,103 @@ export default function App() {
             >
               {viewMode === 'grid' ? <LayoutList size={20} /> : <LayoutGrid size={20} />}
             </button>
+
+            <div className="relative">
+              <button
+                id="sort-dropdown-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsSortMenuOpen(!isSortMenuOpen);
+                  setIsFilterMenuOpen(false);
+                }}
+                className={cn(
+                  "flex w-10 h-10 items-center justify-center rounded-xl transition-all active:scale-95",
+                  isSortMenuOpen ? "bg-[#E5E5EA] text-[#007AFF]" : "bg-[#F2F2F7] text-[#8E8E93] hover:bg-[#E5E5EA]"
+                )}
+                title="Sort notes"
+              >
+                {sortOrder === 'desc' ? <ArrowDownNarrowWide size={20} /> : <ArrowUpNarrowWide size={20} />}
+              </button>
+
+              <AnimatePresence>
+                {isSortMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsSortMenuOpen(false)} />
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-full mt-2 min-w-[220px] w-max max-w-[90vw] bg-white/90 backdrop-blur-xl border border-white/20 rounded-[18px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 p-2"
+                    >
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest">Sort By</div>
+                      {[
+                        { label: 'Modification Time', value: 'updatedAt' },
+                        { label: 'Creation Time', value: 'createdAt' }
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            if (sortBy === opt.value) {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setSortBy(opt.value as any);
+                              setSortOrder('desc');
+                            }
+                            setIsSortMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${
+                            sortBy === opt.value 
+                              ? 'bg-[#E5E5EA] text-[#1D1D1F]' 
+                              : 'hover:bg-[#F2F2F7] text-[#1D1D1F]'
+                          }`}
+                        >
+                          <span className="whitespace-nowrap flex-1 min-w-0 text-left">{opt.label}</span>
+                          {sortBy === opt.value && (
+                            sortOrder === 'desc' ? <ArrowDownNarrowWide size={14} className="text-[#007AFF] shrink-0" /> : <ArrowUpNarrowWide size={14} className="text-[#007AFF] shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                      <div className="h-px bg-[#F2F2F7] my-1 mx-2" />
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest">Order</div>
+                      {[
+                        { label: 'Newest First', value: 'desc' },
+                        { label: 'Oldest First', value: 'asc' }
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setSortOrder(opt.value as any);
+                            setIsSortMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${
+                            sortOrder === opt.value 
+                              ? 'bg-[#E5E5EA] text-[#1D1D1F]' 
+                              : 'hover:bg-[#F2F2F7] text-[#1D1D1F]'
+                          }`}
+                        >
+                          <span className="whitespace-nowrap flex-1 min-w-0 text-left">{opt.label}</span>
+                          {sortOrder === opt.value && <Check size={14} className="text-[#007AFF] shrink-0" />}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="relative md:hidden">
             <button 
               type="button"
               id="filter-dropdown-btn"
               title={topFilterTitle}
+              disabled={isSidebarListScopeActive && filter !== 'archived' && filter !== 'trash'}
               onClick={(e) => {
                 e.stopPropagation();
                 setIsFilterMenuOpen(!isFilterMenuOpen);
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 flex-shrink-0 shadow-sm border rounded-full text-[13px] font-semibold transition-all active:scale-95 ${
+              className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 flex-shrink-0 shadow-sm border rounded-full text-[13px] font-semibold transition-all ${
                 isSidebarListScopeActive && filter !== 'archived' && filter !== 'trash'
-                  ? 'bg-[#F2F2F7] border-[#E5E5EA] text-[#8E8E93]'
-                  : 'bg-white border-[#E5E5EA] text-[#1D1D1F] hover:bg-[#F2F2F7]'
+                  ? 'bg-[#F2F2F7] border-[#E5E5EA] text-[#8E8E93] cursor-default opacity-80'
+                  : 'bg-white border-[#E5E5EA] text-[#1D1D1F] hover:bg-[#F2F2F7] active:scale-95'
               }`}
             >
               <span className="truncate max-w-[80px] sm:max-w-none">{topFilterTriggerLabel}</span>
@@ -1708,6 +2369,10 @@ export default function App() {
                         key={opt.value}
                         onClick={() => {
                           setFilter(opt.value);
+                          if (opt.value === 'starred') {
+                            setCategoryFilter('all');
+                            setTagFilter(null);
+                          }
                           setIsFilterMenuOpen(false);
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${
@@ -1724,6 +2389,7 @@ export default function App() {
                 </>
               )}
             </AnimatePresence>
+            </div>
           </div>
         </header>
 
@@ -1765,7 +2431,7 @@ export default function App() {
                       isSelected={selectedIds.has(capsule.id)}
                       onToggleSelection={() => toggleSelection(capsule.id)}
                       onViewDetail={() => setEditingCapsule(capsule)}
-                      isPremium={user?.isPremium || false}
+                      isPremium={hasPremiumAccess(user)}
                     />
                   </div>
                 </div>
@@ -1821,20 +2487,52 @@ export default function App() {
                 className="relative w-full max-w-4xl bg-white rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] overflow-hidden flex flex-col h-[90vh] md:h-[85vh]"
               >
                 <div 
-                  className="h-20 w-full flex items-center justify-between px-8"
+                  className="h-20 w-full flex items-center justify-between px-5 md:px-8 gap-3"
                   style={{ backgroundColor: 'white', borderBottom: '1px solid #F2F2F7' }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: editingCapsule.color || '#F2F2F7' }} />
-                    <span className="font-black tracking-tight text-xl text-[#1D1D1F]">Edit Note</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: editingCapsule.color || '#F2F2F7' }} />
+                    <span className="font-black tracking-tight text-lg md:text-xl text-[#1D1D1F] truncate">Edit Note</span>
                   </div>
-                  <button 
-                    type="button"
-                    onClick={closeEditingModal}
-                    className="w-10 h-10 flex items-center justify-center bg-[#F2F2F7] hover:bg-[#E5E5EA] rounded-full transition-colors"
-                  >
-                    <X size={20} className="text-[#8E8E93]" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      aria-label={editingCapsule.isPinned ? 'Unpin note' : 'Pin note'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        patchCapsule(editingCapsule.id, { isPinned: !editingCapsule.isPinned });
+                      }}
+                      className="w-11 h-11 flex items-center justify-center rounded-full bg-[#1D1D1F] shadow-md hover:opacity-90 transition-opacity"
+                    >
+                      <Pin
+                        size={22}
+                        className={editingCapsule.isPinned ? 'text-[#007AFF] fill-[#007AFF]' : 'text-white'}
+                        strokeWidth={2}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={editingCapsule.isStarred ? 'Unstar note' : 'Star note'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        patchCapsule(editingCapsule.id, { isStarred: !editingCapsule.isStarred });
+                      }}
+                      className="w-11 h-11 flex items-center justify-center rounded-full bg-[#1D1D1F] shadow-md hover:opacity-90 transition-opacity"
+                    >
+                      <Star
+                        size={22}
+                        className={editingCapsule.isStarred ? 'text-[#FFCC00] fill-[#FFCC00]' : 'text-white'}
+                        strokeWidth={2}
+                      />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={closeEditingModal}
+                      className="w-11 h-11 flex items-center justify-center bg-[#F2F2F7] hover:bg-[#E5E5EA] rounded-full transition-colors"
+                    >
+                      <X size={20} className="text-[#8E8E93]" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-5 md:p-8 overflow-y-auto custom-scrollbar flex-1 flex flex-col">
@@ -1858,7 +2556,65 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-16 pb-20">
+                  <div className="max-w-2xl mx-auto w-full space-y-4 mb-4">
+                    <div className="relative">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-[#AEAEB2] mb-1.5">
+                        Category <span className="font-mono font-bold text-[#636366] normal-case tracking-normal">(one value)</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={editDetailCategory}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setEditDetailCategory(v);
+                          editDetailCategoryRef.current = v;
+                        }}
+                        onBlur={() => {
+                          const t = editDetailCategoryRef.current.trim();
+                          const prev = (editingCapsule.category || '').trim();
+                          if (prev === t) return;
+                          patchCapsule(editingCapsule.id, { category: t || undefined });
+                        }}
+                        className="w-full bg-[#F2F2F7] border border-transparent focus:border-[#007AFF]/30 rounded-2xl px-4 py-3 text-sm font-semibold text-[#1D1D1F] focus:ring-2 focus:ring-[#007AFF]/15 outline-none"
+                        placeholder="e.g. Work"
+                        list="edit-detail-categories"
+                      />
+                      <datalist id="edit-detail-categories">
+                        {allCategories.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <div className="relative">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-[#AEAEB2] mb-1.5">
+                        Tags <span className="font-mono font-bold text-[#636366] normal-case tracking-normal">(comma separated)</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={editDetailTags}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setEditDetailTags(v);
+                          editDetailTagsRef.current = v;
+                        }}
+                        onBlur={() => {
+                          const parts = editDetailTagsRef.current.split(',').map((x) => x.trim()).filter(Boolean);
+                          if (tagsSignature(editingCapsule.tags) === tagsSignature(parts)) return;
+                          patchCapsule(editingCapsule.id, { tags: parts.length ? parts : undefined });
+                        }}
+                        className="w-full bg-[#F2F2F7] border border-transparent focus:border-[#007AFF]/30 rounded-2xl px-4 py-3 text-sm font-semibold text-[#1D1D1F] focus:ring-2 focus:ring-[#007AFF]/15 outline-none"
+                        placeholder="idea, follow-up, …"
+                        list="edit-detail-tags"
+                      />
+                      <datalist id="edit-detail-tags">
+                        {allTags.map((t) => (
+                          <option key={t} value={t} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-2 pb-16 md:pb-20">
                     <textarea 
                       value={editContentDraft}
                       onChange={(e) => {
@@ -1867,18 +2623,10 @@ export default function App() {
                         setEditContentDraft(v);
                         queueEditContentSave();
                       }}
-                      className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal"
+                      className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px]"
                       placeholder="Start typing your brilliance..."
                       autoFocus
                     />
-                  </div>
-                  
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {editingCapsule.tags?.map(tag => (
-                      <span key={tag} className="px-3 py-1 bg-[#F2F2F7] rounded-full text-xs font-bold text-[#8E8E93] tracking-tight">
-                        #{tag}
-                      </span>
-                    ))}
                   </div>
                 </div>
                 
@@ -1992,6 +2740,109 @@ export default function App() {
                   <CheckSquare size={16} className="shrink-0" />
                   <span className="text-xs font-medium truncate">{selectedIds.size === filteredCapsules.length ? 'Deselect All' : 'Select All'}</span>
                 </button>
+
+                {filter !== 'archived' && filter !== 'trash' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                        const allPinned = sel.length > 0 && sel.every((c) => c.isPinned);
+                        void batchUpdate({ isPinned: !allPinned });
+                      }}
+                      className="flex items-center gap-2 px-3 py-2.5 text-[#007AFF] hover:bg-[#F2F2F7] transition-colors w-full text-left"
+                    >
+                      <Pin size={16} className="shrink-0" />
+                      <span className="text-xs font-medium truncate">
+                        {(() => {
+                          const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                          return sel.length > 0 && sel.every((c) => c.isPinned)
+                            ? 'Unpin'
+                            : 'Pin to top';
+                        })()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                        const allStarred = sel.length > 0 && sel.every((c) => c.isStarred);
+                        void batchUpdate({ isStarred: !allStarred });
+                      }}
+                      className="flex items-center gap-2 px-3 py-2.5 text-[#007AFF] hover:bg-[#F2F2F7] transition-colors w-full text-left"
+                    >
+                      <Star
+                        size={16}
+                        className="shrink-0 text-[#FFCC00]"
+                        fill={(() => {
+                          const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                          return sel.length > 0 && sel.every((c) => c.isStarred) ? '#FFCC00' : 'none';
+                        })()}
+                      />
+                      <span className="text-xs font-medium truncate">
+                        {(() => {
+                          const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                          return sel.length > 0 && sel.every((c) => c.isStarred)
+                            ? 'Unstar'
+                            : 'Star';
+                        })()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                        const allTodo = sel.length > 0 && sel.every((c) => c.isTodo);
+                        void batchUpdate(
+                          allTodo ? { isTodo: false, completed: false } : { isTodo: true },
+                        );
+                      }}
+                      className="flex items-center gap-2 px-3 py-2.5 text-[#007AFF] hover:bg-[#F2F2F7] transition-colors w-full text-left"
+                    >
+                      {(() => {
+                        const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                        const allTodo = sel.length > 0 && sel.every((c) => c.isTodo);
+                        return allTodo ? (
+                          <Square size={16} className="shrink-0 text-[#8E8E93]" />
+                        ) : (
+                          <CheckSquare size={16} className="shrink-0" />
+                        );
+                      })()}
+                      <span className="text-xs font-medium truncate">
+                        {(() => {
+                          const sel = allCapsules.filter((c) => selectedIds.has(c.id));
+                          return sel.length > 0 && sel.every((c) => c.isTodo)
+                            ? 'Remove to-do'
+                            : 'Set to-do';
+                        })()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBatchColorOpen(true)}
+                      className="flex items-center gap-2 px-3 py-2.5 text-[#007AFF] hover:bg-[#F2F2F7] transition-colors w-full text-left"
+                    >
+                      <Palette size={16} className="shrink-0" />
+                      <span className="text-xs font-medium truncate">Change color</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const first = allCapsules.find((c) => selectedIds.has(c.id));
+                        const r = first?.reminder;
+                        setBatchRemDate(r?.date ?? Date.now() + 86400000);
+                        setBatchRemType(
+                          r?.type && r.type !== 'none' ? r.type : 'once',
+                        );
+                        setBatchReminderOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2.5 text-[#007AFF] hover:bg-[#F2F2F7] transition-colors w-full text-left"
+                    >
+                      <Calendar size={16} className="shrink-0" />
+                      <span className="text-xs font-medium truncate">Set reminder</span>
+                    </button>
+                  </>
+                ) : null}
                 
                 {filter === 'archived' ? (
                   <>
@@ -2011,6 +2862,16 @@ export default function App() {
                   <>
                     <button onClick={() => batchUpdate({ isArchived: true })} className="flex items-center gap-2 px-3 py-2.5 text-[#8E8E93] hover:text-[#1D1D1F] hover:bg-[#F2F2F7] transition-colors w-full text-left"><Archive size={16} className="shrink-0" /><span className="text-xs font-medium">Archive</span></button>
                     <button onClick={() => batchUpdate({ isDeleted: true })} className="flex items-center gap-2 px-3 py-2.5 text-[#FF3B30] hover:bg-[#F2F2F7] transition-colors w-full text-left"><Trash2 size={16} className="shrink-0" /><span className="text-xs font-medium">Delete</span></button>
+                    <button onClick={async () => {
+                      const selectedNotes = allCapsules.filter(c => selectedIds.has(c.id));
+                      const text = selectedNotes.map(c => `[${c.category || 'Note'}] ${plainTextFromContent(c.content)}`).join('\n\n---\n\n');
+                      if (navigator.share) {
+                        try { await navigator.share({ title: 'Shared Idea Capsules', text }); } catch (err) { console.log('Share error', err); }
+                      } else {
+                        navigator.clipboard.writeText(text);
+                        alert('Copied all selected notes to clipboard!');
+                      }
+                    }} className="flex items-center gap-2 px-3 py-2.5 text-[#007AFF] hover:bg-[#F2F2F7] transition-colors w-full text-left"><Share2 size={16} className="shrink-0" /><span className="text-xs font-medium">Share</span></button>
                   </>
                 )}
 
@@ -2020,6 +2881,150 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {batchColorOpen && selectedIds.size > 0 ? (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-auto">
+            <button
+              type="button"
+              aria-label="Close"
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setBatchColorOpen(false)}
+            />
+            <div
+              className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-[#E5E5EA]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-sm font-black text-[#1D1D1F] mb-3">
+                Change color ({selectedIds.size} notes)
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => {
+                      void batchUpdate({ color });
+                      setBatchColorOpen(false);
+                    }}
+                    className="h-9 w-9 rounded-full border-2 border-transparent hover:scale-110 shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void batchUpdate({ color: null as any });
+                    setBatchColorOpen(false);
+                  }}
+                  className="h-9 w-9 rounded-full border-2 border-dashed border-[#D1D1D6] flex items-center justify-center text-[#8E8E93] bg-[#F2F2F7]"
+                  title="Reset color"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBatchColorOpen(false)}
+                className="mt-4 w-full py-2.5 rounded-xl bg-[#F2F2F7] text-xs font-bold text-[#1D1D1F]"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {batchReminderOpen && selectedIds.size > 0 ? (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-auto">
+            <button
+              type="button"
+              aria-label="Close"
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setBatchReminderOpen(false)}
+            />
+            <div
+              className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-[#E5E5EA] space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-sm font-black text-[#1D1D1F]">
+                Reminder ({selectedIds.size} notes)
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1">
+                  Time
+                </div>
+                <input
+                  type="datetime-local"
+                  value={
+                    batchRemDate
+                      ? new Date(
+                          batchRemDate - new Date().getTimezoneOffset() * 60000,
+                        )
+                          .toISOString()
+                          .slice(0, 16)
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const d = new Date(e.target.value).getTime();
+                    if (!isNaN(d)) setBatchRemDate(d);
+                  }}
+                  className="w-full px-3 py-2 bg-[#F2F2F7] rounded-xl text-xs border-none focus:ring-2 focus:ring-[#007AFF]/30"
+                />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1">
+                  Repeat
+                </div>
+                <select
+                  value={batchRemType}
+                  onChange={(e) =>
+                    setBatchRemType(e.target.value as ReminderType)
+                  }
+                  className="w-full px-3 py-2 bg-[#F2F2F7] rounded-xl text-xs border-none"
+                >
+                  <option value="once">Once</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="none">No reminder</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void batchUpdate({ reminder: undefined });
+                    setBatchReminderOpen(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-[#F2F2F7] text-xs font-bold text-[#FF3B30]"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next: ReminderConfig | undefined =
+                      batchRemType === 'none' && !batchRemDate
+                        ? undefined
+                        : {
+                            type:
+                              batchRemType === 'none' && batchRemDate
+                                ? 'once'
+                                : batchRemType,
+                            date:
+                              batchRemDate || Date.now() + 86400000,
+                          };
+                    void batchUpdate({ reminder: next });
+                    setBatchReminderOpen(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-[#007AFF] text-xs font-bold text-white"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* Improved Quick Capture Input Area */}
         <footer id="input-area" className={`shrink-0 min-h-[80px] md:h-32 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 px-4 md:px-8 py-3 md:py-4 flex items-center justify-center relative z-40 transition-opacity duration-300 ${selectedIds.size > 0 ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
@@ -2039,7 +3044,13 @@ export default function App() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && inputText.trim()) {
+                    if (e.key === 'Enter') {
+                      if (!inputText.trim()) {
+                        alert(
+                          '请输入文字，然后点击右侧按钮创建便签；或按住右侧麦克风录制语音，系统会自动识别并创建便签。',
+                        );
+                        return;
+                      }
                       handleCreateCapsule(inputText);
                       setInputText('');
                     }
@@ -2047,14 +3058,24 @@ export default function App() {
                   disabled={isProcessing}
                   className="bg-transparent border-none focus:ring-0 flex-1 text-base md:text-lg placeholder-[#8E8E93] dark:text-[#F2F2F7] outline-none py-3"
                 />
-                {(inputText.trim() || isProcessing) && (
-                  <button 
-                    onClick={() => { handleCreateCapsule(inputText); setInputText(''); }}
-                    className="text-[#007AFF] p-2 hover:scale-110 active:scale-90 transition-all font-bold"
-                  >
-                    {isProcessing ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><RotateCcw size={20} /></motion.div> : <Plus size={28} strokeWidth={3} />}
-                  </button>
-                )}
+                <button 
+                  type="button"
+                  title="创建便签"
+                  onClick={() => {
+                    if (!inputText.trim() && !isProcessing) {
+                      alert(
+                        '请输入文字，然后点击本按钮创建便签；或按住右侧麦克风录制语音，系统会自动识别并创建便签。',
+                      );
+                      return;
+                    }
+                    handleCreateCapsule(inputText);
+                    setInputText('');
+                  }}
+                  disabled={isProcessing}
+                  className="text-[#007AFF] p-2 hover:scale-110 active:scale-90 transition-all font-bold disabled:opacity-50"
+                >
+                  {isProcessing ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><RotateCcw size={20} /></motion.div> : <Check size={26} strokeWidth={3} />}
+                </button>
              </div>
 
              <motion.button 
@@ -2117,7 +3138,7 @@ export default function App() {
       />
 
       {/* Edge Swipe Panel Trigger (Mock Implementation for Edge Panel) */}
-      {user?.isPremium && (
+      {user && hasPremiumAccess(user) && (
          <div 
            className="fixed right-0 top-1/2 -translate-y-1/2 w-2 h-24 bg-[#007AFF]/20 hover:bg-[#007AFF] hover:w-6 hover:h-48 group transition-all duration-300 rounded-l-2xl z-50 flex items-center justify-start cursor-pointer shadow-lg backdrop-blur-md"
            onClick={() => {
@@ -2149,7 +3170,8 @@ function SidebarItem({
   onRename,
   onDelete,
   isSidebarOpen,
-  isCustom = false
+  isCustom = false,
+  count
 }: { 
   key?: string | number;
   id?: string;
@@ -2161,6 +3183,7 @@ function SidebarItem({
   onDelete?: () => void;
   isSidebarOpen: boolean;
   isCustom?: boolean;
+  count?: number;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -2245,7 +3268,14 @@ function SidebarItem({
               className={`bg-black/5 border-none focus:ring-2 focus:ring-[#007AFF]/20 text-sm font-medium w-full rounded px-2 py-0.5 outline-none ${isActive ? 'text-white placeholder-white/60 bg-white/20' : 'text-[#1D1D1F] placeholder-[#8E8E93]'}`}
             />
           ) : (
-            <span className={`${isActive ? 'font-bold' : 'font-medium'} text-sm truncate flex-1`}>{label}</span>
+            <div className="flex items-center justify-between flex-1 min-w-0">
+              <span className={`${isActive ? 'font-bold' : 'font-medium'} text-sm truncate`}>{label}</span>
+              {count !== undefined && count > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-2 ${isActive ? 'bg-white/20 text-white' : 'bg-[#E5E5EA] text-[#8E8E93]'}`}>
+                  {count}
+                </span>
+              )}
+            </div>
           )
         )}
       </div>
@@ -2305,6 +3335,14 @@ const repeatLabelForMenu = (r: any) => {
   return r.type.charAt(0).toUpperCase() + r.type.slice(1);
 };
 
+function reminderBellTitle(capsule: Capsule): string {
+  const r = capsule.reminder;
+  if (!r || r.type === 'none' || r.date == null) return 'Reminder';
+  const when = new Date(r.date).toLocaleString();
+  const schedule = repeatLabelForMenu(r);
+  return [`When: ${when}`, `Schedule: ${schedule}`].join('\n');
+}
+
 const CapsuleItem = memo(function CapsuleItem({
   capsule,
   index,
@@ -2337,26 +3375,6 @@ const CapsuleItem = memo(function CapsuleItem({
   const longPressDetected = useRef(false);
   const touchStartPos = useRef<{x: number, y: number} | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (showOptions || showColorPicker || showReminderPicker) {
-        if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-          setShowOptions(false);
-          setShowColorPicker(false);
-          setShowReminderPicker(false);
-          setIsConfiguringCustom(false);
-        }
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [showOptions, showColorPicker, showReminderPicker]);
 
   const startPress = (e: React.MouseEvent | React.TouchEvent) => {
     longPressDetected.current = false;
@@ -2432,15 +3450,26 @@ const CapsuleItem = memo(function CapsuleItem({
   const capsuleColor = capsule.color || '#2E7D32';
   
   return (
-    <div className="flex items-center gap-2 md:gap-3 group w-full mb-2.5 md:mb-3.5">
+    <div className="flex items-center gap-2 md:gap-3 w-full mb-2.5 md:mb-3.5">
       <motion.div
         id={index === 0 ? "capsule-item-0" : undefined}
+        title={[
+          capsule.category ? `category: ${capsule.category}` : 'category: —',
+          capsule.tags?.length
+            ? `tags: ${capsule.tags.join(', ')}`
+            : 'tags: —',
+          capsule.isStarred ? 'starred' : 'not starred',
+        ].join('\n')}
         className={cn(
-          "w-full relative rounded-[24px] md:rounded-[28px] shadow-sm transition-all border flex",
+          "w-full relative rounded-[24px] md:rounded-[28px] shadow-sm transition-all border flex group",
           viewMode === 'grid' ? "flex-col h-full min-h-[80px] md:min-h-[140px]" : "flex-row",
-          "items-start gap-1.5 p-2.5 md:gap-3 md:p-6",
+          "items-center gap-1.5 p-2.5 md:gap-3 md:p-6",
           isSelected ? "border-[#007AFF] shadow-2xl ring-[6px] ring-[#007AFF]/10 -translate-y-1" : "border-black/5 hover:border-black/10 hover:shadow-xl",
-          capsule.isTodo && capsule.completed ? "opacity-60" : "",
+          capsule.isTodo &&
+          capsule.completed &&
+          !(showOptions || showColorPicker || showReminderPicker)
+            ? "opacity-60"
+            : "",
           (showOptions || showColorPicker || showReminderPicker) ? "z-[70]" : "z-10"
         )}
         style={{ backgroundColor: capsuleColor }}
@@ -2477,6 +3506,39 @@ const CapsuleItem = memo(function CapsuleItem({
           }
         }}
       >
+        {(showOptions || showColorPicker || showReminderPicker) && (
+          <div
+            className="fixed inset-0 z-[100]"
+            aria-hidden
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowOptions(false);
+              setShowColorPicker(false);
+              setShowReminderPicker(false);
+              setIsConfiguringCustom(false);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setShowOptions(false);
+              setShowColorPicker(false);
+              setShowReminderPicker(false);
+              setIsConfiguringCustom(false);
+            }}
+          />
+        )}
+
+        {capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date && (
+          <div
+            className="absolute bottom-3 right-14 z-20 flex items-center justify-center w-7 h-7 rounded-full bg-black/20 backdrop-blur-md border border-white/25 text-white shadow-md pointer-events-auto cursor-help"
+            title={reminderBellTitle(capsule)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <Bell size={14} className={capsule.reminder.date <= Date.now() ? "text-red-200 animate-pulse" : "text-white"} />
+          </div>
+        )}
 
         {/* To-do toggle */}
         <div className={cn(
@@ -2515,40 +3577,74 @@ const CapsuleItem = memo(function CapsuleItem({
           </div>
           
           <div className={cn(
-            "flex flex-wrap items-center gap-2 mt-4 shrink-0 opacity-80",
-            viewMode === 'grid' ? "justify-center" : ""
+            "flex flex-col gap-2 mt-4 shrink-0 w-full",
+            viewMode === 'grid' ? "items-center" : ""
           )}>
-            {capsule.category && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/10 backdrop-blur-md border border-white/10">
-                <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                <span className="text-[10px] uppercase font-black tracking-widest text-white">{capsule.category}</span>
-              </div>
-            )}
-
-            {capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date && (
-              <div 
-                className="flex items-center justify-center w-5 h-5 rounded-full bg-black/10 backdrop-blur-md border border-white/10 text-white shadow-sm" 
-                title={`Reminder: ${new Date(capsule.reminder.date).toLocaleString()}${capsule.reminder.type !== 'once' ? ` (${capsule.reminder.type})` : ''}`}
+            <div
+              className={cn(
+                "flex flex-col gap-1 w-full transition-all duration-200 max-h-0 opacity-0 overflow-hidden pointer-events-none",
+                "group-hover:max-h-48 group-hover:opacity-100 group-hover:mt-2 group-hover:pointer-events-auto",
+                viewMode === 'grid' ? "items-center text-center" : "",
+              )}
+            >
+              <div
+                className={cn(
+                  'flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold text-white/95 leading-tight',
+                  viewMode === 'grid' ? 'justify-center' : '',
+                )}
               >
-                <Bell size={12} className={capsule.reminder.date <= Date.now() ? "text-red-300 animate-pulse" : "text-white"} />
+                <span className="uppercase tracking-wider text-white/80">
+                  category:
+                </span>
+                <span>{capsule.category ?? '—'}</span>
+                <span className="text-white/35 mx-0.5">|</span>
+                <span className="uppercase tracking-wider text-white/80">tags:</span>
+                <span>
+                  {capsule.tags?.length ? capsule.tags.join(', ') : '—'}
+                </span>
+                <span className="text-white/35 mx-0.5">|</span>
+                <span className="inline-flex items-center gap-1">
+                  <Star
+                    size={12}
+                    className={
+                      capsule.isStarred
+                        ? 'text-[#FFCC00] fill-[#FFCC00]'
+                        : 'text-white/55'
+                    }
+                  />
+                  <span className="uppercase tracking-wider text-white/80">
+                    {capsule.isStarred ? 'starred' : 'not starred'}
+                  </span>
+                </span>
               </div>
-            )}
-            
-            {capsule.attachments && capsule.attachments.length > 0 && (
-              <div className="flex items-center gap-1 text-white/60">
-                <Paperclip size={12} />
-                <span className="text-[10px] font-bold">{capsule.attachments.length}</span>
-              </div>
-            )}
+            </div>
+
+            <div className={cn(
+              "flex flex-wrap items-center gap-2",
+              viewMode === 'grid' ? "justify-center" : ""
+            )}>
+              {capsule.attachments && capsule.attachments.length > 0 && (
+                <div className="flex items-center gap-1 text-white/60">
+                  <Paperclip size={12} />
+                  <span className="text-[10px] font-bold">{capsule.attachments.length}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Control Buttons */}
         <div ref={menuRef} className={cn(
-          "flex items-center gap-1 z-40 transition-opacity relative",
-          viewMode === 'grid' ? "absolute bottom-4 right-4 opacity-100 md:opacity-0 group-hover:opacity-100" : "opacity-100 md:opacity-0 group-hover:opacity-100 flex-shrink-0"
+          "flex items-center gap-1 transition-opacity relative",
+          showOptions || showColorPicker || showReminderPicker ? "z-[110]" : "z-40",
+          viewMode === 'grid' ? "absolute bottom-4 right-4" : "flex-shrink-0",
+          showOptions || showColorPicker || showReminderPicker
+            ? "opacity-100"
+            : viewMode === 'grid'
+              ? "opacity-100 md:opacity-0 group-hover:opacity-100"
+              : "opacity-100 md:opacity-0 group-hover:opacity-100"
         )}>
-          <div className="flex items-center gap-1 bg-black/5 p-1 rounded-full backdrop-blur-sm">
+          <div className="flex items-center gap-1 bg-black/15 p-1 rounded-full">
             <button 
                id={index === 0 ? "capsule-options-btn-0" : undefined}
                onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
@@ -2566,15 +3662,17 @@ const CapsuleItem = memo(function CapsuleItem({
                   initial={{ opacity: 0, scale: 0.9, y: viewMode === 'grid' ? 10 : -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: viewMode === 'grid' ? 10 : -10 }}
-                  className={cn("absolute bg-white border border-[#E5E5EA] rounded-xl shadow-2xl z-50 overflow-hidden text-[#1D1D1F] w-[200px] max-w-[70vw]",
-                    "top-full mt-2 right-0"
+                  className={cn(
+                    "absolute rounded-xl shadow-2xl z-50 overflow-hidden text-[#1D1D1F] w-[200px] max-w-[70vw]",
+                    "top-full mt-2 right-0 border border-[#E5E5EA] bg-[#ffffff]"
                   )}
+                  style={{ backgroundColor: '#ffffff' }}
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                 >
 
-                  <div className="space-y-3">
+                  <div className="p-3 space-y-3">
                     {/* GROUP 1: Category & Tags */}
                     <div className="space-y-2">
                       <div className="relative">
@@ -2585,11 +3683,12 @@ const CapsuleItem = memo(function CapsuleItem({
                           onChange={(e) => setTempCategory(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              onUpdate({ category: tempCategory });
+                              const t = tempCategory.trim();
+                              onUpdate({ category: t || undefined });
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          onBlur={() => onUpdate({ category: tempCategory })}
+                          onBlur={() => onUpdate({ category: tempCategory.trim() || undefined })}
                           className="w-full bg-[#F2F2F7] border-none rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-[#007AFF]/20"
                           placeholder="Category..."
                         />
@@ -2610,11 +3709,15 @@ const CapsuleItem = memo(function CapsuleItem({
                           onChange={(e) => setTempTags(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              onUpdate({ tags: tempTags.split(',').map(t => t.trim()).filter(Boolean) });
+                              const parts = tempTags.split(',').map((t) => t.trim()).filter(Boolean);
+                              onUpdate({ tags: parts.length ? parts : undefined });
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          onBlur={() => onUpdate({ tags: tempTags.split(',').map(t => t.trim()).filter(Boolean) })}
+                          onBlur={() => {
+                            const parts = tempTags.split(',').map((t) => t.trim()).filter(Boolean);
+                            onUpdate({ tags: parts.length ? parts : undefined });
+                          }}
                           className="w-full bg-[#F2F2F7] border-none rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-[#007AFF]/20"
                           placeholder="Tags..."
                         />
@@ -2646,26 +3749,14 @@ const CapsuleItem = memo(function CapsuleItem({
 
                     <div className="h-px bg-[#F2F2F7] mx-2" />
 
-                    {/* GROUP 2: Actions */}
+                    {/* GROUP 2: Actions (single note only) */}
                     <div className="space-y-0.5">
                       <button 
-                        onClick={async (e) => { 
-                          e.stopPropagation();
-                          const text = plainTextFromContent(capsule.content);
-                          if (navigator.share) {
-                            try {
-                              await navigator.share({ title: 'Idea Capsule', text });
-                            } catch (err) { console.log('Share error', err); }
-                          } else {
-                            navigator.clipboard.writeText(text);
-                            alert('Copied to clipboard!');
-                          }
-                          setShowOptions(false);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); onUpdate({ isStarred: !capsule.isStarred }); setShowOptions(false); }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
                       >
-                        <Share2 size={14} className="text-[#8E8E93]" />
-                        Share Note
+                        <Star size={14} className={capsule.isStarred ? "text-[#FFCC00] fill-[#FFCC00]" : "text-[#8E8E93]"} />
+                        {capsule.isStarred ? 'Unstar' : 'Star'}
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setShowColorPicker(true); setShowOptions(false); }}
@@ -2687,26 +3778,6 @@ const CapsuleItem = memo(function CapsuleItem({
                       >
                         {capsule.isTodo ? <Square size={14} className="text-[#8E8E93]" /> : <CheckSquare size={14} className="text-[#007AFF]" />}
                         {capsule.isTodo ? 'Cancel To-do' : 'Set To-do'}
-                      </button>
-                    </div>
-
-                    <div className="h-px bg-[#F2F2F7] mx-2" />
-
-                    {/* GROUP 3: Destructive */}
-                    <div className="space-y-0.5">
-                      <button 
-                        onClick={() => { onUpdate({ isArchived: !capsule.isArchived }); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                      >
-                        {capsule.isArchived ? <RotateCcw size={14} className="text-[#8E8E93]" /> : <Archive size={14} className="text-[#8E8E93]" />}
-                        {capsule.isArchived ? 'Restore' : 'Archive'}
-                      </button>
-                      <button 
-                        onClick={() => { onUpdate({ isDeleted: true }); setShowOptions(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF3B30] hover:bg-[#FF3B30]/10 font-bold rounded-lg transition-colors"
-                      >
-                        <Trash2 size={14} />
-                        Delete
                       </button>
                     </div>
                   </div>
@@ -2897,7 +3968,7 @@ const CapsuleItem = memo(function CapsuleItem({
 );
 });
 
-function TagItem({ tag, tagFilter, setTagFilter, setCategoryFilter, removeTag, onRename, isMobile, setIsSidebarOpen }: any) {
+function TagItem({ tag, tagFilter, setTagFilter, setCategoryFilter, removeTag, onRename, isMobile, setIsSidebarOpen, count }: any) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(tag);
@@ -2979,7 +4050,14 @@ function TagItem({ tag, tagFilter, setTagFilter, setCategoryFilter, removeTag, o
             className={`bg-black/5 border-none focus:ring-2 focus:ring-[#007AFF]/20 text-sm font-medium w-full rounded px-2 py-0.5 outline-none ${tagFilter === tag ? 'text-white placeholder-white/60 bg-white/20' : 'text-[#1D1D1F] placeholder-[#8E8E93]'}`}
           />
         ) : (
-          <span className={`${tagFilter === tag ? 'font-bold' : 'font-medium'} truncate flex-1`}>{tag}</span>
+          <div className="flex items-center justify-between flex-1 min-w-0">
+            <span className={`${tagFilter === tag ? 'font-bold' : 'font-medium'} truncate`}>{tag}</span>
+            {count !== undefined && count > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-2 ${tagFilter === tag ? 'bg-white/20 text-white' : 'bg-[#E5E5EA] text-[#8E8E93]'}`}>
+                {count}
+              </span>
+            )}
+          </div>
         )}
       </div>
 

@@ -12,7 +12,7 @@ import {
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -32,6 +32,7 @@ export {
   where, 
   onSnapshot, 
   serverTimestamp,
+  deleteField,
   signInWithPopup,
   signOut,
   createUserWithEmailAndPassword,
