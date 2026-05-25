@@ -31,14 +31,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Thoughtisan – Capture your thoughts, crafted.</title>
-        <meta name="description" content="Thoughtisan – The home for your flashes of thought. Lightning-fast idea capture and organization tool built for creators." />
-        <meta property="og:title" content="Thoughtisan – Capture your thoughts, crafted." />
-        <meta property="og:description" content="The home for your flashes of thought. Lightning-fast idea capture and organization tool built for creators." />
+        <title>Thoughtisan – Never miss your next beat.</title>
+        <meta name="description" content="⚡ Lightning-fast idea capture. 📝 Notes, ✅ Todos, 🔔 Reminders — all in one stunning app. Never miss your next beat. Capture your thoughts, crafted." />
+        <meta property="og:title" content="Thoughtisan – Never miss your next beat." />
+        <meta property="og:description" content="⚡ Lightning-fast capture. 📝 Notes, ✅ Todos, 🔔 Reminders — all in one beautiful app. Never miss your next beat." />
         <meta property="og:image" content="https://thoughtisan.com/og-image.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Thoughtisan – Capture your thoughts, crafted." />
-        <meta name="twitter:description" content="The home for your flashes of thought. Lightning-fast idea capture and organization tool built for creators." />
+        <meta name="twitter:title" content="Thoughtisan – Never miss your next beat." />
+        <meta name="twitter:description" content="⚡ Lightning-fast capture. 📝 Notes, ✅ Todos, 🔔 Reminders — all in one beautiful app. Never miss your next beat." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -99,14 +99,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
               <Sparkles size={14} className="text-[#007AFF]" />
-              <span className="text-xs font-semibold tracking-wider uppercase">Capture your thoughts, crafted.</span>
+              <span className="text-xs font-semibold tracking-wider uppercase">⚡ Lightning Fast · 🎨 Stunning Design · 🌈 Rich Colors</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              The home for your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">flashes of thought.</span>
+              Never miss <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">your next beat.</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              Lightning-fast idea capture and organization. Structure thoughts, manage tasks, and build habits with artisan precision.
+              ⚡ Lightning-fast capture · 📝 Notes · ✅ Todos · 🔔 Reminders — all in one beautiful app. Capture your thoughts, crafted.
             </p>
           </motion.div>
 
@@ -301,40 +301,40 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="py-32 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Features built for creators.</h2>
-            <p className="text-xl text-white/60">Everything you need to capture, organize, and act on your thoughts.</p>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">⚡ Lightning Fast · 🎨 Stunning Beauty</h2>
+            <p className="text-xl text-white/60">Notes, Todos, Reminders — all in one gorgeous app. Never miss your next beat.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard 
-              icon={<CalendarDays className="text-[#34C759]" size={28} />}
-              title="Milestones & Deadlines"
-              desc="Meticulously project forward. See the exact countdown days left and execute with precision."
-            />
-            <FeatureCard 
-              icon={<Repeat className="text-[#007AFF]" size={28} />}
-              title="Deliberate Habits"
-              desc="Automate daily, weekly, or monthly rituals. Anchor your routines in structured repetition."
-            />
-            <FeatureCard 
-              icon={<CheckSquare className="text-[#AF52DE]" size={28} />}
-              title="Structured Checklists"
-              desc="Convert formless inspirations into tangible tasks. Feel the weight of completed work instantly."
+              icon={<Zap className="text-[#FBC02D]" size={28} />}
+              title="⚡ Lightning Fast Capture"
+              desc="Capture ideas the instant they strike. Zero friction, maximum speed. Never let a beat slip away."
             />
             <FeatureCard 
               icon={<Palette className="text-[#FF2D55]" size={28} />}
-              title="Chromative Aesthetics"
-              desc="Organize thoughts using custom color keys. Develop a visually stunning digital library."
+              title="🌈 Rich Color Aesthetics"
+              desc="Organize thoughts with stunning colors. Build a visually beautiful digital library that sparks joy."
+            />
+            <FeatureCard 
+              icon={<CheckSquare className="text-[#AF52DE]" size={28} />}
+              title="📝 Notes & Todos & Reminders"
+              desc="All-in-one: capture notes, manage tasks, set reminders. One app for your entire creative workflow."
+            />
+            <FeatureCard 
+              icon={<CalendarDays className="text-[#34C759]" size={28} />}
+              title="🔔 Smart Reminders"
+              desc="Never miss a deadline. Get intelligent reminders that keep your creative flow uninterrupted."
             />
             <FeatureCard 
               icon={<Tablet className="text-[#FF9500]" size={28} />}
-              title="Adaptive Fluid Views"
-              desc="Pivot seamlessly between expansive grid workspaces and minimal chronological list streams."
+              title="📱 Beautiful on All Devices"
+              desc="Stunning interface across desktop, tablet, and mobile. Your thoughts, beautifully synchronized."
             />
             <FeatureCard 
               icon={<Monitor className="text-white" size={28} />}
-              title="Artisan Cloud Sync"
-              desc="Your data is treated with utmost respect. Flawless, encrypted real-time sync across all devices."
+              title="☁️ Instant Cloud Sync"
+              desc="Your data synced beautifully across all devices. Encrypted, secure, always accessible."
             />
           </div>
         </div>
