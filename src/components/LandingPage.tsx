@@ -5,6 +5,7 @@ import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, P
 import { cn } from '../lib/utils';
 import { auth, googleProvider, facebookProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
+import { Helmet } from 'react-helmet-async';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -29,12 +30,42 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
+      <Helmet>
+        <title>Thoughtisan – Thought Artisan: The Artisan Platform for Capturing Ideas</title>
+        <meta name="description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool. Experience unmatched productivity with Thought Artisan today." />
+        <meta property="og:title" content="Thoughtisan – The Artisan Platform for Capturing Ideas" />
+        <meta property="og:description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta property="og:image" content="https://thoughtisan.com/og-image.jpg" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Thoughtisan – The Artisan Platform for Capturing Ideas" />
+        <meta name="twitter:description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "url": "https://thoughtisan.com",
+            "name": "Thoughtisan",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://thoughtisan.com/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            },
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "email": "mailto:hello@thoughtisan.com",
+              "url": "https://thoughtisan.com/contact",
+              "contactType": "customer support"
+            }
+          })}
+        </script>
+      </Helmet>
+
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AppLogo className="w-8 h-8" />
-            <span className="font-bold text-lg tracking-tight">Idea Capsule</span>
+            <span className="font-bold text-lg tracking-tight">Thoughtisan</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogin} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
@@ -70,8 +101,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               <span className="text-xs font-semibold tracking-wider uppercase">Blazing Fast Inspiration Capture</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Capture at the <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">speed of light.</span>
+              Artisan Productivity for the <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">Digital Age.</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
               Tasks, notes, to-dos, and pure journal entries. Set repeating reminders and countdown days. Ensure you never forget or miss a beat again.
@@ -89,7 +120,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
             <button onClick={handleGoogleLogin} className="w-full sm:w-auto px-6 py-4 bg-white/10 border border-white/20 text-white backdrop-blur-md rounded-full font-bold text-lg hover:bg-white/20 transition-all flex items-center justify-center gap-2">
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 bg-white rounded-full p-0.5" />
+              
               Google
             </button>
             <button onClick={handleFacebookLogin} className="w-full sm:w-auto px-6 py-4 bg-[#1877F2]/10 border border-[#1877F2]/20 text-[#1877F2] hover:text-white backdrop-blur-md rounded-full font-bold text-lg hover:bg-[#1877F2]/80 transition-all flex items-center justify-center gap-2">
@@ -288,13 +319,13 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       </section>
 
       {/* Contact Form / About */}
-      <section className="py-32 px-6 relative overflow-hidden bg-[#111] border-t border-white/5">
+      <section aria-labelledby="contact-heading" className="py-32 px-6 relative overflow-hidden bg-[#111] border-t border-white/5">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/10 blur-[100px] rounded-full" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/10 blur-[100px] rounded-full" />
 
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 relative z-10">
           <div>
-            <h2 className="text-4xl md:text-5xl font-black mb-8">Let's craft the future.</h2>
+            <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">Contact Thoughtisan</h2>
             <p className="text-white/60 mb-8 leading-relaxed text-lg text-balance">
               Idea Capsule is built with an obsession for speed, minimalism, and visual emotion. I am constantly working to make it the definitive thought-capture tool. Have feedback or want to reach out? Drop a line below.
             </p>
@@ -307,7 +338,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               </div>
               <div className="flex flex-col pt-4 border-t border-white/10">
                 <span className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Direct Contact</span>
-                <a href="mailto:hello@ideacapsule.dev" className="text-[#007AFF] hover:underline font-medium text-lg">hello@ideacapsule.dev</a>
+                <a href="mailto:hello@thoughtisan.com" className="text-[#007AFF] hover:underline font-medium text-lg">hello@thoughtisan.com</a>
               </div>
             </div>
           </div>
@@ -338,7 +369,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
              <AppLogo className="w-6 h-6" />
-             <span className="font-bold text-white/80">Idea Capsule</span>
+             <span className="font-bold text-white/80">Thoughtisan</span>
           </div>
           <p className="text-white/40 text-sm">
             Designed for speed. Engineered for precision. © {new Date().getFullYear()} All rights reserved.
