@@ -4,7 +4,7 @@ import { AppLogo } from './AppLogo';
 import { 
   Zap, Mic, CheckSquare, Sparkles, ArrowRight, Palette, Clock, Repeat, CalendarDays, 
   Smartphone, Monitor, Tablet, Apple, Play, Facebook, Star, Pin, LayoutGrid, List, 
-  Tag, Bell, Volume2, SmartphoneNfc, Widget, SwipeRight, VolumeUp 
+  Tag, Bell, Volume2, SmartphoneNfc, Square, SwipeRight, VolumeUp 
 } from 'lucide-react';
 import { auth, googleProvider, facebookProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -366,7 +366,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
                 <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
                   <div className="w-12 h-12 bg-[#007AFF]/10 rounded-xl flex items-center justify-center shrink-0">
-                    <Widget className="text-[#007AFF]" size={24} />
+                    <Square className="text-[#007AFF]" size={24} />
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-1">📌 Desktop Widget</h3>
