@@ -31,14 +31,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Thoughtisan – Never miss your next beat.</title>
-        <meta name="description" content="⚡ Lightning-fast idea capture. 📝 Notes, ✅ Todos, 🔔 Reminders — all in one stunning app. Never miss your next beat. Capture your thoughts, crafted." />
-        <meta property="og:title" content="Thoughtisan – Never miss your next beat." />
-        <meta property="og:description" content="⚡ Lightning-fast capture. 📝 Notes, ✅ Todos, 🔔 Reminders — all in one beautiful app. Never miss your next beat." />
+        <title>Thoughtisan – Lightning-fast Notes, Todos & Reminders</title>
+        <meta name="description" content="⚡ Lightning-fast notes, todos & reminders. Thought + Artisan = Capture every thought, crafted. 📝 ✅ 🔔 All in one." />
+        <meta property="og:title" content="Thoughtisan – Lightning-fast Notes, Todos & Reminders" />
+        <meta property="og:description" content="⚡ Lightning-fast notes, todos & reminders. Thought + Artisan = Capture every thought, crafted." />
         <meta property="og:image" content="https://thoughtisan.com/og-image.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Thoughtisan – Never miss your next beat." />
-        <meta name="twitter:description" content="⚡ Lightning-fast capture. 📝 Notes, ✅ Todos, 🔔 Reminders — all in one beautiful app. Never miss your next beat." />
+        <meta name="twitter:title" content="Thoughtisan – Lightning-fast Notes, Todos & Reminders" />
+        <meta name="twitter:description" content="⚡ Lightning-fast notes, todos & reminders. Thought + Artisan = Capture every thought, crafted." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -99,14 +99,15 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
               <Sparkles size={14} className="text-[#007AFF]" />
-              <span className="text-xs font-semibold tracking-wider uppercase">⚡ Lightning Fast · 🎨 Stunning Design · 🌈 Rich Colors</span>
+              <span className="text-xs font-semibold tracking-wider uppercase">⚡ Lightning Fast · 📝 Notes · ✅ Todos · 🔔 Reminders</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Never miss <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">your next beat.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">Thought</span> +
+              <span className="text-white">isan</span><br />
+              <span className="text-4xl md:text-6xl lg:text-7xl text-white/80">Capture instantly.</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              ⚡ Lightning-fast capture · 📝 Notes · ✅ Todos · 🔔 Reminders — all in one beautiful app. Capture your thoughts, crafted.
+              ⚡ Lightning-fast notes, todos & reminders. Thought + Artisan = Capture every thought, crafted.
             </p>
           </motion.div>
 
@@ -163,17 +164,20 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-5xl mx-auto border-t border-b border-white/10 py-16 flex flex-col md:flex-row items-center justify-between gap-12">
           <div className="flex-1 text-left">
             <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 text-white">
-              Thought + Artisan <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">= Thoughtisan</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">Thought</span> + Artisan <br />
+              <span className="text-white/60">= Thoughtisan</span>
             </h2>
-            <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">The Zen of Crafted Productivity</p>
+            <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">⚡ Lightning Fast · 📝 Notes · ✅ Todos · 🔔 Reminders</p>
           </div>
           <div className="flex-1 text-left text-white/70 space-y-4 text-base font-light leading-relaxed">
             <p>
-              Your mind produces precious mental raw material—inspirations, reflections, tasks, and fleeting dreams. We believe every thought deserves to be captured with care and precision.
+              <strong className="text-white">Thought</strong> = Every idea, note, task, and reminder you need to capture.
             </p>
             <p>
-              <strong>Thoughtisan</strong> is the convergence of raw mind-flow and deliberate craftsmanship. Every note is treated like a handcrafted artifact, meticulously categorized and optimized for recall.
+              <strong className="text-white">Artisan</strong> = Crafted with precision. Beautiful, fast, and reliable.
+            </p>
+            <p>
+              <strong>Thoughtisan</strong> = All your notes, todos, and reminders — captured instantly, crafted beautifully. One app for every thought.
             </p>
           </div>
         </div>
@@ -301,8 +305,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="py-32 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">⚡ Lightning Fast · 🎨 Stunning Beauty</h2>
-            <p className="text-xl text-white/60">Notes, Todos, Reminders — all in one gorgeous app. Never miss your next beat.</p>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">⚡ Lightning Fast · 📝 Notes · ✅ Todos · 🔔 Reminders</h2>
+            <p className="text-xl text-white/60">All-in-one app. Thought + Artisan = Capture every thought, crafted.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
