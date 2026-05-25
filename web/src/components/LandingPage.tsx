@@ -31,14 +31,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Thoughtisan – Thought Artisan: The Artisan Platform for Capturing Ideas</title>
-        <meta name="description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool. Experience unmatched productivity with Thought Artisan today." />
-        <meta property="og:title" content="Thoughtisan – The Artisan Platform for Capturing Ideas" />
-        <meta property="og:description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <title>Thoughtisan – Thought Artisan | Premium Idea Capture</title>
+        <meta name="description" content="Thoughtisan merges thought and craftsmanship for a lightning-fast, elegant idea-capture tool. Experience premium productivity with Thought Artisan today." />
+        <meta property="og:title" content="Thoughtisan – Thought Artisan | Premium Idea Capture" />
+        <meta property="og:description" content="Thoughtisan merges thought and craftsmanship for a lightning-fast, elegant idea-capture tool." />
         <meta property="og:image" content="https://thoughtisan.com/og-image.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Thoughtisan – The Artisan Platform for Capturing Ideas" />
-        <meta name="twitter:description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta name="twitter:title" content="Thoughtisan – Thought Artisan | Premium Idea Capture" />
+        <meta name="twitter:description" content="Thoughtisan merges thought and craftsmanship for a lightning-fast, elegant idea-capture tool." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
