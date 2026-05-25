@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
 import { 
-  Zap, Mic, CheckSquare, Sparkles, ArrowRight, Palette, Clock, Repeat, CalendarDays, 
+  Zap, Mic, CheckSquare, Sparkles, ArrowRight, Palette, Clock, CalendarDays, 
   Smartphone, Monitor, Tablet, Apple, Play, Facebook, Star, Pin, LayoutGrid, List, 
-  Tag, Bell, Volume2, SmartphoneNfc, Square, SwipeRight, VolumeUp 
+  Tag, Bell, Square, ChevronRight, Volume1 
 } from 'lucide-react';
 import { auth, googleProvider, facebookProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -375,7 +375,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
                 <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
                   <div className="w-12 h-12 bg-[#AF52DE]/10 rounded-xl flex items-center justify-center shrink-0">
-                    <SmartphoneNfc className="text-[#AF52DE]" size={24} />
+                    <Smartphone className="text-[#AF52DE]" size={24} />
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-1">📱 Android Notification Bar</h3>
@@ -384,7 +384,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
                 <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
                   <div className="w-12 h-12 bg-[#FF2D55]/10 rounded-xl flex items-center justify-center shrink-0">
-                    <SwipeRight className="text-[#FF2D55]" size={24} />
+                    <ChevronRight className="text-[#FF2D55]" size={24} />
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-1">↔️ Edge Swipe</h3>
@@ -393,7 +393,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
                 <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
                   <div className="w-12 h-12 bg-[#FF9500]/10 rounded-xl flex items-center justify-center shrink-0">
-                    <VolumeUp className="text-[#FF9500]" size={24} />
+                    <Volume1 className="text-[#FF9500]" size={24} />
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-1">🔊 Volume Keys Shortcut</h3>
