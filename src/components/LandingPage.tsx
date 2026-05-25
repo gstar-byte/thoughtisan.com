@@ -31,20 +31,21 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Thoughtisan – Thought Artisan: The Artisan Platform for Capturing Ideas</title>
-        <meta name="description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool. Experience unmatched productivity with Thought Artisan today." />
-        <meta property="og:title" content="Thoughtisan – The Artisan Platform for Capturing Ideas" />
-        <meta property="og:description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <title>Thoughtisan – Capture your thoughts, crafted.</title>
+        <meta name="description" content="Thoughtisan – The home for your flashes of thought. Lightning-fast idea capture and organization tool built for creators." />
+        <meta property="og:title" content="Thoughtisan – Capture your thoughts, crafted." />
+        <meta property="og:description" content="The home for your flashes of thought. Lightning-fast idea capture and organization tool built for creators." />
         <meta property="og:image" content="https://thoughtisan.com/og-image.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Thoughtisan – The Artisan Platform for Capturing Ideas" />
-        <meta name="twitter:description" content="Thoughtisan merges thought and craftsmanship to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta name="twitter:title" content="Thoughtisan – Capture your thoughts, crafted." />
+        <meta name="twitter:description" content="The home for your flashes of thought. Lightning-fast idea capture and organization tool built for creators." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
             "url": "https://thoughtisan.com",
             "name": "Thoughtisan",
+            "description": "Capture your thoughts, crafted.",
             "potentialAction": {
               "@type": "SearchAction",
               "target": "https://thoughtisan.com/search?q={search_term_string}",
@@ -98,14 +99,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
               <Sparkles size={14} className="text-[#007AFF]" />
-              <span className="text-xs font-semibold tracking-wider uppercase">Thought + Artisan = Thoughtisan</span>
+              <span className="text-xs font-semibold tracking-wider uppercase">Capture your thoughts, crafted.</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Crafting thoughts with <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">artisan precision.</span>
+              The home for your <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">flashes of thought.</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              Where human intelligence meets deliberate digital craftsmanship. Capture raw inspirations, structure journal entries, organize tasks, and establish habits with the speed of sound and the beauty of fine art.
+              Lightning-fast idea capture and organization. Structure thoughts, manage tasks, and build habits with artisan precision.
             </p>
           </motion.div>
 
@@ -169,10 +170,10 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           </div>
           <div className="flex-1 text-left text-white/70 space-y-4 text-base font-light leading-relaxed">
             <p>
-              Your mind produces precious mental raw material—inspirations, reflections, tasks, and fleeting dreams. In an age of digital noise, generic text inputs fail to honor the depth of your mind.
+              Your mind produces precious mental raw material—inspirations, reflections, tasks, and fleeting dreams. We believe every thought deserves to be captured with care and precision.
             </p>
             <p>
-              <strong>Thoughtisan</strong> is the convergence of raw mind-flow (<span className="text-white font-medium">Thought</span>) and deliberate craftsmanship (<span className="text-white font-medium">Artisan</span>). Every note is treated like a handcrafted artifact, meticulously categorized, formatted, and optimized for speed and recall.
+              <strong>Thoughtisan</strong> is the convergence of raw mind-flow and deliberate craftsmanship. Every note is treated like a handcrafted artifact, meticulously categorized and optimized for recall.
             </p>
           </div>
         </div>
@@ -300,8 +301,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="py-32 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Artisan-grade features built for precision.</h2>
-            <p className="text-xl text-white/60">Deliberate details designed to elevate your intellectual routine.</p>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Features built for creators.</h2>
+            <p className="text-xl text-white/60">Everything you need to capture, organize, and act on your thoughts.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -348,7 +349,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           <div>
             <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">About Thoughtisan</h2>
             <p className="text-white/60 mb-8 leading-relaxed text-lg text-balance">
-              Thoughtisan is crafted by digital artisans obsessed with speed, intellectual clarity, and visual precision. We build software that respects your attention span and honors the complexity of your ideas. Reach out to our customer support or development team for feedback, collaborations, or feature proposals.
+              Thoughtisan is built for creators who value speed, clarity, and precision. We build software that respects your attention and honors the complexity of your ideas.
             </p>
             <div className="bg-white/5 p-6 rounded-2xl border border-white/10 space-y-4">
               <div className="flex flex-col">
