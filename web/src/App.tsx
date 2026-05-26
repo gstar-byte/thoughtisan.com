@@ -58,10 +58,10 @@ import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from '
 import { PRESET_COLORS } from './constants';
 import { categorizeThought } from './services/geminiService';
 import { 
-  db, 
-  auth, 
-  googleProvider, 
-  appleProvider,
+  getDb, 
+  getAuth, 
+  getGoogleProvider, 
+  getAppleProvider,
   signInWithPopup, 
   signOut,
   createUserWithEmailAndPassword,
@@ -149,12 +149,12 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+      userId: getAuth().currentUser?.uid,
+      email: getAuth().currentUser?.email,
+      emailVerified: getAuth().currentUser?.emailVerified,
+      isAnonymous: getAuth().currentUser?.isAnonymous,
+      tenantId: getAuth().currentUser?.tenantId,
+      providerInfo: getAuth().currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         email: provider.email,
       })) || []
@@ -671,12 +671,12 @@ export default function App() {
     setAuthProcessing(true);
     try {
       if (isRegistering) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
         await updateProfile(userCredential.user, {
           displayName: email.split('@')[0]
         });
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(getAuth(), email, password);
       }
     } catch (err: any) {
       console.error("Auth error:", err);
@@ -701,7 +701,7 @@ export default function App() {
     }
     setAuthProcessing(true);
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(getAuth(), email);
       setResetSent(true);
       setAuthError(null);
     } catch (err: any) {
@@ -714,10 +714,10 @@ export default function App() {
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser: User | null) => {
       if (firebaseUser) {
         // Listen to user document for premium status
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDocRef = doc(getDb(), 'users', firebaseUser.uid);
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser({
@@ -777,7 +777,7 @@ export default function App() {
     if (!user) return;
 
     const q = query(
-      collection(db, 'capsules'), 
+      collection(getDb(), 'capsules'), 
       where('userId', '==', user.uid)
     );
 
@@ -880,7 +880,7 @@ export default function App() {
             tourActive.current = false;
             safeLocalStorageSet(ONBOARDING_STORAGE_KEY, 'true');
             if (user) {
-              updateDoc(doc(db, 'users', user.uid), { onboarded: true });
+              updateDoc(doc(getDb(), 'users', user.uid), { onboarded: true });
             }
           }
         });
@@ -942,7 +942,7 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
-        const batch = writeBatch(db);
+        const batch = writeBatch(getDb());
         const now = Date.now();
         const bump = shouldBumpUpdatedAt(updates);
         const clean = partialCapsuleToFirestore(updates);
@@ -950,7 +950,7 @@ export default function App() {
           clean.updatedAt = now;
         }
         realIds.forEach((id: string) => {
-          const docRef = doc(db, 'capsules', id);
+          const docRef = doc(getDb(), 'capsules', id);
           batch.update(docRef, clean as Record<string, unknown>);
         });
         await batch.commit();
@@ -972,9 +972,9 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
-        const batch = writeBatch(db);
+        const batch = writeBatch(getDb());
         realIds.forEach((id: string) => {
-          const docRef = doc(db, 'capsules', id);
+          const docRef = doc(getDb(), 'capsules', id);
           batch.delete(docRef);
         });
         await batch.commit();
@@ -1042,9 +1042,9 @@ export default function App() {
     
     setAuthProcessing(true);
     try {
-      const q = query(collection(db, 'capsules'), where('userId', '==', user.uid));
+      const q = query(collection(getDb(), 'capsules'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
+      const batch = writeBatch(getDb());
       snapshot.docs.forEach(doc => batch.delete(doc.ref));
       await batch.commit();
       setCapsules([]);
@@ -1095,11 +1095,11 @@ export default function App() {
         color: randomColor
       };
       
-      await addDoc(collection(db, 'capsules'), newCapsuleData);
+      await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
     } catch (error) {
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       try {
-        await addDoc(collection(db, 'capsules'), {
+        await addDoc(collection(getDb(), 'capsules'), {
           userId: user?.uid,
           content: text,
           createdAt: Date.now(),
@@ -1151,7 +1151,7 @@ export default function App() {
         return;
       }
       try {
-        const docRef = doc(db, 'capsules', id);
+        const docRef = doc(getDb(), 'capsules', id);
         const cleanUpdates: Record<string, unknown> = {};
         Object.entries(updates).forEach(([key, value]) => {
           if (key === 'category') {
@@ -1348,7 +1348,7 @@ export default function App() {
       return;
     }
     try {
-      const docRef = doc(db, 'capsules', id);
+      const docRef = doc(getDb(), 'capsules', id);
       await deleteDoc(docRef);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `capsules/${id}`);
@@ -1713,7 +1713,7 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <button 
-                  onClick={() => signInWithPopup(auth, googleProvider)}
+                  onClick={() => signInWithPopup(getAuth(), googleProvider)}
                   className="flex items-center justify-center bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm"
                   title="Sign in with Google"
                 >
@@ -2137,7 +2137,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <button 
-                      onClick={() => signOut(auth)}
+                      onClick={() => signOut(getAuth())}
                       className="text-[10px] font-bold text-red-500 uppercase tracking-wider hover:opacity-70 transition-opacity flex items-center gap-1"
                     >
                       <LogOut size={10} />
@@ -3093,7 +3093,7 @@ export default function App() {
         onSuccess={() => {
            setShowPremiumModal(false);
            alert("Payment successful! You are now an Lumi Note Pro member.");
-           setDoc(doc(db, 'users', user?.uid), { isPremium: true }, { merge: true });
+           setDoc(doc(getDb(), 'users', user?.uid), { isPremium: true }, { merge: true });
         }}
       />
       
@@ -3107,7 +3107,7 @@ export default function App() {
         }}
         onDowngradeClick={() => {
            if (user?.uid) {
-             setDoc(doc(db, 'users', user.uid), { isPremium: false }, { merge: true });
+             setDoc(doc(getDb(), 'users', user.uid), { isPremium: false }, { merge: true });
              alert('You have successfully downgraded from Pro mode.');
              setShowSettingsModal(false);
            }

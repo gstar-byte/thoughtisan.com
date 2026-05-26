@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
 import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { auth, googleProvider } from '../lib/firebase';
+import { getAuth, getGoogleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { Helmet } from 'react-helmet-async';
 
@@ -14,7 +14,7 @@ interface LandingPageProps {
 export function LandingPage({ onLogin }: LandingPageProps) {
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(getAuth(), getGoogleProvider());
     } catch (error) {
       console.error("Google login error", error);
     }

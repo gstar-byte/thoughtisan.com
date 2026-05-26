@@ -14,11 +14,49 @@ import {
 import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const appleProvider = new OAuthProvider('apple.com');
+let app: any = null;
+let dbInstance: any = null;
+let authInstance: any = null;
+let googleProviderInstance: any = null;
+let appleProviderInstance: any = null;
+
+function initFirebase() {
+  if (!app) {
+    app = initializeApp(firebaseConfig);
+  }
+  if (!dbInstance) {
+    dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+  if (!authInstance) {
+    authInstance = getAuth(app);
+  }
+  if (!googleProviderInstance) {
+    googleProviderInstance = new GoogleAuthProvider();
+  }
+  if (!appleProviderInstance) {
+    appleProviderInstance = new OAuthProvider('apple.com');
+  }
+}
+
+export function getDb() {
+  initFirebase();
+  return dbInstance;
+}
+
+export function getAuth() {
+  initFirebase();
+  return authInstance;
+}
+
+export function getGoogleProvider() {
+  initFirebase();
+  return googleProviderInstance;
+}
+
+export function getAppleProvider() {
+  initFirebase();
+  return appleProviderInstance;
+}
 
 export { 
   collection, 
