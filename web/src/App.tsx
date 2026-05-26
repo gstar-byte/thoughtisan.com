@@ -1587,16 +1587,6 @@ export default function App() {
     ? 'List is narrowed by sidebar (category or tag). Type filters still apply on top of that scope.'
     : undefined;
 
-  if (authLoading || (user && dataLoading)) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
-        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-          <Zap size={48} className="text-[#007AFF]" />
-        </motion.div>
-      </div>
-    );
-  }
-
   if (!user) {
     if (!showAuthScreen) {
       return <LandingPage onLogin={() => setShowAuthScreen(true)} />;
