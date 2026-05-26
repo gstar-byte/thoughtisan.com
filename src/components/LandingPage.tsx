@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
-import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
+import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth, googleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -12,6 +12,7 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -387,11 +388,70 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             Capture thoughts in full color. © {new Date().getFullYear()} All rights reserved.
           </p>
           <div className="flex gap-4">
-             <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Terms</a>
-             <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Privacy</a>
+             <button 
+               onClick={() => setShowPrivacy(true)} 
+               className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer border-none bg-transparent outline-none"
+             >
+               Privacy Policy
+             </button>
           </div>
         </div>
       </footer>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-[#1C1C1E] border border-white/10 rounded-[32px] max-w-2xl w-full max-h-[80vh] flex flex-col p-8 relative md:p-10 shadow-2xl">
+            <button 
+              onClick={() => setShowPrivacy(false)}
+              className="absolute top-6 right-6 text-white/60 hover:text-white transition-colors w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-3xl font-black mb-6 text-white shrink-0">Privacy Policy</h2>
+            <div className="text-white/70 space-y-6 text-sm leading-relaxed overflow-y-auto pr-2 flex-1 scrollbar-thin scrollbar-thumb-white/10">
+              <p className="text-white/40">Last Updated: May 26, 2026</p>
+              <p>
+                At Lumi Note, we are committed to protecting your privacy. This Privacy Policy describes how we collect, use, and share information when you use our services.
+              </p>
+              
+              <h3 className="text-lg font-bold text-white mt-4">1. Information We Collect</h3>
+              <p>
+                <strong>Personal Data:</strong> When you register or log in, we collect your email address, display name, and profile picture (if authenticated via Google).
+              </p>
+              <p>
+                <strong>Your Content (Capsules & To-dos):</strong> We store the notes, tags, categories, checklists, color-codes, and reminders that you create in order to sync them securely across your devices.
+              </p>
+              
+              <h3 className="text-lg font-bold text-white mt-4">2. How We Use Information</h3>
+              <p>
+                We use the collected information solely to provide, personalize, and improve your experience, synchronize your data securely, and verify subscription status. We do not sell your personal data or your note contents to third parties.
+              </p>
+              
+              <h3 className="text-lg font-bold text-white mt-4">3. Data Synchronization & Storage</h3>
+              <p>
+                All data is stored securely using Firebase Services (Firestore & Firebase Authentication). We utilize standard industry encryption and security protocols to safeguard your data and contents.
+              </p>
+              
+              <h3 className="text-lg font-bold text-white mt-4">4. Your Data Rights</h3>
+              <p>
+                You retain full ownership of your data. You can edit or permanently delete your capsules, tags, categories, and account information directly inside the application settings at any time.
+              </p>
+
+              <h3 className="text-lg font-bold text-white mt-4">5. Contact Us</h3>
+              <p>
+                If you have any questions or feedback regarding this Privacy Policy, please reach out to us at <a href="mailto:hello@luminote.space" className="text-[#007AFF] hover:underline font-bold">hello@luminote.space</a>.
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowPrivacy(false)} 
+              className="w-full bg-white text-black font-black py-4 rounded-2xl hover:bg-gray-200 transition-colors mt-8 text-md cursor-pointer shrink-0"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

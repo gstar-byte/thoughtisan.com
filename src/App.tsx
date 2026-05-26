@@ -376,25 +376,37 @@ export default function App() {
     let userDocUnsubscribe: () => void;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (firebaseUser) {
-        // Listen to user document for premium status
+        // Optimistic login: Immediately show app and use cached premium status to avoid screen flicker
+        const cachedPremium = localStorage.getItem(`premium_${firebaseUser.uid}`) === 'true';
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          isPremium: cachedPremium
+        });
+        setAuthLoading(false);
+
+        // Listen to user document for premium status in background
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              isPremium: docSnap.data().isPremium || false
-            });
-          } else {
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              isPremium: false
-            });
+          const isPremium = docSnap.exists() ? (docSnap.data().isPremium || false) : false;
+          localStorage.setItem(`premium_${firebaseUser.uid}`, String(isPremium));
+          
+          setUser(prev => prev ? {
+            ...prev,
+            displayName: docSnap.exists() ? docSnap.data().displayName || prev.displayName : prev.displayName,
+            photoURL: docSnap.exists() ? docSnap.data().photoURL || prev.photoURL : prev.photoURL,
+            isPremium
+          } : {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            isPremium
+          });
+
+          if (!docSnap.exists()) {
             // Initial sync
             setDoc(userDocRef, {
               uid: firebaseUser.uid,
@@ -405,7 +417,6 @@ export default function App() {
               updatedAt: Date.now()
             }, { merge: true });
           }
-           setAuthLoading(false);
         }, (error) => {
           console.error("user doc snapshot error", error);
         });
@@ -1102,24 +1113,15 @@ export default function App() {
                 <div className="relative flex justify-center text-[10px] uppercase font-black text-[#8E8E93]"><span className="bg-white px-4 tracking-widest">Or social sign in</span></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex justify-center">
                 <button 
                   onClick={() => signInWithPopup(auth, googleProvider)}
-                  className="flex items-center justify-center bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm"
+                  className="w-full flex items-center justify-center gap-3 bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm font-bold text-sm text-[#1D1D1F]"
                   title="Sign in with Google"
                 >
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                  <span>Google</span>
                 </button>
-                
-                <button 
-                  onClick={() => alert("Microsoft login is being configured. Please use Google or Email for now.")}
-                  className="flex items-center justify-center bg-[#00A4EF] text-white py-3 rounded-xl border border-transparent hover:bg-[#008CDB] transition-all active:scale-95 shadow-sm"
-                  title="Sign in with Microsoft"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg"><path fill="#f3f3f3" d="M0 0h11v11H0z"/><path fill="#f3f3f3" d="M12 0h11v11H12z"/><path fill="#f3f3f3" d="M0 12h11v11H0z"/><path fill="#f3f3f3" d="M12 12h11v11H12z"/></svg>
-                </button>
-
-
               </div>
 
               <button 
