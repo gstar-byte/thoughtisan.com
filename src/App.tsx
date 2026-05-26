@@ -371,6 +371,23 @@ export default function App() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setAuthError(null);
+    setAuthProcessing(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      console.error("Google Login Error:", err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setAuthError('Unauthorized Domain: Please add "luminote.space" and "thoughtisan.com" to your Firebase Console -> Authentication -> Settings -> Authorized Domains.');
+      } else {
+        setAuthError(err.message || 'Google Login failed. Please try again.');
+      }
+    } finally {
+      setAuthProcessing(false);
+    }
+  };
+
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
@@ -1115,7 +1132,7 @@ export default function App() {
 
               <div className="flex justify-center">
                 <button 
-                  onClick={() => signInWithPopup(auth, googleProvider)}
+                  onClick={handleGoogleLogin}
                   className="w-full flex items-center justify-center gap-3 bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm font-bold text-sm text-[#1D1D1F]"
                   title="Sign in with Google"
                 >
