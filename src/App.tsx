@@ -164,7 +164,7 @@ export default function App() {
       const generatedDemoCapsules: Capsule[] = [
         {
           id: 'demo-1',
-          content: "🚀 Welcome to Idea Capsule! This is a thought note to record your inspiration. It displays perfectly in both list and grid views.",
+          content: "🚀 Welcome to Hue Note! This is a thought note to record your inspiration. It displays perfectly in both list and grid views.",
           category: "Technology",
           tags: ["intro", "welcome"],
           color: PRESET_COLORS[0],
@@ -753,7 +753,7 @@ export default function App() {
     const isVideo = file.type.startsWith('video/');
     
     if (!user?.isPremium && (file.size > 5 * 1024 * 1024 || isVideo)) {
-       alert("Large images (>5MB) and video uploads require Idea Capsule Pro.");
+       alert("Large images (>5MB) and video uploads require Hue Note Pro.");
        setShowPremiumModal(true);
        return;
     }
@@ -805,7 +805,7 @@ export default function App() {
 
   const startListening = () => {
     if (!user?.isPremium) {
-       alert("Unlimited Voice Transcription requires Idea Capsule Pro.");
+       alert("Unlimited Voice Transcription requires Hue Note Pro.");
        setShowPremiumModal(true);
        return;
     }
@@ -899,7 +899,7 @@ export default function App() {
             }
             
             if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('Idea Capsule Reminder', {
+              new Notification('Hue Note Reminder', {
                 body: cap.content.substring(0, 50) + (cap.content.length > 50 ? '...' : ''),
               });
             }
@@ -1173,7 +1173,7 @@ export default function App() {
             <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center drop-shadow-md">
               <AppLogo className="w-full h-full" />
             </div>
-            {isSidebarOpen && <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343] whitespace-nowrap">Idea Capsule</span>}
+            {isSidebarOpen && <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343] whitespace-nowrap">Hue Note</span>}
           </div>
           {isSidebarOpen && (
             <button 
@@ -1612,7 +1612,7 @@ export default function App() {
                      <div className="w-1 h-1 rounded-full bg-[#8E8E93]"></div>
                      <span className="text-[10px] font-bold text-[#8E8E93]">Just now</span>
                    </div>
-                   <h4 className="font-black text-lg text-[#1D1D1F] dark:text-[#F2F2F7] leading-tight mb-2">Reminder: Idea Capsule</h4>
+                   <h4 className="font-black text-lg text-[#1D1D1F] dark:text-[#F2F2F7] leading-tight mb-2">Reminder: Hue Note</h4>
                    <p className="text-sm font-medium text-[#48484A] dark:text-[#8E8E93] line-clamp-3 leading-relaxed mb-4">{rem.content}</p>
                    
                    <div className="flex gap-2">
@@ -1759,7 +1759,7 @@ export default function App() {
         user={user}
         onSuccess={() => {
            setShowPremiumModal(false);
-           alert("Payment successful! You are now an Idea Capsule Pro member.");
+           alert("Payment successful! You are now an Hue Note Pro member.");
            setDoc(doc(db, 'users', user?.uid), { isPremium: true }, { merge: true });
         }}
       />

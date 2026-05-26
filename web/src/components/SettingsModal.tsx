@@ -113,7 +113,7 @@ export function SettingsModal({
             ) : (
               <div className="flex items-center gap-2 bg-[#AF52DE]/10 rounded-2xl px-4 py-3 text-sm font-extrabold text-[#1D1D1F]">
                 <span>👑</span>
-                You have Idea Capsule Pro
+                You have Hue Note Pro
               </div>
             )}
 
@@ -148,7 +148,7 @@ export function SettingsModal({
                     ) : user?.isPremium ? (
                       <div className="flex items-center gap-1.5 text-[#AF52DE] font-bold">
                         <span>👑</span>
-                        <span>Idea Capsule Pro</span>
+                        <span>Hue Note Pro</span>
                       </div>
                     ) : (
                       <span className="font-bold text-[#1D1D1F]">Free</span>
@@ -220,7 +220,7 @@ export function SettingsModal({
             <div className="pt-2 pb-6 flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 text-[#8E8E93]">
                 <SettingsIcon size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Idea Capsule v1.0.4</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Hue Note v1.0.4</span>
               </div>
               <button type="button" onClick={onClose} className="text-sm font-bold text-[#007AFF] hover:underline">
                 Done

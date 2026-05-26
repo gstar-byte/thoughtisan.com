@@ -48,7 +48,7 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
              </div>
              
               <h2 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">Upgrade to Pro</h2>
-              <p className="text-white/80 font-medium text-sm md:text-base">Unlock the full power of Idea Capsule. One-time payment. Lifetime access.</p>
+              <p className="text-white/80 font-medium text-sm md:text-base">Unlock the full power of Hue Note. One-time payment. Lifetime access.</p>
           </div>
           
           <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden custom-scrollbar">
@@ -92,7 +92,7 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess }: PremiumModalP
                           intent: "CAPTURE",
                           purchase_units: [
                             {
-                              description: "Idea Capsule Pro - Lifetime Deal",
+                              description: "Hue Note Pro - Lifetime Deal",
                               amount: {
                                 currency_code: "USD",
                                 value: "88.99"

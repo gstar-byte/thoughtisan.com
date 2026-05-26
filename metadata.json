@@ -1,5 +1,5 @@
 {
-  "name": "Idea Capsule",
+  "name": "Hue Note",
   "description": "A smart productivity tool for quick idea capture. Uses AI to automatically categorize and organize your thoughts into actionable capsules.",
   "requestFramePermissions": [
     "microphone"

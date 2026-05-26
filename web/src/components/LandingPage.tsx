@@ -31,29 +31,29 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Thoughtisan – Thought Artisan | Premium Idea Capture</title>
-        <meta name="description" content="Thoughtisan merges thought and craftsmanship for a lightning-fast, elegant idea-capture tool. Experience premium productivity with Thought Artisan today." />
-        <meta property="og:title" content="Thoughtisan – Thought Artisan | Premium Idea Capture" />
-        <meta property="og:description" content="Thoughtisan merges thought and craftsmanship for a lightning-fast, elegant idea-capture tool." />
-        <meta property="og:image" content="https://thoughtisan.com/og-image.jpg" />
+        <title>Hue Note – Premium Colorful Idea Capture & To-Do</title>
+        <meta name="description" content="Hue Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta property="og:title" content="Hue Note – Premium Colorful Idea Capture & To-Do" />
+        <meta property="og:description" content="Hue Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta property="og:image" content="https://huenote.app/og-image.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Thoughtisan – Thought Artisan | Premium Idea Capture" />
-        <meta name="twitter:description" content="Thoughtisan merges thought and craftsmanship for a lightning-fast, elegant idea-capture tool." />
+        <meta name="twitter:title" content="Hue Note – Premium Colorful Idea Capture & To-Do" />
+        <meta name="twitter:description" content="Hue Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "url": "https://thoughtisan.com",
-            "name": "Thoughtisan",
+            "url": "https://huenote.app",
+            "name": "Hue Note",
             "potentialAction": {
               "@type": "SearchAction",
-              "target": "https://thoughtisan.com/search?q={search_term_string}",
+              "target": "https://huenote.app/search?q={search_term_string}",
               "query-input": "required name=search_term_string"
             },
             "contactPoint": {
               "@type": "ContactPoint",
-              "email": "mailto:hello@thoughtisan.com",
-              "url": "https://thoughtisan.com/contact",
+              "email": "mailto:hello@huenote.app",
+              "url": "https://huenote.app/contact",
               "contactType": "customer support"
             }
           })}
@@ -65,7 +65,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AppLogo className="w-8 h-8" />
-            <span className="font-bold text-lg tracking-tight">Thoughtisan</span>
+            <span className="font-bold text-lg tracking-tight">Hue Note</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogin} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
@@ -98,14 +98,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
               <Sparkles size={14} className="text-[#007AFF]" />
-              <span className="text-xs font-semibold tracking-wider uppercase">Thought + Artisan = Thoughtisan</span>
+              <span className="text-xs font-semibold tracking-wider uppercase">Color + Mindflow = Hue Note</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Crafting thoughts with <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">artisan precision.</span>
+              Capture ideas with <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">color aesthetics.</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              Where human intelligence meets deliberate digital craftsmanship. Capture raw inspirations, structure journal entries, organize tasks, and establish habits with the speed of sound and the beauty of fine art.
+              Where mind-flow meets gorgeous color design. Capture fleeting thoughts, organize daily tasks, set custom reminders, and express your routine in high-fidelity visual harmony.
             </p>
           </motion.div>
 
@@ -116,7 +116,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
           >
             <button onClick={onLogin} className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-bold text-lg hover:scale-105 transition-all flex items-center justify-center gap-2 group">
-              Start Free Crafting
+              Start Free Capture
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
             <button onClick={handleGoogleLogin} className="w-full sm:w-auto px-6 py-4 bg-white/10 border border-white/20 text-white backdrop-blur-md rounded-full font-bold text-lg hover:bg-white/20 transition-all flex items-center justify-center gap-2">
@@ -162,17 +162,17 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-5xl mx-auto border-t border-b border-white/10 py-16 flex flex-col md:flex-row items-center justify-between gap-12">
           <div className="flex-1 text-left">
             <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 text-white">
-              Thought + Artisan <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">= Thoughtisan</span>
+              Color + Mindflow <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">= Hue Note</span>
             </h2>
-            <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">The Zen of Crafted Productivity</p>
+            <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">The Zen of Colorful Productivity</p>
           </div>
           <div className="flex-1 text-left text-white/70 space-y-4 text-base font-light leading-relaxed">
             <p>
-              Your mind produces precious mental raw material—inspirations, reflections, tasks, and fleeting dreams. In an age of digital noise, generic text inputs fail to honor the depth of your mind.
+              Your mind generates precious raw material—fleeting thoughts, high-priority tasks, personal reflections, and instant reminders. A generic, monochrome list fails to capture the vitality and urgency of your mental space.
             </p>
             <p>
-              <strong>Thoughtisan</strong> is the convergence of raw mind-flow (<span className="text-white font-medium">Thought</span>) and deliberate craftsmanship (<span className="text-white font-medium">Artisan</span>). Every note is treated like a handcrafted artifact, meticulously categorized, formatted, and optimized for speed and recall.
+              <strong>Hue Note</strong> is the convergence of premium visual design (<span className="text-white font-medium">Color/Hue</span>) and lightning-fast digital capturing (<span className="text-white font-medium">Mindflow/Note</span>). Every entry is categorized with chromative cues, making task management natural, fast, and intensely beautiful.
             </p>
           </div>
         </div>
@@ -183,7 +183,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
          <div className="max-w-[1400px] mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-black mb-4">Seamlessly Integrated.<br />Flawlessly Beautiful.</h2>
-              <p className="text-white/60 text-lg">Experience the artisan interface of Thoughtisan—meticulously optimized for lists, grids, and multi-device cloud synchronization.</p>
+              <p className="text-white/60 text-lg">Experience the premium interface of Hue Note—meticulously optimized for lists, grids, and real-time cloud synchronization.</p>
             </div>
 
             <div className="relative h-auto xl:h-[600px] py-10 xl:py-0 w-full flex flex-col xl:flex-row items-center justify-center gap-16 xl:gap-8 perspective-[1500px]">
@@ -209,7 +209,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                        <div className="h-16 md:h-20 bg-[#FFCA28] rounded-2xl flex items-center px-4 md:px-6 relative overflow-hidden shadow-sm">
                          <div className="w-4 h-4 md:w-5 md:h-5 rounded border border-black/20 mr-4"></div>
                          <div className="w-1/2 h-4 bg-black/20 rounded-md"></div>
-                         <div className="absolute right-4 md:right-6 px-2 md:px-3 py-1 bg-white/30 rounded-full text-[8px] md:text-[10px] font-bold">THOUGHT</div>
+                         <div className="absolute right-4 md:right-6 px-2 md:px-3 py-1 bg-white/30 rounded-full text-[8px] md:text-[10px] font-bold">NOTE</div>
                        </div>
                        <div className="h-16 md:h-20 bg-[#AF52DE] rounded-2xl flex items-center px-4 md:px-6 relative overflow-hidden shadow-sm">
                          <div className="w-4 h-4 md:w-5 md:h-5 rounded border border-black/20 mr-4"></div>
@@ -248,7 +248,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                          <div className="space-y-1.5 md:space-y-2"><div className="w-3/4 h-2 md:h-3 bg-black/20 rounded"></div></div>
                       </div>
                       <div className="aspect-square bg-[#FF9500] rounded-2xl md:rounded-3xl p-3 md:p-4 flex flex-col justify-between">
-                         <div className="px-2 md:px-3 py-1 bg-white/30 rounded-full text-black/50 text-[8px] md:text-[10px] w-fit font-bold">THOUGHT</div>
+                         <div className="px-2 md:px-3 py-1 bg-white/30 rounded-full text-black/50 text-[8px] md:text-[10px] w-fit font-bold">NOTE</div>
                          <div className="space-y-1.5 md:space-y-2"><div className="w-full h-2 md:h-3 bg-black/20 rounded"></div></div>
                       </div>
                     </div>
@@ -346,9 +346,9 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 relative z-10">
           <div>
-            <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">About Thoughtisan</h2>
+            <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">About Hue Note</h2>
             <p className="text-white/60 mb-8 leading-relaxed text-lg text-balance">
-              Thoughtisan is crafted by digital artisans obsessed with speed, intellectual clarity, and visual precision. We build software that respects your attention span and honors the complexity of your ideas. Reach out to our customer support or development team for feedback, collaborations, or feature proposals.
+              Hue Note is crafted by digital artisans obsessed with speed, color aesthetics, and visual precision. We build software that respects your attention span and honors the complexity of your ideas. Reach out to our customer support or development team for feedback, collaborations, or feature proposals.
             </p>
             <div className="bg-white/5 p-6 rounded-2xl border border-white/10 space-y-4">
               <div className="flex flex-col">
@@ -359,7 +359,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               </div>
               <div className="flex flex-col pt-4 border-t border-white/10">
                 <span className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Direct Contact</span>
-                <a href="mailto:hello@thoughtisan.com" className="text-[#007AFF] hover:underline font-medium text-lg">hello@thoughtisan.com</a>
+                <a href="mailto:hello@huenote.app" className="text-[#007AFF] hover:underline font-medium text-lg">hello@huenote.app</a>
               </div>
             </div>
           </div>
@@ -390,7 +390,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
              <AppLogo className="w-6 h-6" />
-             <span className="font-bold text-white/80">Thoughtisan</span>
+             <span className="font-bold text-white/80">Hue Note</span>
           </div>
           <p className="text-white/40 text-sm">
             Designed for speed. Engineered for precision. © {new Date().getFullYear()} All rights reserved.

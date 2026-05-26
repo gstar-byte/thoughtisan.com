@@ -386,7 +386,7 @@ export default function App() {
   const [capsules, setCapsules] = useState<Capsule[]>([
     {
       id: 'mock-1', 
-      content: 'Brainstorming for the new Idea Capsule design language. Focusing on glassmorphism and capsule shapes.', 
+      content: 'Brainstorming for the new Hue Note design language. Focusing on glassmorphism and capsule shapes.', 
       category: 'WORK', 
       tags: ['design', 'app'], 
       color: '#007AFF', 
@@ -505,7 +505,7 @@ export default function App() {
       const generatedDemoCapsules: Capsule[] = [
         {
           id: 'demo-1',
-          content: "🚀 Welcome to Idea Capsule! This is a thought note to record your inspiration. It displays perfectly in both list and grid views.",
+          content: "🚀 Welcome to Hue Note! This is a thought note to record your inspiration. It displays perfectly in both list and grid views.",
           category: "Technology",
           tags: ["intro", "welcome"],
           color: PRESET_COLORS[0],
@@ -1291,7 +1291,7 @@ export default function App() {
     }
     
     if (!hasPremiumAccess(user) && (file.size > 5 * 1024 * 1024 || isVideo)) {
-       alert("Large images (>5MB) and video uploads require Idea Capsule Pro.");
+       alert("Large images (>5MB) and video uploads require Hue Note Pro.");
        setShowPremiumModal(true);
        return;
     }
@@ -1359,7 +1359,7 @@ export default function App() {
 
   const startListening = () => {
     if (!hasPremiumAccess(user)) {
-       alert("Unlimited Voice Transcription requires Idea Capsule Pro.");
+       alert("Unlimited Voice Transcription requires Hue Note Pro.");
        setShowPremiumModal(true);
        return;
     }
@@ -1452,7 +1452,7 @@ export default function App() {
         if (cap.reminder.date > now || notifiedIdsRef.current.has(cap.id)) return;
 
         if (window.Notification && Notification.permission === 'granted') {
-          new Notification('Idea Capsule Reminder', { body: plainTextFromContent(cap.content) });
+          new Notification('Hue Note Reminder', { body: plainTextFromContent(cap.content) });
         }
 
         notifiedIdsRef.current.add(cap.id);
@@ -1795,7 +1795,7 @@ export default function App() {
             <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center drop-shadow-md">
               <AppLogo className="w-full h-full" />
             </div>
-            {isSidebarOpen && <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343] whitespace-nowrap">Idea Capsule</span>}
+            {isSidebarOpen && <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343] whitespace-nowrap">Hue Note</span>}
           </div>
           {isSidebarOpen && (
             <button 
@@ -2687,7 +2687,7 @@ export default function App() {
                      <div className="w-1 h-1 rounded-full bg-[#8E8E93]"></div>
                      <span className="text-[10px] font-bold text-[#8E8E93]">Just now</span>
                    </div>
-                   <h4 className="font-black text-lg text-[#1D1D1F] dark:text-[#F2F2F7] leading-tight mb-2">Reminder: Idea Capsule</h4>
+                   <h4 className="font-black text-lg text-[#1D1D1F] dark:text-[#F2F2F7] leading-tight mb-2">Reminder: Hue Note</h4>
                    <p className="text-sm font-medium text-[#48484A] dark:text-[#8E8E93] line-clamp-3 leading-relaxed mb-4">{rem.content}</p>
                    
                    <div className="flex gap-2">
@@ -2866,7 +2866,7 @@ export default function App() {
                       const selectedNotes = allCapsules.filter(c => selectedIds.has(c.id));
                       const text = selectedNotes.map(c => `[${c.category || 'Note'}] ${plainTextFromContent(c.content)}`).join('\n\n---\n\n');
                       if (navigator.share) {
-                        try { await navigator.share({ title: 'Shared Idea Capsules', text }); } catch (err) { console.log('Share error', err); }
+                        try { await navigator.share({ title: 'Shared Hue Notes', text }); } catch (err) { console.log('Share error', err); }
                       } else {
                         navigator.clipboard.writeText(text);
                         alert('Copied all selected notes to clipboard!');
@@ -3108,7 +3108,7 @@ export default function App() {
         hideFeatures={showProFeaturesModal}
         onSuccess={() => {
            setShowPremiumModal(false);
-           alert("Payment successful! You are now an Idea Capsule Pro member.");
+           alert("Payment successful! You are now an Hue Note Pro member.");
            setDoc(doc(db, 'users', user?.uid), { isPremium: true }, { merge: true });
         }}
       />
