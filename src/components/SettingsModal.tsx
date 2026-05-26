@@ -81,7 +81,7 @@ export function SettingsModal({ isOpen, onClose, user, onUpgradeClick, onDowngra
                        {user?.isPremium ? (
                           <div className="flex items-center gap-1.5 text-[#AF52DE]">
                               <Crown size={18} fill="currentColor" />
-                              <span className="font-bold">Hue Note Pro</span>
+                              <span className="font-bold">Lumi Note Pro</span>
                            </div>
                        ) : (
                           <span className="font-bold text-[#1D1D1F]">Free Plan</span>
@@ -145,7 +145,7 @@ export function SettingsModal({ isOpen, onClose, user, onUpgradeClick, onDowngra
              <div className="pt-2 pb-6 flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2 text-[#8E8E93]">
                    <SettingsIcon size={14} />
-                   <span className="text-[10px] font-bold uppercase tracking-widest">Hue Note v1.0.4</span>
+                   <span className="text-[10px] font-bold uppercase tracking-widest">Lumi Note v1.0.4</span>
                 </div>
                 <button onClick={onClose} className="text-sm font-bold text-[#007AFF] hover:underline">Done</button>
              </div>

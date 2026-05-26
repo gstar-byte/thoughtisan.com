@@ -31,29 +31,29 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Hue Note – Premium Colorful Idea Capture & To-Do</title>
-        <meta name="description" content="Hue Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
-        <meta property="og:title" content="Hue Note – Premium Colorful Idea Capture & To-Do" />
-        <meta property="og:description" content="Hue Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
-        <meta property="og:image" content="https://huenote.app/og-image.jpg" />
+        <title>Lumi Note – Premium Colorful Idea Capture & To-Do</title>
+        <meta name="description" content="Lumi Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta property="og:title" content="Lumi Note – Premium Colorful Idea Capture & To-Do" />
+        <meta property="og:description" content="Lumi Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta property="og:image" content="https://luminote.space/og-image.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Hue Note – Premium Colorful Idea Capture & To-Do" />
-        <meta name="twitter:description" content="Hue Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta name="twitter:title" content="Lumi Note – Premium Colorful Idea Capture & To-Do" />
+        <meta name="twitter:description" content="Lumi Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "url": "https://huenote.app",
-            "name": "Hue Note",
+            "url": "https://luminote.space",
+            "name": "Lumi Note",
             "potentialAction": {
               "@type": "SearchAction",
-              "target": "https://huenote.app/search?q={search_term_string}",
+              "target": "https://luminote.space/search?q={search_term_string}",
               "query-input": "required name=search_term_string"
             },
             "contactPoint": {
               "@type": "ContactPoint",
-              "email": "mailto:hello@huenote.app",
-              "url": "https://huenote.app/contact",
+              "email": "mailto:hello@luminote.space",
+              "url": "https://luminote.space/contact",
               "contactType": "customer support"
             }
           })}
@@ -65,7 +65,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AppLogo className="w-8 h-8" />
-            <span className="font-bold text-lg tracking-tight">Hue Note</span>
+            <span className="font-bold text-lg tracking-tight">Lumi Note</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogin} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
@@ -98,7 +98,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
               <Sparkles size={14} className="text-[#007AFF]" />
-              <span className="text-xs font-semibold tracking-wider uppercase">Color + Mindflow = Hue Note</span>
+              <span className="text-xs font-semibold tracking-wider uppercase">Color + Mindflow = Lumi Note</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
               Capture ideas with <br />
@@ -163,7 +163,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           <div className="flex-1 text-left">
             <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 text-white">
               Color + Mindflow <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">= Hue Note</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">= Lumi Note</span>
             </h2>
             <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">The Zen of Colorful Productivity</p>
           </div>
@@ -172,7 +172,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               Your mind generates precious raw material—fleeting thoughts, high-priority tasks, personal reflections, and instant reminders. A generic, monochrome list fails to capture the vitality and urgency of your mental space.
             </p>
             <p>
-              <strong>Hue Note</strong> is the convergence of premium visual design (<span className="text-white font-medium">Color/Hue</span>) and lightning-fast digital capturing (<span className="text-white font-medium">Mindflow/Note</span>). Every entry is categorized with chromative cues, making task management natural, fast, and intensely beautiful.
+              <strong>Lumi Note</strong> is the convergence of premium visual design (<span className="text-white font-medium">Color/Hue</span>) and lightning-fast digital capturing (<span className="text-white font-medium">Mindflow/Note</span>). Every entry is categorized with chromative cues, making task management natural, fast, and intensely beautiful.
             </p>
           </div>
         </div>
@@ -183,7 +183,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
          <div className="max-w-[1400px] mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-black mb-4">Seamlessly Integrated.<br />Flawlessly Beautiful.</h2>
-              <p className="text-white/60 text-lg">Experience the premium interface of Hue Note—meticulously optimized for lists, grids, and real-time cloud synchronization.</p>
+              <p className="text-white/60 text-lg">Experience the premium interface of Lumi Note—meticulously optimized for lists, grids, and real-time cloud synchronization.</p>
             </div>
 
             <div className="relative h-auto xl:h-[600px] py-10 xl:py-0 w-full flex flex-col xl:flex-row items-center justify-center gap-16 xl:gap-8 perspective-[1500px]">
@@ -346,9 +346,9 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 relative z-10">
           <div>
-            <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">About Hue Note</h2>
+            <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">About Lumi Note</h2>
             <p className="text-white/60 mb-8 leading-relaxed text-lg text-balance">
-              Hue Note is crafted by digital artisans obsessed with speed, color aesthetics, and visual precision. We build software that respects your attention span and honors the complexity of your ideas. Reach out to our customer support or development team for feedback, collaborations, or feature proposals.
+              Lumi Note is crafted by digital artisans obsessed with speed, color aesthetics, and visual precision. We build software that respects your attention span and honors the complexity of your ideas. Reach out to our customer support or development team for feedback, collaborations, or feature proposals.
             </p>
             <div className="bg-white/5 p-6 rounded-2xl border border-white/10 space-y-4">
               <div className="flex flex-col">
@@ -359,7 +359,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               </div>
               <div className="flex flex-col pt-4 border-t border-white/10">
                 <span className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Direct Contact</span>
-                <a href="mailto:hello@huenote.app" className="text-[#007AFF] hover:underline font-medium text-lg">hello@huenote.app</a>
+                <a href="mailto:hello@luminote.space" className="text-[#007AFF] hover:underline font-medium text-lg">hello@luminote.space</a>
               </div>
             </div>
           </div>
@@ -390,7 +390,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
              <AppLogo className="w-6 h-6" />
-             <span className="font-bold text-white/80">Hue Note</span>
+             <span className="font-bold text-white/80">Lumi Note</span>
           </div>
           <p className="text-white/40 text-sm">
             Designed for speed. Engineered for precision. © {new Date().getFullYear()} All rights reserved.

@@ -13,7 +13,7 @@ export const PRESET_COLORS = [
   '#558B2F', // 草绿 (Lime)
 ];
 
-export const SYSTEM_PROMPT = `You are an elite, highly intuitive note-taking assistant. Your goal is to transform raw input into organized "Hue Notes".
+export const SYSTEM_PROMPT = `You are an elite, highly intuitive note-taking assistant. Your goal is to transform raw input into organized "Lumi Notes".
 The current system time is {{CURRENT_TIME}}.
 
 CORE RESPONSIBILITIES:

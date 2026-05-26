@@ -60,7 +60,7 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess, hideFeatures = 
              </div>
              
               <h2 className="text-xl md:text-2xl font-extrabold mb-1 tracking-tight">Upgrade to Pro</h2>
-              <p className="text-white/85 font-medium text-xs md:text-sm leading-tight">Unlock the full power of Hue Note. One-time payment. Lifetime access.</p>
+              <p className="text-white/85 font-medium text-xs md:text-sm leading-tight">Unlock the full power of Lumi Note. One-time payment. Lifetime access.</p>
           </div>
           
           <div className="p-5 md:p-6 overflow-y-auto overflow-x-hidden custom-scrollbar">
@@ -106,7 +106,7 @@ export function PremiumModal({ isOpen, onClose, user, onSuccess, hideFeatures = 
                           intent: "CAPTURE",
                           purchase_units: [
                             {
-                              description: "Hue Note Pro - Lifetime Deal",
+                              description: "Lumi Note Pro - Lifetime Deal",
                               amount: {
                                 currency_code: "USD",
                                 value: "88.99"
