@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
-import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play, Facebook } from 'lucide-react';
+import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { auth, googleProvider, facebookProvider } from '../lib/firebase';
+import { auth, googleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { Helmet } from 'react-helmet-async';
 
@@ -20,25 +20,20 @@ export function LandingPage({ onLogin }: LandingPageProps) {
     }
   };
 
-  const handleFacebookLogin = async () => {
-    try {
-      await signInWithPopup(auth, facebookProvider);
-    } catch (error) {
-      console.error("Facebook login error", error);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Lumi Note – Premium Colorful Idea Capture & To-Do</title>
-        <meta name="description" content="Lumi Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
-        <meta property="og:title" content="Lumi Note – Premium Colorful Idea Capture & To-Do" />
-        <meta property="og:description" content="Lumi Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
-        <meta property="og:image" content="https://luminote.space/og-image.jpg" />
+        <title>Lumi Note – Capture thoughts in full color</title>
+        <meta name="description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with chromative visual cues." />
+        <meta property="og:title" content="Lumi Note – Capture thoughts in full color" />
+        <meta property="og:description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with chromative visual cues." />
+        <meta property="og:url" content="https://luminote.space" />
+        <meta property="og:image" content="https://luminote.space/og-image.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Lumi Note – Premium Colorful Idea Capture & To-Do" />
-        <meta name="twitter:description" content="Lumi Note merges color aesthetics and high-performance design to deliver a lightning-fast, elegant idea-capture and organization tool." />
+        <meta name="twitter:title" content="Lumi Note – Capture thoughts in full color" />
+        <meta name="twitter:description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind." />
+        <meta name="twitter:image" content="https://luminote.space/og-image.png" />
+        <link rel="canonical" href="https://luminote.space/" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -101,11 +96,11 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               <span className="text-xs font-semibold tracking-wider uppercase">Color + Mindflow = Lumi Note</span>
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Capture ideas with <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">color aesthetics.</span>
+              Capture thoughts <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">in full color.</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              Where mind-flow meets gorgeous color design. Capture fleeting thoughts, organize daily tasks, set custom reminders, and express your routine in high-fidelity visual harmony.
+              Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with visual chromative cues. No clutter, no friction—just clean mindflow.
             </p>
           </motion.div>
 
@@ -123,10 +118,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Sign in with Google - Secure and Fast Authentication" className="w-5 h-5 bg-white rounded-full p-0.5" />
               Google
             </button>
-            <button onClick={handleFacebookLogin} className="w-full sm:w-auto px-6 py-4 bg-[#1877F2]/10 border border-[#1877F2]/20 text-[#1877F2] hover:text-white backdrop-blur-md rounded-full font-bold text-lg hover:bg-[#1877F2]/80 transition-all flex items-center justify-center gap-2">
-              <Facebook className="w-5 h-5" />
-              Facebook
-            </button>
           </motion.div>
 
           {/* App Download Links (Demo) */}
@@ -139,20 +130,20 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <p className="text-sm text-white/40 font-medium mb-6 uppercase tracking-widest">Coming soon on mobile</p>
             <div className="flex flex-wrap justify-center gap-4">
                <a href="#demo-ios" className="flex items-center gap-3 px-5 py-3 bg-[#1D1D1F] border border-white/10 rounded-2xl hover:bg-black transition-colors w-[180px]">
-                 <Apple size={28} className="text-white" />
-                 <div className="text-left flex flex-col text-white">
-                   <span className="text-[10px] opacity-70 leading-none mb-1">Download on the</span>
-                   <span className="text-sm font-bold leading-none">App Store</span>
-                 </div>
-               </a>
-               <a href="#demo-android" className="flex items-center gap-3 px-5 py-3 bg-[#1D1D1F] border border-white/10 rounded-2xl hover:bg-black transition-colors w-[180px]">
-                 <Play size={24} className="text-white" fill="currentColor" />
-                 <div className="text-left flex flex-col text-white">
-                   <span className="text-[10px] opacity-70 leading-none mb-1">GET IT ON</span>
-                   <span className="text-sm font-bold leading-none">Google Play</span>
-                 </div>
-               </a>
-            </div>
+                  <Apple size={28} className="text-white" />
+                  <div className="text-left flex flex-col text-white">
+                    <span className="text-[10px] opacity-70 leading-none mb-1">Download on the</span>
+                    <span className="text-sm font-bold leading-none">App Store</span>
+                  </div>
+                </a>
+                <a href="#demo-android" className="flex items-center gap-3 px-5 py-3 bg-[#1D1D1F] border border-white/10 rounded-2xl hover:bg-black transition-colors w-[180px]">
+                  <Play size={24} className="text-white" fill="currentColor" />
+                  <div className="text-left flex flex-col text-white">
+                    <span className="text-[10px] opacity-70 leading-none mb-1">GET IT ON</span>
+                    <span className="text-sm font-bold leading-none">Google Play</span>
+                  </div>
+                </a>
+             </div>
           </motion.div>
         </div>
       </section>
@@ -165,14 +156,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               Color + Mindflow <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">= Lumi Note</span>
             </h2>
-            <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">The Zen of Colorful Productivity</p>
+            <p className="text-[#007AFF] font-semibold text-lg uppercase tracking-wider">Why color-coded note-taking works</p>
           </div>
           <div className="flex-1 text-left text-white/70 space-y-4 text-base font-light leading-relaxed">
             <p>
-              Your mind generates precious raw material—fleeting thoughts, high-priority tasks, personal reflections, and instant reminders. A generic, monochrome list fails to capture the vitality and urgency of your mental space.
+              Monochrome lists make all your thoughts look identical. But a fleeting inspiration shouldn't look exactly like a grocery list. Your brain naturally prioritizes by color, and your notes should do the same.
             </p>
             <p>
-              <strong>Lumi Note</strong> is the convergence of premium visual design (<span className="text-white font-medium">Color/Hue</span>) and lightning-fast digital capturing (<span className="text-white font-medium">Mindflow/Note</span>). Every entry is categorized with chromative cues, making task management natural, fast, and intensely beautiful.
+              <strong>Lumi Note</strong> combines minimalist card layouts with intuitive color keys. Categorize and prioritize instantly with beautiful chromative cues, keeping your daily capture fast, natural, and highly visual.
             </p>
           </div>
         </div>
@@ -182,8 +173,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="py-24 relative overflow-hidden bg-black/40 border-y border-white/5">
          <div className="max-w-[1400px] mx-auto px-6">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-5xl font-black mb-4">Seamlessly Integrated.<br />Flawlessly Beautiful.</h2>
-              <p className="text-white/60 text-lg">Experience the premium interface of Lumi Note—meticulously optimized for lists, grids, and real-time cloud synchronization.</p>
+              <h2 className="text-3xl md:text-5xl font-black mb-4">Sleek layout. Fluid sync.</h2>
+              <p className="text-white/60 text-lg">Experience the lightweight interface of Lumi Note—meticulously optimized for lists, grids, and multi-device cloud synchronization.</p>
             </div>
 
             <div className="relative h-auto xl:h-[600px] py-10 xl:py-0 w-full flex flex-col xl:flex-row items-center justify-center gap-16 xl:gap-8 perspective-[1500px]">
@@ -207,17 +198,17 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                        <div className="w-full h-12 md:h-14 rounded-full bg-[#F2F2F7] mb-6 md:mb-8 flex items-center px-4 md:px-6"><span className="text-black/30 text-xs md:text-sm">Capture anything...</span></div>
                        {/* List Mockup items */}
                        <div className="h-16 md:h-20 bg-[#FFCA28] rounded-2xl flex items-center px-4 md:px-6 relative overflow-hidden shadow-sm">
-                         <div className="w-4 h-4 md:w-5 md:h-5 rounded border border-black/20 mr-4"></div>
-                         <div className="w-1/2 h-4 bg-black/20 rounded-md"></div>
-                         <div className="absolute right-4 md:right-6 px-2 md:px-3 py-1 bg-white/30 rounded-full text-[8px] md:text-[10px] font-bold">NOTE</div>
+                          <div className="w-4 h-4 md:w-5 md:h-5 rounded border border-black/20 mr-4"></div>
+                          <div className="w-1/2 h-4 bg-black/20 rounded-md"></div>
+                          <div className="absolute right-4 md:right-6 px-2 md:px-3 py-1 bg-white/30 rounded-full text-[8px] md:text-[10px] font-bold">NOTE</div>
                        </div>
                        <div className="h-16 md:h-20 bg-[#AF52DE] rounded-2xl flex items-center px-4 md:px-6 relative overflow-hidden shadow-sm">
-                         <div className="w-4 h-4 md:w-5 md:h-5 rounded border border-black/20 mr-4"></div>
-                         <div className="w-2/3 h-4 bg-black/20 rounded-md"></div>
+                          <div className="w-4 h-4 md:w-5 md:h-5 rounded border border-black/20 mr-4"></div>
+                          <div className="w-2/3 h-4 bg-black/20 rounded-md"></div>
                        </div>
                        <div className="h-16 md:h-20 bg-[#007AFF] rounded-2xl flex items-center px-4 md:px-6 relative overflow-hidden shadow-sm">
-                         <div className="w-4 h-4 md:w-5 md:h-5 rounded border-2 border-black/80 flex items-center justify-center mr-4 bg-white/20 text-white text-[8px] md:text-base">✔</div>
-                         <div className="w-1/3 h-4 bg-black/20 rounded-md line-through opacity-60"></div>
+                          <div className="w-4 h-4 md:w-5 md:h-5 rounded border-2 border-black/80 flex items-center justify-center mr-4 bg-white/20 text-white text-[8px] md:text-base">✔</div>
+                          <div className="w-1/3 h-4 bg-black/20 rounded-md line-through opacity-60"></div>
                        </div>
                     </div>
                   </div>
@@ -252,7 +243,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                          <div className="space-y-1.5 md:space-y-2"><div className="w-full h-2 md:h-3 bg-black/20 rounded"></div></div>
                       </div>
                     </div>
-                 </div>
+                  </div>
               </motion.div>
 
               {/* Mobile Mockup */}
@@ -300,40 +291,40 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="py-32 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Artisan-grade features built for precision.</h2>
-            <p className="text-xl text-white/60">Deliberate details designed to elevate your intellectual routine.</p>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Built for fast minds.</h2>
+            <p className="text-xl text-white/60">Clean, friction-free features to help you capture and organize without breaking your flow.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard 
               icon={<CalendarDays className="text-[#34C759]" size={28} />}
-              title="Milestones & Deadlines"
-              desc="Meticulously project forward. See the exact countdown days left and execute with precision."
+              title="Countdowns & Deadlines"
+              desc="Keep track of high-priority tasks. See exactly how many days are left to execute."
             />
             <FeatureCard 
               icon={<Repeat className="text-[#007AFF]" size={28} />}
-              title="Deliberate Habits"
-              desc="Automate daily, weekly, or monthly rituals. Anchor your routines in structured repetition."
+              title="Smart Recurrence"
+              desc="Set notes to repeat daily, weekly, or monthly. Perfect for keeping track of your routines."
             />
             <FeatureCard 
               icon={<CheckSquare className="text-[#AF52DE]" size={28} />}
-              title="Structured Checklists"
-              desc="Convert formless inspirations into tangible tasks. Feel the weight of completed work instantly."
+              title="Task Checklists"
+              desc="Turn text into actionable check-boxes instantly. Clear tasks with zero friction."
             />
             <FeatureCard 
               icon={<Palette className="text-[#FF2D55]" size={28} />}
-              title="Chromative Aesthetics"
-              desc="Organize thoughts using custom color keys. Develop a visually stunning digital library."
+              title="Color-Coded Library"
+              desc="Organize thoughts using custom color keys. Navigate your notes visually instead of reading through endless text."
             />
             <FeatureCard 
               icon={<Tablet className="text-[#FF9500]" size={28} />}
-              title="Adaptive Fluid Views"
-              desc="Pivot seamlessly between expansive grid workspaces and minimal chronological list streams."
+              title="List & Grid Layouts"
+              desc="Switch instantly between a minimal chronological stream and an expansive visual grid."
             />
             <FeatureCard 
               icon={<Monitor className="text-white" size={28} />}
-              title="Artisan Cloud Sync"
-              desc="Your data is treated with utmost respect. Flawless, encrypted real-time sync across all devices."
+              title="Real-Time Cloud Sync"
+              desc="Securely sync your notes across all devices instantly. Your ideas are always up to date."
             />
           </div>
         </div>
@@ -348,7 +339,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           <div>
             <h2 id="contact-heading" className="text-4xl md:text-5xl font-black mb-8">About Lumi Note</h2>
             <p className="text-white/60 mb-8 leading-relaxed text-lg text-balance">
-              Lumi Note is crafted by digital artisans obsessed with speed, color aesthetics, and visual precision. We build software that respects your attention span and honors the complexity of your ideas. Reach out to our customer support or development team for feedback, collaborations, or feature proposals.
+              Lumi Note is built for creators, thinkers, and makers who want a faster, more beautiful way to capture ideas. We believe software should be fast, quiet, and respect your attention. No bloated features—just your mind, organized.
             </p>
             <div className="bg-white/5 p-6 rounded-2xl border border-white/10 space-y-4">
               <div className="flex flex-col">
@@ -369,7 +360,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <h3 className="text-2xl font-bold mb-8 relative z-10">Send a Message</h3>
             <form className="space-y-5 relative z-10" onSubmit={(e) => { e.preventDefault(); alert('Message sent (demo)!'); }}>
               <div>
-                <input type="text" required placeholder="Your full name" className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] transition-all text-white placeholder-white/30 font-medium" />
+                <input type="text" required placeholder="Your name" className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] transition-all text-white placeholder-white/30 font-medium" />
               </div>
               <div>
                 <input type="email" required placeholder="Email address" className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] transition-all text-white placeholder-white/30 font-medium" />
@@ -378,7 +369,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <textarea required rows={4} placeholder="What's on your mind?" className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] transition-all text-white placeholder-white/30 font-medium resize-none" />
               </div>
               <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-gray-200 transition-colors shadow-lg active:scale-95 duration-200 text-lg">
-                Send Transmission
+                Send Message
               </button>
             </form>
           </div>
@@ -393,7 +384,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
              <span className="font-bold text-white/80">Lumi Note</span>
           </div>
           <p className="text-white/40 text-sm">
-            Designed for speed. Engineered for precision. © {new Date().getFullYear()} All rights reserved.
+            Capture thoughts in full color. © {new Date().getFullYear()} All rights reserved.
           </p>
           <div className="flex gap-4">
              <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Terms</a>

@@ -48,7 +48,6 @@ import {
   auth, 
   googleProvider, 
   appleProvider,
-  facebookProvider,
   signInWithPopup, 
   signOut,
   createUserWithEmailAndPassword,
@@ -66,7 +65,7 @@ import {
 } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { setDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { Mail, Lock, CheckCircle2, ArrowRight, UserPlus, Apple, Facebook, ExternalLink } from 'lucide-react';
+import { Mail, Lock, CheckCircle2, ArrowRight, UserPlus, Apple, ExternalLink } from 'lucide-react';
 import { cn } from './lib/utils';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
@@ -1120,21 +1119,7 @@ export default function App() {
                   <svg className="w-5 h-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg"><path fill="#f3f3f3" d="M0 0h11v11H0z"/><path fill="#f3f3f3" d="M12 0h11v11H12z"/><path fill="#f3f3f3" d="M0 12h11v11H0z"/><path fill="#f3f3f3" d="M12 12h11v11H12z"/></svg>
                 </button>
 
-                <button 
-                  onClick={() => alert("Apple login is being configured. Please use Google or Email for now.")}
-                  className="flex items-center justify-center bg-[#000000] text-white py-3 rounded-xl border border-transparent hover:bg-[#1D1D1F] transition-all active:scale-95 shadow-sm"
-                  title="Sign in with Apple"
-                >
-                  <Apple size={20} />
-                </button>
-                
-                <button 
-                  onClick={() => signInWithPopup(auth, facebookProvider)}
-                  className="flex items-center justify-center bg-[#1877F2] text-white py-3 rounded-xl border border-transparent hover:bg-[#1864D9] transition-all active:scale-95 shadow-sm"
-                  title="Sign in with Facebook"
-                >
-                  <Facebook size={20} />
-                </button>
+
               </div>
 
               <button 

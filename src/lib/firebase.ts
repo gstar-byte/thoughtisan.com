@@ -4,7 +4,6 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   OAuthProvider,
-  FacebookAuthProvider,
   signInWithPopup, 
   signOut,
   createUserWithEmailAndPassword,
@@ -20,7 +19,6 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');
-export const facebookProvider = new FacebookAuthProvider();
 
 export { 
   collection, 
