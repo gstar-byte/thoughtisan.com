@@ -20,17 +20,10 @@ export default defineConfig(({ mode }) => {
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
-    // Build configuration to split large vendor chunks
     build: {
       rollupOptions: {
         output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('react')) return 'react';
-              if (id.includes('firebase')) return 'firebase';
-              return 'vendor';
-            }
-          },
+          // Let Vite handle chunking automatically to prevent circular dependencies
         },
       },
     },
