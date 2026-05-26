@@ -1058,7 +1058,7 @@ export default function App() {
           <div className="w-full max-w-sm">
             <div className="md:hidden flex flex-col items-center mb-12">
               <AppLogo className="w-20 h-20 mb-4" />
-              <h1 className="text-2xl font-black text-center">Idea<br />Capsule</h1>
+              <h1 className="text-2xl font-black text-center">Lumi<br />Note</h1>
             </div>
 
             <motion.div

@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
-import { FilterMenu } from './FilterMenu';
 import { AppLogo } from './AppLogo';
-import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Sparkles, ArrowRight, CalendarDays, Repeat, CheckSquare, Palette, Tablet, Monitor, Apple, Play } from 'lucide-react';
 import { getAuth, getGoogleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { Helmet } from 'react-helmet-async';
@@ -13,9 +11,6 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
-  const [filter, setFilter] = React.useState('All');
-  const [categoryFilter, setCategoryFilter] = React.useState('All');
-  const [tagFilter, setTagFilter] = React.useState('');
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(getAuth(), getGoogleProvider());
@@ -72,14 +67,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <span className="font-bold text-lg tracking-tight">Lumi Note</span>
           </div>
           <div className="flex items-center gap-2">
-            <FilterMenu
-              filter={filter}
-              setFilter={setFilter}
-              categoryFilter={categoryFilter}
-              setCategoryFilter={setCategoryFilter}
-              tagFilter={tagFilter}
-              setTagFilter={setTagFilter}
-            />
             <button onClick={onLogin} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
               Log in
             </button>
