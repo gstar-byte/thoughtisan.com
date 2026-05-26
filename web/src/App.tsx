@@ -58,10 +58,10 @@ import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from '
 import { PRESET_COLORS } from './constants';
 import { categorizeThought } from './services/geminiService';
 import { 
-  db, 
-  auth, 
-  googleProvider, 
-  appleProvider,
+  getDb, 
+  getAuth, 
+  getGoogleProvider, 
+  getAppleProvider,
   signInWithPopup, 
   signOut,
   createUserWithEmailAndPassword,
@@ -146,6 +146,7 @@ interface FirestoreErrorInfo {
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const auth = getAuth();
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -670,6 +671,7 @@ export default function App() {
     setAuthError(null);
     setAuthProcessing(true);
     try {
+      const auth = getAuth();
       if (isRegistering) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, {
@@ -701,6 +703,7 @@ export default function App() {
     }
     setAuthProcessing(true);
     try {
+      const auth = getAuth();
       await sendPasswordResetEmail(auth, email);
       setResetSent(true);
       setAuthError(null);
@@ -714,9 +717,11 @@ export default function App() {
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
+    const auth = getAuth(); // 按需初始化 Firebase
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (firebaseUser) {
         // Listen to user document for premium status
+        const db = getDb();
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -776,6 +781,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
+    const db = getDb(); // 按需初始化 Firebase
     const q = query(
       collection(db, 'capsules'), 
       where('userId', '==', user.uid)
@@ -880,6 +886,7 @@ export default function App() {
             tourActive.current = false;
             safeLocalStorageSet(ONBOARDING_STORAGE_KEY, 'true');
             if (user) {
+              const db = getDb(); // 按需初始化 Firebase
               updateDoc(doc(db, 'users', user.uid), { onboarded: true });
             }
           }
@@ -942,6 +949,7 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
+        const db = getDb(); // 按需初始化 Firebase
         const batch = writeBatch(db);
         const now = Date.now();
         const bump = shouldBumpUpdatedAt(updates);
@@ -972,6 +980,7 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
+        const db = getDb(); // 按需初始化 Firebase
         const batch = writeBatch(db);
         realIds.forEach((id: string) => {
           const docRef = doc(db, 'capsules', id);
@@ -1042,6 +1051,7 @@ export default function App() {
     
     setAuthProcessing(true);
     try {
+      const db = getDb(); // 按需初始化 Firebase
       const q = query(collection(db, 'capsules'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
       const batch = writeBatch(db);
@@ -1095,10 +1105,12 @@ export default function App() {
         color: randomColor
       };
       
+      const db = getDb(); // 按需初始化 Firebase
       await addDoc(collection(db, 'capsules'), newCapsuleData);
     } catch (error) {
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       try {
+        const db = getDb(); // 按需初始化 Firebase
         await addDoc(collection(db, 'capsules'), {
           userId: user?.uid,
           content: text,
@@ -1151,6 +1163,7 @@ export default function App() {
         return;
       }
       try {
+        const db = getDb(); // 按需初始化 Firebase
         const docRef = doc(db, 'capsules', id);
         const cleanUpdates: Record<string, unknown> = {};
         Object.entries(updates).forEach(([key, value]) => {
@@ -1348,6 +1361,7 @@ export default function App() {
       return;
     }
     try {
+      const db = getDb(); // 按需初始化 Firebase
       const docRef = doc(db, 'capsules', id);
       await deleteDoc(docRef);
     } catch (error) {
@@ -1713,7 +1727,11 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <button 
-                  onClick={() => signInWithPopup(auth, googleProvider)}
+                  onClick={() => {
+                    const auth = getAuth();
+                    const googleProvider = getGoogleProvider();
+                    signInWithPopup(auth, googleProvider);
+                  }}
                   className="flex items-center justify-center bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm"
                   title="Sign in with Google"
                 >
@@ -2137,7 +2155,10 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <button 
-                      onClick={() => signOut(auth)}
+                      onClick={() => {
+                        const auth = getAuth();
+                        signOut(auth);
+                      }}
                       className="text-[10px] font-bold text-red-500 uppercase tracking-wider hover:opacity-70 transition-opacity flex items-center gap-1"
                     >
                       <LogOut size={10} />
@@ -3093,6 +3114,7 @@ export default function App() {
         onSuccess={() => {
            setShowPremiumModal(false);
            alert("Payment successful! You are now an Lumi Note Pro member.");
+           const db = getDb(); // 按需初始化 Firebase
            setDoc(doc(db, 'users', user?.uid), { isPremium: true }, { merge: true });
         }}
       />
@@ -3107,6 +3129,7 @@ export default function App() {
         }}
         onDowngradeClick={() => {
            if (user?.uid) {
+             const db = getDb(); // 按需初始化 Firebase
              setDoc(doc(db, 'users', user.uid), { isPremium: false }, { merge: true });
              alert('You have successfully downgraded from Pro mode.');
              setShowSettingsModal(false);

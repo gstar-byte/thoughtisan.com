@@ -1,7 +1,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, 
+  getAuth as getFirebaseAuthNative, 
   GoogleAuthProvider, 
   OAuthProvider,
   signInWithPopup, 
@@ -11,14 +11,55 @@ import {
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
+import { getFirestore as getFirebaseFirestoreNative, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const appleProvider = new OAuthProvider('apple.com');
+let app: any = null;
+let db: any = null;
+let auth: any = null;
+let googleProvider: any = null;
+let appleProvider: any = null;
+
+// 按需初始化 Firebase
+export const initFirebase = () => {
+  if (!app) {
+    app = initializeApp(firebaseConfig);
+  }
+  if (!db) {
+    db = getFirebaseFirestoreNative(app, firebaseConfig.firestoreDatabaseId);
+  }
+  if (!auth) {
+    auth = getFirebaseAuthNative(app);
+  }
+  if (!googleProvider) {
+    googleProvider = new GoogleAuthProvider();
+  }
+  if (!appleProvider) {
+    appleProvider = new OAuthProvider('apple.com');
+  }
+  return { app, db, auth, googleProvider, appleProvider };
+};
+
+// 导出 getter 函数
+export const getDb = () => {
+  if (!db) initFirebase();
+  return db;
+};
+
+export const getAuth = () => {
+  if (!auth) initFirebase();
+  return auth;
+};
+
+export const getGoogleProvider = () => {
+  if (!googleProvider) initFirebase();
+  return googleProvider;
+};
+
+export const getAppleProvider = () => {
+  if (!appleProvider) initFirebase();
+  return appleProvider;
+};
 
 export { 
   collection, 
