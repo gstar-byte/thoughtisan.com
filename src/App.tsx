@@ -44,10 +44,10 @@ import { Capsule, FilterType, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
 import { categorizeThought } from './services/geminiService';
 import { 
-  db, 
-  auth, 
-  googleProvider, 
-  appleProvider,
+  getDb, 
+  getAuth, 
+  getGoogleProvider, 
+  getAppleProvider,
   signInWithPopup, 
   signOut,
   createUserWithEmailAndPassword,
@@ -105,12 +105,12 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+      userId: getAuth().currentUser?.uid,
+      email: getAuth().currentUser?.email,
+      emailVerified: getAuth().currentUser?.emailVerified,
+      isAnonymous: getAuth().currentUser?.isAnonymous,
+      tenantId: getAuth().currentUser?.tenantId,
+      providerInfo: getAuth().currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         email: provider.email,
       })) || []
@@ -124,7 +124,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
   const [capsules, setCapsules] = useState<Capsule[]>([]);
   const [demoCapsules, setDemoCapsules] = useState<Capsule[]>([]);
   const allCapsules = [...demoCapsules, ...capsules].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -331,12 +331,12 @@ export default function App() {
     setAuthProcessing(true);
     try {
       if (isRegistering) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
         await updateProfile(userCredential.user, {
           displayName: email.split('@')[0]
         });
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(getAuth(), email, password);
       }
     } catch (err: any) {
       console.error("Auth error:", err);
@@ -361,7 +361,7 @@ export default function App() {
     }
     setAuthProcessing(true);
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(getAuth(), email);
       setResetSent(true);
       setAuthError(null);
     } catch (err: any) {
@@ -375,7 +375,7 @@ export default function App() {
     setAuthError(null);
     setAuthProcessing(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(getAuth(), getGoogleProvider());
     } catch (err: any) {
       console.error("Google Login Error:", err);
       if (err.code === 'auth/unauthorized-domain') {
@@ -391,7 +391,7 @@ export default function App() {
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser: User | null) => {
       if (firebaseUser) {
         // Optimistic login: Immediately show app and use cached premium status to avoid screen flicker
         const cachedPremium = localStorage.getItem(`premium_${firebaseUser.uid}`) === 'true';
@@ -405,7 +405,7 @@ export default function App() {
         setAuthLoading(false);
 
         // Listen to user document for premium status in background
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDocRef = doc(getDb(), 'users', firebaseUser.uid);
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           const isPremium = docSnap.exists() ? (docSnap.data().isPremium || false) : false;
           localStorage.setItem(`premium_${firebaseUser.uid}`, String(isPremium));
@@ -460,7 +460,7 @@ export default function App() {
     if (!user) return;
 
     const q = query(
-      collection(db, 'capsules'), 
+      collection(getDb(), 'capsules'), 
       where('userId', '==', user.uid)
     );
 
@@ -607,9 +607,9 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
-        const batch = writeBatch(db);
+        const batch = writeBatch(getDb());
         realIds.forEach((id: string) => {
-          const docRef = doc(db, 'capsules', id);
+          const docRef = doc(getDb(), 'capsules', id);
           batch.update(docRef, { ...updates, updatedAt: Date.now() });
         });
         await batch.commit();
@@ -631,9 +631,9 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
-        const batch = writeBatch(db);
+        const batch = writeBatch(getDb());
         realIds.forEach((id: string) => {
-          const docRef = doc(db, 'capsules', id);
+          const docRef = doc(getDb(), 'capsules', id);
           batch.delete(docRef);
         });
         await batch.commit();
@@ -673,9 +673,9 @@ export default function App() {
     
     setAuthProcessing(true);
     try {
-      const q = query(collection(db, 'capsules'), where('userId', '==', user.uid));
+      const q = query(collection(getDb(), 'capsules'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
+      const batch = writeBatch(getDb());
       snapshot.docs.forEach(doc => batch.delete(doc.ref));
       await batch.commit();
       setCapsules([]);
@@ -720,11 +720,11 @@ export default function App() {
         color: randomColor
       };
       
-      await addDoc(collection(db, 'capsules'), newCapsuleData);
+      await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
     } catch (error) {
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       try {
-        await addDoc(collection(db, 'capsules'), {
+        await addDoc(collection(getDb(), 'capsules'), {
           userId: user?.uid,
           content: text,
           createdAt: Date.now(),
@@ -759,7 +759,7 @@ export default function App() {
       return;
     }
     try {
-      const docRef = doc(db, 'capsules', id);
+      const docRef = doc(getDb(), 'capsules', id);
       const cleanUpdates: any = {};
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
@@ -823,7 +823,7 @@ export default function App() {
       return;
     }
     try {
-      const docRef = doc(db, 'capsules', id);
+      const docRef = doc(getDb(), 'capsules', id);
       await deleteDoc(docRef);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `capsules/${id}`);
@@ -1006,15 +1006,7 @@ export default function App() {
     { value: 'trash', label: 'Trash' },
   ];
 
-  if (authLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
-        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-          <Zap size={48} className="text-[#007AFF]" />
-        </motion.div>
-      </div>
-    );
-  }
+
 
   if (!user) {
     if (!showAuthScreen) {
@@ -1327,7 +1319,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <button 
-                      onClick={() => signOut(auth)}
+                      onClick={() => signOut(getAuth())}
                       className="text-[10px] font-bold text-red-500 uppercase tracking-wider hover:opacity-70 transition-opacity flex items-center gap-1"
                     >
                       <LogOut size={10} />
@@ -1764,7 +1756,7 @@ export default function App() {
         onSuccess={() => {
            setShowPremiumModal(false);
            alert("Payment successful! You are now an Lumi Note Pro member.");
-           setDoc(doc(db, 'users', user?.uid), { isPremium: true }, { merge: true });
+           setDoc(doc(getDb(), 'users', user?.uid), { isPremium: true }, { merge: true });
         }}
       />
       
@@ -1778,7 +1770,7 @@ export default function App() {
         }}
         onDowngradeClick={() => {
            if (user?.uid) {
-             setDoc(doc(db, 'users', user.uid), { isPremium: false }, { merge: true });
+             setDoc(doc(getDb(), 'users', user.uid), { isPremium: false }, { merge: true });
              alert('You have successfully downgraded from Pro mode.');
              setShowSettingsModal(false);
            }

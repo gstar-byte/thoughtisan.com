@@ -1,7 +1,7 @@
 import firebaseConfig from '../../firebase-applet-config.json';
 import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, 
+  getAuth as getFirebaseAuth, 
   GoogleAuthProvider, 
   OAuthProvider,
   signInWithPopup,
@@ -12,7 +12,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { 
-  getFirestore,
+  getFirestore as getFirebaseFirestore,
   collection,
   query,
   where,
@@ -24,14 +24,57 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 
-// Initialize Firebase statically to avoid timing / null reference issues
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const appleProvider = new OAuthProvider('apple.com');
+// Lazy initialize Firebase - only when needed!
+let app: any = null;
+let dbInstance: any = null;
+let authInstance: any = null;
+let googleProviderInstance: any = null;
+let appleProviderInstance: any = null;
 
-// Re-export standard Firebase SDK functions so App.tsx can use them directly without changes
+function initFirebase() {
+  if (!app) {
+    app = initializeApp(firebaseConfig);
+  }
+  if (!dbInstance) {
+    if (firebaseConfig.firestoreDatabaseId) {
+      dbInstance = getFirebaseFirestore(app, firebaseConfig.firestoreDatabaseId);
+    } else {
+      dbInstance = getFirebaseFirestore(app);
+    }
+  }
+  if (!authInstance) {
+    authInstance = getFirebaseAuth(app);
+  }
+  if (!googleProviderInstance) {
+    googleProviderInstance = new GoogleAuthProvider();
+  }
+  if (!appleProviderInstance) {
+    appleProviderInstance = new OAuthProvider('apple.com');
+  }
+}
+
+// Export getter functions instead of direct objects
+export function getDb() {
+  initFirebase();
+  return dbInstance;
+}
+
+export function getAuth() {
+  initFirebase();
+  return authInstance;
+}
+
+export function getGoogleProvider() {
+  initFirebase();
+  return googleProviderInstance;
+}
+
+export function getAppleProvider() {
+  initFirebase();
+  return appleProviderInstance;
+}
+
+// Re-export standard Firebase SDK functions 
 export {
   signInWithPopup,
   signOut,
