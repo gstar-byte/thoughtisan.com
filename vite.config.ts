@@ -23,10 +23,7 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-            vendor: ['react', 'react-dom'],
-          },
+          // Let Vite handle chunking automatically to prevent circular dependencies
         },
       },
     },
