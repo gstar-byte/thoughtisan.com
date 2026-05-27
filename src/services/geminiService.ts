@@ -3,9 +3,11 @@ import { SYSTEM_PROMPT } from "../constants";
 
 // @ts-ignore
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? (process.env.GEMINI_API_KEY || "") : "") || "";
+console.log("Gemini API Key exists:", !!apiKey, "Key length:", apiKey?.length);
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export async function categorizeThought(text: string): Promise<{ category?: string; tags?: string[]; refinedContent: string; isTodo?: boolean; reminder?: any; isAmbiguous?: boolean; clarificationPrompt?: string | null }> {
+  console.log("categorizeThought called with text:", text);
   if (!ai) {
     console.warn("Lumi Note Gemini AI Client: GoogleGenAI is not initialized because API Key is missing. Falling back to plain text note.");
     return { refinedContent: text };
@@ -28,6 +30,8 @@ export async function categorizeThought(text: string): Promise<{ category?: stri
       '\n\nInput text: ' +
       text;
     
+    console.log("Calling Gemini API with prompt length:", prompt.length);
+    
     // Add a 10 second timeout
     const timeoutPromise = new Promise<never>((_, reject) => 
       setTimeout(() => reject(new Error("Gemini API timeout")), 10000)
@@ -42,8 +46,10 @@ export async function categorizeThought(text: string): Promise<{ category?: stri
     });
 
     const response = await Promise.race([fetchPromise, timeoutPromise]);
+    console.log("Gemini API response received:", response.text?.substring(0, 100) + "...");
 
     const result = JSON.parse(response.text || "{}");
+    console.log("Parsed AI result:", result);
     
     let finalReminder = result.reminder || undefined;
     if (finalReminder && typeof finalReminder === 'object') {
@@ -69,7 +75,7 @@ export async function categorizeThought(text: string): Promise<{ category?: stri
       }
     }
 
-    return {
+    const returnData = {
       category: result.category || undefined,
       tags: Array.isArray(result.tags) ? result.tags : undefined,
       refinedContent: result.refinedContent || text,
@@ -78,6 +84,8 @@ export async function categorizeThought(text: string): Promise<{ category?: stri
       isAmbiguous: typeof result.isAmbiguous === 'boolean' ? result.isAmbiguous : undefined,
       clarificationPrompt: result.clarificationPrompt || undefined,
     };
+    console.log("Returning parsed data:", returnData);
+    return returnData;
   } catch (error) {
     console.error("Failed to categorize thought:", error);
     return {
