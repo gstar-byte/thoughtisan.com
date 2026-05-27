@@ -57,6 +57,7 @@ import {
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
 import { categorizeThought } from './services/geminiService';
+import { categorizeThoughtLocal } from './services/localNlpService';
 import { 
   getDb, 
   getAuth, 
@@ -1084,7 +1085,8 @@ export default function App() {
     inputRef.current?.focus();
     
     try {
-      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = await categorizeThought(text);
+      // Use local NLP parser as free alternative to Gemini
+      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = await categorizeThoughtLocal(text);
       
       // Select a random color from PRESET_COLORS
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
