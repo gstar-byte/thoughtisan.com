@@ -175,53 +175,58 @@ function parseTimeFromText(text: string, baseDate: Date): { date: Date; hasTime:
 }
 
 function extractContent(text: string): string {
-  let content = text
-    // Reminder verbs
-    .replace(/提醒我?/g, '')
-    .replace(/记得/g, '')
-    .replace(/别忘了/g, '')
-    .replace(/注意/g, '')
-    .replace(/remind me( to)?/gi, '')
-    .replace(/remember to/gi, '')
-    .replace(/don't forget( to)?/gi, '')
-    // Day references (with prefixes)
-    .replace(/本周[一二三四五六日天]/g, '')
-    .replace(/下[一二三四五六日天]/g, '')
-    .replace(/这[一二三四五六日天]/g, '')
-    .replace(/上[一二三四五六日天]/g, '')
-    .replace(/[一二三四五六日天][一二三四五六日天]?/g, '')  // e.g., 周四, 星期天
-    .replace(/星期[一二三四五六日天]/g, '')
-    .replace(/礼拜[一二三四五六日天]/g, '')
-    // Periods
-    .replace(/早上|早晨|上午|中午|下午|傍晚|晚上|半夜|凌晨/g, '')
-    .replace(/morning|afternoon|evening|night|noon|midnight/gi, '')
-    // Relative days
-    .replace(/明天|后天|大后天|今天/g, '')
-    .replace(/tomorrow|today/gi, '')
-    .replace(/the day after tomorrow/gi, '')
-    // Recurring
-    .replace(/每天|每日|天天|每晚|每早|每周|每月/g, '')
-    .replace(/every day|daily|everyday|every week|weekly|every month|monthly/gi, '')
-    // Arabic numeral time: 3点15分, 3:15, 3点半, 3点
-    .replace(/\d{1,2}[点:：]\d{1,2}分?/g, '')
-    .replace(/\d{1,2}[点:：]半/g, '')
-    .replace(/\d{1,2}[点:：]/g, '')
-    // Chinese numeral time: 四点, 四点半, 四点十五分
-    .replace(/[一二两三四五六七八九十廿]+[点:：]\d{1,2}分?/g, '')
-    .replace(/[一二两三四五六七八九十廿]+[点:：]半/g, '')
-    .replace(/[一二两三四五六七八九十廿]+[点:：]/g, '')
-    // English time
-    .replace(/\d{1,2}:\d{2}\s*(am|pm)?/gi, '')
-    .replace(/\d{1,2}\s*(am|pm)/gi, '')
-    // Weekday English
-    .replace(/next (monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)/gi, '')
-    .replace(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)\b/gi, '')
-    // Pronouns and fillers
-    .replace(/^我/g, '')          // remove leading "我"
-    .replace(/去|要|把|将/g, '')
-    .replace(/\bto\b/gi, '')
-    .trim();
+  // Step-by-step removal with precise patterns
+  let content = text;
 
+  // 1. Reminder verbs
+  content = content.replace(/提醒我?/g, '').replace(/记得/g, '').replace(/别忘了/g, '').replace(/注意/g, '');
+  content = content.replace(/remind me( to)?/gi, '').replace(/remember to/gi, '').replace(/don't forget( to)?/gi, '');
+
+  // 2. Recurring patterns (remove before single characters)
+  content = content.replace(/每天|每日|天天|每晚|每早|每周|每月/g, '');
+  content = content.replace(/every day|daily|everyday|every week|weekly|every month|monthly/gi, '');
+
+  // 3. Full weekday names (most specific first)
+  content = content.replace(/星期天|星期日|礼拜天|礼拜日/g, '');
+  content = content.replace(/星期一|礼拜一/g, '').replace(/星期二|礼拜二/g, '').replace(/星期三|礼拜三/g, '');
+  content = content.replace(/星期四|礼拜四/g, '').replace(/星期五|礼拜五/g, '').replace(/星期六|礼拜六/g, '');
+  content = content.replace(/周日|周一|周二|周三|周四|周五|周六/g, '');
+  content = content.replace(/本周[一二三四五六日天]/g, '').replace(/下[一二三四五六日天]/g, '');
+  content = content.replace(/这[一二三四五六日天]/g, '').replace(/上[一二三四五六日天]/g, '');
+  content = content.replace(/星期[一二三四五六日天]/g, '');
+
+  // 4. Relative days
+  content = content.replace(/明天|后天|大后天|今天/g, '');
+  content = content.replace(/tomorrow|today/gi, '').replace(/the day after tomorrow/gi, '');
+
+  // 5. Time periods
+  content = content.replace(/早上|早晨|上午|中午|下午|傍晚|晚上|半夜|凌晨/g, '');
+  content = content.replace(/morning|afternoon|evening|night|noon|midnight/gi, '');
+
+  // 6. Chinese numeral + 点 time (e.g., 四点, 四点半, 四点十五分)
+  content = content.replace(/[一二两三四五六七八九十廿]+[点:：]\d{1,2}分?/g, '');
+  content = content.replace(/[一二两三四五六七八九十廿]+[点:：]半/g, '');
+  content = content.replace(/[一二两三四五六七八九十廿]+[点:：]/g, '');
+
+  // 7. Arabic numeral time (e.g., 3点15分, 3:15, 3点半, 3点)
+  content = content.replace(/\d{1,2}[点:：]\d{1,2}分?/g, '');
+  content = content.replace(/\d{1,2}[点:：]半/g, '');
+  content = content.replace(/\d{1,2}[点:：]/g, '');
+
+  // 8. English time
+  content = content.replace(/\d{1,2}:\d{2}\s*(am|pm)?/gi, '');
+  content = content.replace(/\d{1,2}\s*(am|pm)/gi, '');
+
+  // 9. English weekdays
+  content = content.replace(/next (monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)/gi, '');
+  content = content.replace(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)\b/gi, '');
+
+  // 10. Fillers and pronouns
+  content = content.replace(/^我/g, '');
+  content = content.replace(/去|要|把|将/g, '');
+  content = content.replace(/\bto\b/gi, '');
+
+  content = content.trim();
   return content || text;
 }
 
@@ -365,41 +370,48 @@ export async function categorizeThoughtLocal(text: string): Promise<{
   isAmbiguous?: boolean;
   clarificationPrompt?: string | null;
 }> {
-  const result = parseReminder(text);
+  try {
+    const result = parseReminder(text);
 
-  // Category detection (Chinese + English)
-  const categories: Record<string, string> = {
-    '工作': 'Work', '会议': 'Work', '项目': 'Work', '报告': 'Work', 'work': 'Work', 'meeting': 'Work', 'project': 'Work',
-    '购物': 'Errands', '买': 'Errands', '快递': 'Errands', '取': 'Errands', 'shopping': 'Errands', 'buy': 'Errands',
-    '健康': 'Health', '体检': 'Health', '药': 'Health', '医院': 'Health', '运动': 'Health', '健身': 'Health', 'health': 'Health', 'gym': 'Health', 'exercise': 'Health', 'workout': 'Health',
-    '学习': 'Learning', '读书': 'Learning', '课程': 'Learning', 'study': 'Learning', 'read': 'Learning', 'course': 'Learning', 'book': 'Learning',
-    '个人': 'Personal', '家庭': 'Personal', 'personal': 'Personal', 'family': 'Personal',
-    '财务': 'Finance', '钱': 'Finance', '账单': 'Finance', 'finance': 'Finance', 'money': 'Finance', 'bill': 'Finance',
-    '社交': 'Social', '聚会': 'Social', '朋友': 'Social', 'social': 'Social', 'party': 'Social', 'friend': 'Social',
-  };
+    // Category detection (Chinese + English)
+    const categories: Record<string, string> = {
+      '工作': 'Work', '会议': 'Work', '项目': 'Work', '报告': 'Work', 'work': 'Work', 'meeting': 'Work', 'project': 'Work',
+      '购物': 'Errands', '买': 'Errands', '快递': 'Errands', '取': 'Errands', 'shopping': 'Errands', 'buy': 'Errands',
+      '健康': 'Health', '体检': 'Health', '药': 'Health', '医院': 'Health', '运动': 'Health', '健身': 'Health', 'health': 'Health', 'gym': 'Health', 'exercise': 'Health', 'workout': 'Health',
+      '学习': 'Learning', '读书': 'Learning', '课程': 'Learning', 'study': 'Learning', 'read': 'Learning', 'course': 'Learning', 'book': 'Learning',
+      '个人': 'Personal', '家庭': 'Personal', 'personal': 'Personal', 'family': 'Personal',
+      '财务': 'Finance', '钱': 'Finance', '账单': 'Finance', 'finance': 'Finance', 'money': 'Finance', 'bill': 'Finance',
+      '社交': 'Social', '聚会': 'Social', '朋友': 'Social', 'social': 'Social', 'party': 'Social', 'friend': 'Social',
+    };
 
-  let category = 'Personal';
-  for (const [keyword, cat] of Object.entries(categories)) {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-    if (regex.test(text) || text.includes(keyword)) {
-      category = cat;
-      break;
+    let category = 'Personal';
+    for (const [keyword, cat] of Object.entries(categories)) {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+      if (regex.test(text) || text.includes(keyword)) {
+        category = cat;
+        break;
+      }
     }
+
+    // Tag extraction
+    const tags: string[] = [];
+    if (/提醒|待办|todo|remind/i.test(text)) tags.push('reminder');
+    if (/紧急|尽快|马上|urgent|asap/i.test(text)) tags.push('urgent');
+    if (/重要|important/i.test(text)) tags.push('important');
+
+    console.log('[localNLP] input:', text, '-> refinedContent:', result.refinedContent, 'isTodo:', result.isTodo, 'reminder:', !!result.reminder, 'isAmbiguous:', result.isAmbiguous);
+
+    return {
+      category,
+      tags: tags.length > 0 ? tags : undefined,
+      refinedContent: result.refinedContent,
+      isTodo: result.isTodo,
+      reminder: result.reminder,
+      isAmbiguous: result.isAmbiguous,
+      clarificationPrompt: result.clarificationPrompt,
+    };
+  } catch (err) {
+    console.error('[localNLP] Error:', err);
+    return { refinedContent: text };
   }
-
-  // Tag extraction
-  const tags: string[] = [];
-  if (/提醒|待办|todo|remind/i.test(text)) tags.push('reminder');
-  if (/紧急|尽快|马上|urgent|asap/i.test(text)) tags.push('urgent');
-  if (/重要|important/i.test(text)) tags.push('important');
-
-  return {
-    category,
-    tags: tags.length > 0 ? tags : undefined,
-    refinedContent: result.refinedContent,
-    isTodo: result.isTodo,
-    reminder: result.reminder,
-    isAmbiguous: result.isAmbiguous,
-    clarificationPrompt: result.clarificationPrompt,
-  };
 }
