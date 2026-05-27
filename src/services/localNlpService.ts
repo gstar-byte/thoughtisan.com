@@ -198,6 +198,8 @@ function extractContent(text: string): string {
   // 4. Relative days
   content = content.replace(/明天|后天|大后天|今天/g, '');
   content = content.replace(/tomorrow|today/gi, '').replace(/the day after tomorrow/gi, '');
+  // Specific dates
+  content = content.replace(/下月\d{1,2}[号日]/g, '').replace(/本月\d{1,2}[号日]/g, '').replace(/\d{1,2}月\d{1,2}[号日]/g, '');
 
   // 5. Time periods
   content = content.replace(/早上|早晨|上午|中午|下午|傍晚|晚上|半夜|凌晨/g, '');
@@ -316,6 +318,48 @@ function parseReminder(text: string): {
     }
   }
 
+  // ===== Specific date patterns (Chinese): 6月18号, 六月十八号, 下月15号 =====
+  if (!hasExplicitDate) {
+    // "下月X号/日"
+    const nextMonthMatch = text.match(/下月(\d{1,2})[号日]/);
+    if (nextMonthMatch) {
+      const day = parseInt(nextMonthMatch[1]);
+      targetDate = new Date(now.getFullYear(), now.getMonth() + 1, day, 9, 0, 0, 0);
+      hasExplicitDate = true;
+    }
+    // "本月X号/日"
+    const thisMonthMatch = text.match(/本月(\d{1,2})[号日]/);
+    if (!hasExplicitDate && thisMonthMatch) {
+      const day = parseInt(thisMonthMatch[1]);
+      targetDate = new Date(now.getFullYear(), now.getMonth(), day, 9, 0, 0, 0);
+      hasExplicitDate = true;
+    }
+    // "X月X号/日" (Arabic numerals)
+    const monthDayMatch = text.match(/(\d{1,2})月(\d{1,2})[号日]/);
+    if (!hasExplicitDate && monthDayMatch) {
+      const month = parseInt(monthDayMatch[1]) - 1; // 0-indexed
+      const day = parseInt(monthDayMatch[2]);
+      targetDate = new Date(now.getFullYear(), month, day, 9, 0, 0, 0);
+      hasExplicitDate = true;
+    }
+    // English: "June 18" or "Jun 18"
+    const enDateMatch = text.match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|october|oct|november|nov|december|dec)\s+(\d{1,2})\b/i);
+    if (!hasExplicitDate && enDateMatch) {
+      const monthNames: Record<string, number> = {
+        january: 0, jan: 0, february: 1, feb: 1, march: 2, mar: 2,
+        april: 3, apr: 3, may: 4, june: 5, jun: 5, july: 6, jul: 6,
+        august: 7, aug: 7, september: 8, sep: 8, october: 9, oct: 9,
+        november: 10, nov: 10, december: 11, dec: 11
+      };
+      const month = monthNames[enDateMatch[1].toLowerCase()];
+      const day = parseInt(enDateMatch[2]);
+      if (month !== undefined) {
+        targetDate = new Date(now.getFullYear(), month, day, 9, 0, 0, 0);
+        hasExplicitDate = true;
+      }
+    }
+  }
+
   // ===== Parse time =====
   const timeResult = parseTimeFromText(text, targetDate);
   if (timeResult.hasTime || timeResult.hasPeriod) {
@@ -330,7 +374,9 @@ function parseReminder(text: string): {
 
   // Determine intent
   const hasReminderIntent = /提醒|记得|别忘了|注意|待办|任务|remind|remember|don't forget|todo/i.test(text);
-  const isTodo = hasReminderIntent || hasExplicitDate || hasExplicitTime || isRecurring;
+  // Activity/todo keywords: things people plan to do
+  const hasActivityIntent = /参加|做|去|交|买|卖|取|体检|活动|促销|开会|跑步|健身|读书|学习|考试|面试|旅行|旅游|聚餐|聚会|约会|买菜|做饭|洗衣服|打扫|整理|写作业|工作|出差|报到|报名|缴费|还款|付款|转账|寄|收|体检|复查|复诊|打针|吃药|运动|锻炼|俯卧撑|瑜伽|游泳|骑车|爬山|散步|逛街|看电影|看医生|看牙|剪头发|理发|洗车|加油|保养|维修|安装|搬家|装修|布置|准备|策划|组织|主持|演讲|发言|培训|上课|考试|测验|竞赛|比赛|演出|展览|发布|上线|交付|提交|申请|填写|签字|盖章|审批|审核|检查|验收|考核|评估|总结|汇报|报告|分析|研究|调研|考察|参观|访问|拜访|接待|招待|宴请|送礼|寄送|派发|分发|收集|整理|归档|存档|备份|恢复|更新|升级|维护|修理|调试|测试|检验|检测|测量|称重|计数|统计|计算|核算|审计|清算|结算|结账|对账|核账|查账|报税|缴税|退税|领税|发票|开票|报销|借款|贷款|抵押|担保|保险|理赔|索赔|仲裁|诉讼|起诉|上诉|申诉|复议|调解|协商|谈判|签约|签订|签署|盖章|备案|登记|注册|注销|变更|转让|过户|继承|赠与|捐赠|资助|赞助|投资|融资|筹款|募捐|众筹|团购|秒杀|抢购|预订|预定|预约|挂号|排队|取票|登机|入住|退房|租车|打车|叫车|拼车|顺风车|高铁|飞机|船票|门票|入场券|签证|护照|证件|身份证|驾照|行驶证|房产证|合同|协议|章程|制度|规定|条例|办法|细则|标准|规范|指南|手册|教程|教材|课本|笔记|日记|周记|记录|记载|登记|注册|报名|报考|应征|应聘|求职|招聘|面试|笔试|复试|录用|入职|离职|辞职|退休|休假|请假|调休|加班|值班|轮班|换班|替班|代班|顶班|接班|交班|开班|结业|毕业|入学|转学|升学|考研|考博|考公|考编|考证|考级|考照|培训|进修|研修|游学|留学|访学|交换|实习|实践|见习|试用|转正|晋升|升职|加薪|降薪|调岗|轮岗|借调|派驻|挂职|锻炼|培养|选拔|提拔|任命|免职|撤职|降职|处分|处罚|罚款|赔偿|补偿|救济|救助|救援|求救|报警|报案|举报|投诉|建议|意见|反馈|回复|答复|回应|声明|公告|通知|通告|通报|简报|快讯|消息|新闻|报道|采访|直播|转播|录制|拍摄|剪辑|制作|创作|设计|绘制|描绘|描写|描述|叙述|讲述|讲解|解释|说明|阐明|阐述|论述|论证|证明|证实|确认|核实|验证|校验|校准|校正|纠正|改正|修改|修订|修正|调整|调节|调控|控制|管理|治理|整治|整顿|整改|改良|改进|改善|优化|提升|提高|增强|加强|巩固|强化|深化|细化|量化|简化|美化|净化|绿化|硬化|软化|固化|活化|激化|淡化|弱化|老化|恶化|好转|痊愈|康复|恢复|复原|修复|重建|重构|重组|重塑|重造|重置|重置|重启|重开|重办|重做|重写|重读|重学|重考|重测|重审|重评|重估|重算|重印|重发|重播|重映|重演|重排|重调|重配|重装|重建|重造|翻新|更新|换代|升级|改造|改建|扩建|新建|筹建|兴建|营造|打造|铸造|锻造|铸造|铸造|铸造|铸造|铸造|铸造|铸造|铸造|铸造|铸造|铸造/i.test(text);
+  const isTodo = hasReminderIntent || hasActivityIntent || hasExplicitDate || hasExplicitTime || isRecurring;
 
   // Ambiguity check
   let isAmbiguous = false;
