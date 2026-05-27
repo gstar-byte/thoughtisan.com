@@ -1,30 +1,19 @@
-import firebaseConfig from '../../firebase-applet-config.json';
+
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth as getFirebaseAuth, 
   GoogleAuthProvider, 
   OAuthProvider,
-  signInWithPopup,
+  signInWithPopup, 
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
-import { 
-  getFirestore as getFirebaseFirestore,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp
-} from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 
-// Lazy initialize Firebase - only when needed!
 let app: any = null;
 let dbInstance: any = null;
 let authInstance: any = null;
@@ -36,11 +25,7 @@ function initFirebase() {
     app = initializeApp(firebaseConfig);
   }
   if (!dbInstance) {
-    if (firebaseConfig.firestoreDatabaseId) {
-      dbInstance = getFirebaseFirestore(app, firebaseConfig.firestoreDatabaseId);
-    } else {
-      dbInstance = getFirebaseFirestore(app);
-    }
+    dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
   }
   if (!authInstance) {
     authInstance = getFirebaseAuth(app);
@@ -53,7 +38,6 @@ function initFirebase() {
   }
 }
 
-// Export getter functions instead of direct objects
 export function getDb() {
   initFirebase();
   return dbInstance;
@@ -74,21 +58,21 @@ export function getAppleProvider() {
   return appleProviderInstance;
 }
 
-// Re-export standard Firebase SDK functions 
-export {
+export { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  where, 
+  onSnapshot, 
+  serverTimestamp,
+  deleteField,
   signInWithPopup,
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  updateProfile,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp
+  updateProfile
 };

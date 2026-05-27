@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
-import { Sparkles, ArrowRight, CalendarDays, Repeat, CheckSquare, Palette, Tablet, Monitor, Apple, Play } from 'lucide-react';
+import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { getAuth, getGoogleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { Helmet } from 'react-helmet-async';
@@ -16,11 +17,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       await signInWithPopup(getAuth(), getGoogleProvider());
     } catch (error) {
       console.error("Google login error", error);
-      if (error.code === 'auth/unauthorized-domain') {
-        alert('Unauthorized Domain: Please add "luminote.space" to Firebase Console -> Authentication -> Settings -> Authorized Domains.');
-      } else {
-        alert('Google Login failed: ' + (error.message || error));
-      }
     }
   };
 
@@ -66,7 +62,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <AppLogo className="w-8 h-8" />
             <span className="font-bold text-lg tracking-tight">Lumi Note</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <button onClick={onLogin} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
               Log in
             </button>
@@ -391,7 +387,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             Capture thoughts in full color. © {new Date().getFullYear()} All rights reserved.
           </p>
           <div className="flex gap-4">
-             <a href="/privacy" className="text-white/40 hover:text-white transition-colors text-sm">Privacy Policy</a>
+             <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Terms</a>
+             <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Privacy</a>
           </div>
         </div>
       </footer>
