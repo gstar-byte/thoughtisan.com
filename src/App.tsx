@@ -57,6 +57,7 @@ import {
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
 import { categorizeThought } from './services/geminiService';
+import { categorizeThoughtLocal } from './services/localNlpService';
 import { 
   getDb, 
   getAuth, 
@@ -472,10 +473,12 @@ export default function App() {
   const [showProFeaturesModal, setShowProFeaturesModal] = useState(false);
   const [firedReminders, setFiredReminders] = useState<Capsule[]>([]);
   const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const lastColorIndexRef = useRef<number>(-1);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
   const [dataLoading, setDataLoading] = useState(true);
+  const [pendingClarificationCapsuleId, setPendingClarificationCapsuleId] = useState<string | null>(null);
 
   const handleSync = useCallback(async () => {
     if (isSyncing) return;
@@ -1083,18 +1086,27 @@ export default function App() {
     inputRef.current?.focus();
     
     try {
-      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = await categorizeThought(text);
+      // Use local NLP parser as free alternative to Gemini
+      const parsed = await categorizeThoughtLocal(text);
+      console.log('[handleCreate] parsed result:', JSON.stringify(parsed));
+      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = parsed;
       
-      // Select a random color from PRESET_COLORS
-      const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+      // Select a random color from PRESET_COLORS, avoiding repetition
+      let colorIndex: number;
+      const maxAttempts = 10;
+      let attempts = 0;
+      do {
+        colorIndex = Math.floor(Math.random() * PRESET_COLORS.length);
+        attempts++;
+      } while (colorIndex === lastColorIndexRef.current && PRESET_COLORS.length > 1 && attempts < maxAttempts);
+      lastColorIndexRef.current = colorIndex;
+      const randomColor = PRESET_COLORS[colorIndex];
       
-      const newCapsuleData = {
+      const newCapsuleData: Record<string, unknown> = {
         userId: user?.uid,
         content: refinedContent,
-        category: category || undefined,
-        tags: tags && tags.length > 0 ? tags : undefined,
         createdAt: Date.now(),
-        updatedAt: Date.now(), // Added for float-to-top
+        updatedAt: Date.now(),
         completed: false,
         isTodo: Boolean(
           isTodo ||
@@ -1105,28 +1117,43 @@ export default function App() {
         ),
         isArchived: false,
         isDeleted: false,
-        reminder,
+        reminder: reminder || null,
         color: randomColor,
         isAmbiguous: isAmbiguous || false,
         clarificationPrompt: clarificationPrompt || null
       };
+      if (category) newCapsuleData.category = category;
+      if (tags && tags.length > 0) newCapsuleData.tags = tags;
       
-      await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
+      console.log('[handleCreate] saving to Firestore:', JSON.stringify({ content: newCapsuleData.content, isTodo: newCapsuleData.isTodo, hasReminder: !!newCapsuleData.reminder, isAmbiguous: newCapsuleData.isAmbiguous }));
+      
+      const docRef = await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
+      console.log('[handleCreate] saved doc id:', docRef.id);
+      
+      // Manage ClarificationPill state
+      if (isAmbiguous) {
+        setPendingClarificationCapsuleId(docRef.id);
+      } else {
+        setPendingClarificationCapsuleId(null);
+      }
     } catch (error) {
+      console.error('[handleCreate] ERROR in try block:', error);
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       try {
         await addDoc(collection(getDb(), 'capsules'), {
           userId: user?.uid,
           content: text,
           createdAt: Date.now(),
-          updatedAt: Date.now(), // Added for float-to-top
+          updatedAt: Date.now(),
           completed: false,
           isTodo: false,
           isArchived: false,
           isDeleted: false,
           color: randomColor
         });
+        console.log('[handleCreate] fallback saved (raw text)');
       } catch (innerError) {
+        console.error('[handleCreate] fallback ERROR:', innerError);
         handleFirestoreError(innerError, OperationType.CREATE, 'capsules');
       }
     } finally {
@@ -1605,7 +1632,7 @@ export default function App() {
 
   if (!user) {
     if (!showAuthScreen) {
-      return <LandingPage onLogin={() => setShowAuthScreen(true)} />;
+      return <LandingPage onLogin={(isRegistering) => { setShowAuthScreen(true); setIsRegistering(isRegistering || false); }} />;
     }
 
     return (
@@ -3013,7 +3040,7 @@ export default function App() {
         {/* Improved Quick Capture Input Area */}
         <footer 
           id="input-area" 
-          className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex items-center justify-center ${
+          className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex flex-col items-center justify-center ${
             isCaptureCollapsed 
               ? 'h-0 min-h-0 py-0 opacity-0 pointer-events-none translate-y-full overflow-hidden' 
               : 'min-h-[84px] md:h-32 px-4 md:px-8 py-3 md:py-4 opacity-100 translate-y-0'
@@ -3030,6 +3057,30 @@ export default function App() {
               <span className="sr-only">Collapse</span>
             </button>
           )}
+
+          {/* Clarification Pill for ambiguous notes */}
+          <AnimatePresence>
+            {pendingClarificationCapsuleId && (() => {
+              const pendingCapsule = [...capsules, ...demoCapsules].find(c => c.id === pendingClarificationCapsuleId);
+              if (!pendingCapsule || !pendingCapsule.isAmbiguous) return null;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="w-full max-w-3xl mb-2"
+                >
+                  <ClarificationPill
+                    capsule={pendingCapsule}
+                    onResolve={(updates) => {
+                      updateCapsule(pendingCapsule.id, updates);
+                      setPendingClarificationCapsuleId(null);
+                    }}
+                  />
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
 
           <div 
             id="quick-capture-area"
