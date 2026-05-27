@@ -476,6 +476,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
   const [dataLoading, setDataLoading] = useState(true);
+  const [pendingClarificationCapsuleId, setPendingClarificationCapsuleId] = useState<string | null>(null);
 
   const handleSync = useCallback(async () => {
     if (isSyncing) return;
@@ -1111,7 +1112,12 @@ export default function App() {
         clarificationPrompt: clarificationPrompt || null
       };
       
-      await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
+      const docRef = await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
+      
+      // If ambiguous, store the temp capsule ID for showing clarification pill
+      if (isAmbiguous) {
+        setPendingClarificationCapsuleId(docRef.id);
+      }
     } catch (error) {
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       try {
@@ -1605,7 +1611,7 @@ export default function App() {
 
   if (!user) {
     if (!showAuthScreen) {
-      return <LandingPage onLogin={() => setShowAuthScreen(true)} />;
+      return <LandingPage onLogin={(isRegistering) => { setShowAuthScreen(true); setIsRegistering(isRegistering || false); }} />;
     }
 
     return (
@@ -3013,7 +3019,7 @@ export default function App() {
         {/* Improved Quick Capture Input Area */}
         <footer 
           id="input-area" 
-          className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex items-center justify-center ${
+          className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex flex-col items-center justify-center ${
             isCaptureCollapsed 
               ? 'h-0 min-h-0 py-0 opacity-0 pointer-events-none translate-y-full overflow-hidden' 
               : 'min-h-[84px] md:h-32 px-4 md:px-8 py-3 md:py-4 opacity-100 translate-y-0'
@@ -3030,6 +3036,30 @@ export default function App() {
               <span className="sr-only">Collapse</span>
             </button>
           )}
+
+          {/* Clarification Pill for ambiguous notes */}
+          <AnimatePresence>
+            {pendingClarificationCapsuleId && (() => {
+              const pendingCapsule = [...capsules, ...demoCapsules].find(c => c.id === pendingClarificationCapsuleId);
+              if (!pendingCapsule || !pendingCapsule.isAmbiguous) return null;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="w-full max-w-3xl mb-2"
+                >
+                  <ClarificationPill
+                    capsule={pendingCapsule}
+                    onResolve={(updates) => {
+                      updateCapsule(pendingCapsule.id, updates);
+                      setPendingClarificationCapsuleId(null);
+                    }}
+                  />
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
 
           <div 
             id="quick-capture-area"
