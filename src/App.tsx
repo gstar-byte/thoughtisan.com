@@ -1002,24 +1002,45 @@ export default function App() {
     }
   };
 
+  const transcriptRef = useRef('');
+
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
       recognition.current = new (window as any).webkitSpeechRecognition();
-      recognition.current.continuous = false;
-      recognition.current.interimResults = false;
-      recognition.current.lang = 'en-US';
+      recognition.current.continuous = true;
+      recognition.current.interimResults = true;
+      recognition.current.lang = 'zh-CN,en-US';
 
       recognition.current.onresult = (event: any) => {
-        const transcript = event?.results?.[0]?.[0]?.transcript;
-        if (transcript) {
-          setInputText(transcript);
-          handleCreateCapsule(transcript);
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            final += t;
+          } else {
+            interim += t;
+          }
         }
+        if (final) {
+          transcriptRef.current += final;
+        }
+        setInputText(transcriptRef.current + interim);
+      };
+
+      recognition.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
         setIsListening(false);
       };
 
-      recognition.current.onerror = () => setIsListening(false);
-      recognition.current.onend = () => setIsListening(false);
+      recognition.current.onend = () => {
+        setIsListening(false);
+        const text = transcriptRef.current.trim();
+        if (text) {
+          handleCreateCapsule(text);
+          transcriptRef.current = '';
+        }
+      };
     }
   }, []);
 
@@ -1406,10 +1427,23 @@ export default function App() {
     }
     if (recognition.current) {
       try {
+        transcriptRef.current = '';
+        setInputText('');
         setIsListening(true);
         recognition.current.start();
       } catch (e) {
-        console.log("Already dictating");
+        // Already started or other error; try restart
+        try {
+          recognition.current.stop();
+          setTimeout(() => {
+            transcriptRef.current = '';
+            setInputText('');
+            setIsListening(true);
+            recognition.current?.start();
+          }, 100);
+        } catch (inner) {
+          console.log('Speech recognition restart failed', inner);
+        }
       }
     } else {
       alert('Your browser does not support speech recognition.');
@@ -1418,7 +1452,11 @@ export default function App() {
 
   const stopListening = () => {
     if (recognition.current && isListening) {
-      recognition.current.stop();
+      try {
+        recognition.current.stop();
+      } catch (e) {
+        console.log('Speech recognition stop error', e);
+      }
     }
   };
 
