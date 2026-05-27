@@ -1087,7 +1087,9 @@ export default function App() {
     
     try {
       // Use local NLP parser as free alternative to Gemini
-      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = await categorizeThoughtLocal(text);
+      const parsed = await categorizeThoughtLocal(text);
+      console.log('[handleCreate] parsed result:', JSON.stringify(parsed));
+      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = parsed;
       
       // Select a random color from PRESET_COLORS, avoiding repetition
       let colorIndex: number;
@@ -1106,7 +1108,7 @@ export default function App() {
         category: category || undefined,
         tags: tags && tags.length > 0 ? tags : undefined,
         createdAt: Date.now(),
-        updatedAt: Date.now(), // Added for float-to-top
+        updatedAt: Date.now(),
         completed: false,
         isTodo: Boolean(
           isTodo ||
@@ -1123,30 +1125,35 @@ export default function App() {
         clarificationPrompt: clarificationPrompt || null
       };
       
+      console.log('[handleCreate] saving to Firestore:', JSON.stringify({ content: newCapsuleData.content, isTodo: newCapsuleData.isTodo, hasReminder: !!newCapsuleData.reminder, isAmbiguous: newCapsuleData.isAmbiguous }));
+      
       const docRef = await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
+      console.log('[handleCreate] saved doc id:', docRef.id);
       
       // Manage ClarificationPill state
       if (isAmbiguous) {
         setPendingClarificationCapsuleId(docRef.id);
       } else {
-        // Clear any existing pending clarification so the pill doesn't linger
         setPendingClarificationCapsuleId(null);
       }
     } catch (error) {
+      console.error('[handleCreate] ERROR in try block:', error);
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
       try {
         await addDoc(collection(getDb(), 'capsules'), {
           userId: user?.uid,
           content: text,
           createdAt: Date.now(),
-          updatedAt: Date.now(), // Added for float-to-top
+          updatedAt: Date.now(),
           completed: false,
           isTodo: false,
           isArchived: false,
           isDeleted: false,
           color: randomColor
         });
+        console.log('[handleCreate] fallback saved (raw text)');
       } catch (innerError) {
+        console.error('[handleCreate] fallback ERROR:', innerError);
         handleFirestoreError(innerError, OperationType.CREATE, 'capsules');
       }
     } finally {
