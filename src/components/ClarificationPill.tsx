@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { Clock, CheckSquare, RefreshCw, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Clock, CheckSquare, RefreshCw, FileText, Settings, Star, Pin } from 'lucide-react';
 import { Capsule } from '../types';
 
 interface ClarificationPillProps {
@@ -8,23 +8,37 @@ interface ClarificationPillProps {
   onResolve: (updates: Partial<Capsule>) => void;
 }
 
+type RepeatType = 'none' | 'once' | 'daily' | 'weekly' | 'monthly';
+
+function toLocalISOString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps) {
   if (!capsule.isAmbiguous) return null;
 
+  const [showCustom, setShowCustom] = useState(false);
+  const [customDate, setCustomDate] = useState(() => {
+    const now = new Date();
+    const tomorrowNine = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+    return toLocalISOString(tomorrowNine);
+  });
+  const [customRepeat, setCustomRepeat] = useState<RepeatType>('once');
+  const [customStarred, setCustomStarred] = useState(false);
+  const [customPinned, setCustomPinned] = useState(false);
+
   const handleQuickSelect = (type: 'today' | 'tomorrow' | 'todo' | 'everyday' | 'everyweek' | 'justnote') => {
     const now = new Date();
-    
+
     if (type === 'today') {
       const todaySix = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
       if (todaySix.getTime() <= now.getTime()) {
-        todaySix.setHours(todaySix.getHours() + 3); // Default to 9 PM if 6 PM passed
+        todaySix.setHours(todaySix.getHours() + 3);
       }
       onResolve({
         isTodo: true,
-        reminder: {
-          type: 'once',
-          date: todaySix.getTime()
-        },
+        reminder: { type: 'once', date: todaySix.getTime() },
         isAmbiguous: false,
         clarificationPrompt: null
       });
@@ -32,33 +46,25 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
       const tomorrowNine = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
       onResolve({
         isTodo: true,
-        reminder: {
-          type: 'once',
-          date: tomorrowNine.getTime()
-        },
+        reminder: { type: 'once', date: tomorrowNine.getTime() },
         isAmbiguous: false,
         clarificationPrompt: null
       });
     } else if (type === 'todo') {
       onResolve({
         isTodo: true,
-        reminder: {
-          type: 'none'
-        },
+        reminder: { type: 'none' },
         isAmbiguous: false,
         clarificationPrompt: null
       });
     } else if (type === 'everyday') {
       const dailyEight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0, 0);
       if (dailyEight.getTime() <= now.getTime()) {
-        dailyEight.setDate(dailyEight.getDate() + 1); // Tomorrow 8 PM
+        dailyEight.setDate(dailyEight.getDate() + 1);
       }
       onResolve({
         isTodo: true,
-        reminder: {
-          type: 'daily',
-          date: dailyEight.getTime()
-        },
+        reminder: { type: 'daily', date: dailyEight.getTime() },
         isAmbiguous: false,
         clarificationPrompt: null
       });
@@ -68,27 +74,54 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
       nextMon.setHours(9, 0, 0, 0);
       onResolve({
         isTodo: true,
-        reminder: {
-          type: 'weekly',
-          date: nextMon.getTime()
-        },
+        reminder: { type: 'weekly', date: nextMon.getTime() },
         isAmbiguous: false,
         clarificationPrompt: null
       });
     } else if (type === 'justnote') {
       onResolve({
         isTodo: false,
-        reminder: {
-          type: 'none'
-        },
+        reminder: { type: 'none' },
         isAmbiguous: false,
         clarificationPrompt: null
       });
     }
   };
 
+  const handleCustomConfirm = () => {
+    const date = new Date(customDate);
+    const hasReminder = customRepeat !== 'none' && !isNaN(date.getTime());
+    const updates: Partial<Capsule> = {
+      isTodo: customRepeat !== 'none',
+      isAmbiguous: false,
+      clarificationPrompt: null,
+      isStarred: customStarred || undefined,
+      isPinned: customPinned || undefined,
+    };
+
+    if (hasReminder) {
+      updates.reminder = {
+        type: customRepeat,
+        date: date.getTime()
+      };
+    } else {
+      updates.reminder = { type: 'none' };
+    }
+
+    onResolve(updates);
+    setShowCustom(false);
+  };
+
+  const repeatOptions: { value: RepeatType; label: string }[] = [
+    { value: 'none', label: 'None' },
+    { value: 'once', label: 'Once' },
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+  ];
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -167,7 +200,97 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
           <FileText size={10} />
           <span>Just Note</span>
         </motion.button>
+
+        {/* Custom button */}
+        <motion.button
+          whileHover={{ scale: 1.02, backgroundColor: 'rgba(52, 199, 89, 0.08)' }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowCustom(!showCustom)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#2C2C2E] text-[#34C759] text-[11px] font-bold rounded-xl shadow-sm border border-[#E5E5EA] dark:border-[#3A3A3C] transition-colors"
+        >
+          <Settings size={10} />
+          <span>Custom</span>
+        </motion.button>
       </div>
+
+      {/* Custom Options Panel */}
+      <AnimatePresence>
+        {showCustom && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 p-3 bg-white dark:bg-[#2C2C2E] rounded-xl border border-[#E5E5EA] dark:border-[#3A3A3C] space-y-3">
+              {/* Date & Time */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[#8E8E93]">Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={customDate}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                  className="w-full bg-[#F2F2F7] dark:bg-[#1C1C1E] border border-[#E5E5EA] dark:border-[#3A3A3C] rounded-lg px-3 py-2 text-xs text-[#1D1D1F] dark:text-[#F2F2F7] focus:ring-2 focus:ring-[#007AFF]/20 outline-none"
+                />
+              </div>
+
+              {/* Repeat */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[#8E8E93]">Repeat</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {repeatOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setCustomRepeat(opt.value)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                        customRepeat === opt.value
+                          ? 'bg-[#007AFF] text-white border-[#007AFF]'
+                          : 'bg-[#F2F2F7] dark:bg-[#1C1C1E] text-[#8E8E93] border-[#E5E5EA] dark:border-[#3A3A3C] hover:bg-[#E5E5EA]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Star & Pin Toggles */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCustomStarred(!customStarred)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-colors ${
+                    customStarred
+                      ? 'bg-[#FFCC00]/10 text-[#FF9500] border-[#FFCC00]/30'
+                      : 'bg-[#F2F2F7] dark:bg-[#1C1C1E] text-[#8E8E93] border-[#E5E5EA] dark:border-[#3A3A3C]'
+                  }`}
+                >
+                  <Star size={12} className={customStarred ? 'fill-[#FFCC00] text-[#FFCC00]' : ''} />
+                  {customStarred ? 'Starred' : 'Star'}
+                </button>
+                <button
+                  onClick={() => setCustomPinned(!customPinned)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-colors ${
+                    customPinned
+                      ? 'bg-[#007AFF]/10 text-[#007AFF] border-[#007AFF]/30'
+                      : 'bg-[#F2F2F7] dark:bg-[#1C1C1E] text-[#8E8E93] border-[#E5E5EA] dark:border-[#3A3A3C]'
+                  }`}
+                >
+                  <Pin size={12} />
+                  {customPinned ? 'Pinned' : 'Pin'}
+                </button>
+              </div>
+
+              {/* Confirm */}
+              <button
+                onClick={handleCustomConfirm}
+                className="w-full py-2 bg-[#007AFF] text-white text-[11px] font-bold rounded-lg hover:bg-[#0051D5] transition-colors"
+              >
+                Confirm
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

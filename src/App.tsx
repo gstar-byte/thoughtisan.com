@@ -3535,7 +3535,7 @@ const CapsuleItem = memo(function CapsuleItem({
           "w-full relative rounded-[24px] md:rounded-[28px] shadow-sm transition-all border flex group",
           viewMode === 'grid' ? "flex-col h-full min-h-[80px] md:min-h-[140px]" : "flex-row",
           "items-center gap-1.5 p-2.5 md:gap-3 md:p-6",
-          isSelected ? "border-[#007AFF] shadow-2xl ring-[6px] ring-[#007AFF]/10 -translate-y-1" : "border-black/5 hover:border-black/10 hover:shadow-xl",
+          isSelected ? "border-[#007AFF] shadow-xl ring-4 ring-[#007AFF]/10" : "border-black/5 hover:border-black/10 hover:shadow-lg",
           capsule.isTodo &&
           capsule.completed &&
           !(showOptions || showColorPicker || showReminderPicker)
@@ -3604,7 +3604,10 @@ const CapsuleItem = memo(function CapsuleItem({
             className="absolute bottom-3 right-14 z-20 flex items-center justify-center w-7 h-7 rounded-full bg-black/20 backdrop-blur-md border border-white/25 text-white shadow-md pointer-events-auto cursor-help"
             title={reminderBellTitle(capsule)}
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isSelectionMode) onToggleSelection();
+            }}
             onTouchStart={(e) => e.stopPropagation()}
           >
             <Bell size={14} className={capsule.reminder.date <= Date.now() ? "text-red-200 animate-pulse" : "text-white"} />
@@ -3617,12 +3620,16 @@ const CapsuleItem = memo(function CapsuleItem({
           viewMode === 'grid' ? "absolute top-4 left-4" : "mt-0.5 pl-1"
         )}>
           {capsule.isTodo && (
-            <button 
+            <button
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onUpdate({ completed: !capsule.completed });
+                if (isSelectionMode) {
+                  onToggleSelection();
+                } else {
+                  onUpdate({ completed: !capsule.completed });
+                }
               }}
               className={cn(
                 "flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all bg-white/20 border-white/40 hover:bg-white/40 hover:border-white/60",
@@ -3648,10 +3655,13 @@ const CapsuleItem = memo(function CapsuleItem({
           </div>
           
           {capsule.isAmbiguous && (
-            <div 
-              onMouseDown={(e) => e.stopPropagation()} 
-              onTouchStart={(e) => e.stopPropagation()} 
-              onClick={(e) => e.stopPropagation()}
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isSelectionMode) onToggleSelection();
+              }}
               className="mt-2.5 relative z-30 pointer-events-auto"
             >
               <ClarificationPill capsule={capsule} onResolve={onUpdate} />
@@ -3860,6 +3870,20 @@ const CapsuleItem = memo(function CapsuleItem({
                       >
                         {capsule.isTodo ? <Square size={14} className="text-[#8E8E93]" /> : <CheckSquare size={14} className="text-[#007AFF]" />}
                         {capsule.isTodo ? 'Cancel To-do' : 'Set To-do'}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onUpdate({ isArchived: true }); setShowOptions(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                      >
+                        <Archive size={14} className="text-[#8E8E93]" />
+                        Archive
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onUpdate({ isDeleted: true }); setShowOptions(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#FFF5F5] text-[#FF3B30] font-medium rounded-lg transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        Delete
                       </button>
                     </div>
                   </div>
