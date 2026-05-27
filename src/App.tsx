@@ -1009,7 +1009,7 @@ export default function App() {
       recognition.current = new (window as any).webkitSpeechRecognition();
       recognition.current.continuous = true;
       recognition.current.interimResults = true;
-      recognition.current.lang = 'zh-CN,en-US';
+      recognition.current.lang = 'zh-CN';
 
       recognition.current.onresult = (event: any) => {
         let interim = '';
@@ -1031,6 +1031,10 @@ export default function App() {
       recognition.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
+      };
+
+      recognition.current.onstart = () => {
+        console.log('Speech recognition started');
       };
 
       recognition.current.onend = () => {
