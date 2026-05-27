@@ -473,6 +473,7 @@ export default function App() {
   const [showProFeaturesModal, setShowProFeaturesModal] = useState(false);
   const [firedReminders, setFiredReminders] = useState<Capsule[]>([]);
   const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const lastColorIndexRef = useRef<number>(-1);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
@@ -1088,8 +1089,16 @@ export default function App() {
       // Use local NLP parser as free alternative to Gemini
       const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = await categorizeThoughtLocal(text);
       
-      // Select a random color from PRESET_COLORS
-      const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+      // Select a random color from PRESET_COLORS, avoiding repetition
+      let colorIndex: number;
+      const maxAttempts = 10;
+      let attempts = 0;
+      do {
+        colorIndex = Math.floor(Math.random() * PRESET_COLORS.length);
+        attempts++;
+      } while (colorIndex === lastColorIndexRef.current && PRESET_COLORS.length > 1 && attempts < maxAttempts);
+      lastColorIndexRef.current = colorIndex;
+      const randomColor = PRESET_COLORS[colorIndex];
       
       const newCapsuleData = {
         userId: user?.uid,
@@ -1116,9 +1125,12 @@ export default function App() {
       
       const docRef = await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
       
-      // If ambiguous, store the temp capsule ID for showing clarification pill
+      // Manage ClarificationPill state
       if (isAmbiguous) {
         setPendingClarificationCapsuleId(docRef.id);
+      } else {
+        // Clear any existing pending clarification so the pill doesn't linger
+        setPendingClarificationCapsuleId(null);
       }
     } catch (error) {
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
