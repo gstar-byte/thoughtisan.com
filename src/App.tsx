@@ -1102,11 +1102,9 @@ export default function App() {
       lastColorIndexRef.current = colorIndex;
       const randomColor = PRESET_COLORS[colorIndex];
       
-      const newCapsuleData = {
+      const newCapsuleData: Record<string, unknown> = {
         userId: user?.uid,
         content: refinedContent,
-        category: category || undefined,
-        tags: tags && tags.length > 0 ? tags : undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         completed: false,
@@ -1119,11 +1117,13 @@ export default function App() {
         ),
         isArchived: false,
         isDeleted: false,
-        reminder,
+        reminder: reminder || null,
         color: randomColor,
         isAmbiguous: isAmbiguous || false,
         clarificationPrompt: clarificationPrompt || null
       };
+      if (category) newCapsuleData.category = category;
+      if (tags && tags.length > 0) newCapsuleData.tags = tags;
       
       console.log('[handleCreate] saving to Firestore:', JSON.stringify({ content: newCapsuleData.content, isTodo: newCapsuleData.isTodo, hasReminder: !!newCapsuleData.reminder, isAmbiguous: newCapsuleData.isAmbiguous }));
       
