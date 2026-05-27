@@ -421,19 +421,19 @@ export async function categorizeThoughtLocal(text: string): Promise<{
 
     // Category detection (Chinese + English)
     const categories: Record<string, string> = {
-      '工作': 'Work', '会议': 'Work', '项目': 'Work', '报告': 'Work', 'work': 'Work', 'meeting': 'Work', 'project': 'Work',
-      '购物': 'Errands', '买': 'Errands', '快递': 'Errands', '取': 'Errands', 'shopping': 'Errands', 'buy': 'Errands',
-      '健康': 'Health', '体检': 'Health', '药': 'Health', '医院': 'Health', '运动': 'Health', '健身': 'Health', 'health': 'Health', 'gym': 'Health', 'exercise': 'Health', 'workout': 'Health',
-      '学习': 'Learning', '读书': 'Learning', '课程': 'Learning', 'study': 'Learning', 'read': 'Learning', 'course': 'Learning', 'book': 'Learning',
-      '个人': 'Personal', '家庭': 'Personal', 'personal': 'Personal', 'family': 'Personal',
-      '财务': 'Finance', '钱': 'Finance', '账单': 'Finance', 'finance': 'Finance', 'money': 'Finance', 'bill': 'Finance',
-      '社交': 'Social', '聚会': 'Social', '朋友': 'Social', 'social': 'Social', 'party': 'Social', 'friend': 'Social',
+      '工作': 'Work', '会议': 'Work', '项目': 'Work', '报告': 'Work', '加班': 'Work', '汇报': 'Work', '客户': 'Work', '同事': 'Work', '领导': 'Work', 'work': 'Work', 'meeting': 'Work', 'project': 'Work', 'deadline': 'Work', 'office': 'Work',
+      '购物': 'Errands', '买': 'Errands', '卖': 'Errands', '快递': 'Errands', '取': 'Errands', '外卖': 'Errands', '超市': 'Errands', 'shopping': 'Errands', 'buy': 'Errands', 'purchase': 'Errands', 'delivery': 'Errands',
+      '健康': 'Health', '体检': 'Health', '药': 'Health', '医院': 'Health', '运动': 'Health', '健身': 'Health', '跑步': 'Health', '瑜伽': 'Health', '看病': 'Health', '挂号': 'Health', 'health': 'Health', 'gym': 'Health', 'exercise': 'Health', 'workout': 'Health', 'doctor': 'Health', 'hospital': 'Health',
+      '学习': 'Learning', '读书': 'Learning', '课程': 'Learning', '考试': 'Learning', '上课': 'Learning', '培训': 'Learning', 'study': 'Learning', 'read': 'Learning', 'course': 'Learning', 'book': 'Learning', 'exam': 'Learning', 'learn': 'Learning',
+      '个人': 'Personal', '家庭': 'Personal', '生活': 'Personal', 'personal': 'Personal', 'family': 'Personal', 'life': 'Personal',
+      '财务': 'Finance', '钱': 'Finance', '账单': 'Finance', '理财': 'Finance', '投资': 'Finance', '国债': 'Finance', '基金': 'Finance', '股票': 'Finance', '债券': 'Finance', '保险': 'Finance', '银行': 'Finance', '存款': 'Finance', '取款': 'Finance', '转账': 'Finance', '信用卡': 'Finance', '房贷': 'Finance', '车贷': 'Finance', '利息': 'Finance', '收益': 'Finance', '分红': 'Finance', 'tax': 'Finance', 'finance': 'Finance', 'money': 'Finance', 'bill': 'Finance', 'invest': 'Finance', 'stock': 'Finance', 'fund': 'Finance', 'loan': 'Finance', 'budget': 'Finance', 'savings': 'Finance',
+      '社交': 'Social', '聚会': 'Social', '朋友': 'Social', '聚餐': 'Social', '约会': 'Social', '生日': 'Social', '婚礼': 'Social', 'social': 'Social', 'party': 'Social', 'friend': 'Social', 'dinner': 'Social', 'date': 'Social',
+      '旅行': 'Travel', '旅游': 'Travel', '出差': 'Travel', '机票': 'Travel', '酒店': 'Travel', '签证': 'Travel', 'travel': 'Travel', 'trip': 'Travel', 'flight': 'Travel', 'hotel': 'Travel',
     };
 
     let category = 'Personal';
     for (const [keyword, cat] of Object.entries(categories)) {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-      if (regex.test(text) || text.includes(keyword)) {
+      if (text.includes(keyword)) {
         category = cat;
         break;
       }
@@ -443,7 +443,9 @@ export async function categorizeThoughtLocal(text: string): Promise<{
     const tags: string[] = [];
     if (/提醒|待办|todo|remind/i.test(text)) tags.push('reminder');
     if (/紧急|尽快|马上|urgent|asap/i.test(text)) tags.push('urgent');
-    if (/重要|important/i.test(text)) tags.push('important');
+    if (/重要|important|⭐|★|星标/i.test(text)) tags.push('important');
+    if (/理财|投资|国债|基金|股票|债券|保险|存款|收益|分红|savings|investment/i.test(text)) tags.push('finance');
+    if (/重复|每天|每周|每月|recurring|repeat/i.test(text)) tags.push('recurring');
 
     console.log('[localNLP] input:', text, '-> refinedContent:', result.refinedContent, 'isTodo:', result.isTodo, 'reminder:', !!result.reminder, 'isAmbiguous:', result.isAmbiguous);
 
