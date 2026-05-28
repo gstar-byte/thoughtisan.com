@@ -40,6 +40,8 @@ interface CapsuleEditorProps {
   readOnly?: boolean;
   /** Autofocus the editor on mount. */
   autoFocus?: boolean;
+  editMode?: 'rich' | 'markdown';
+  onModeChange?: (mode: 'rich' | 'markdown') => void;
 }
 
 // Helper: parse content that might be legacy plain-text or Tiptap JSON
@@ -112,8 +114,12 @@ export function CapsuleEditor({
   placeholder = 'Write your idea...',
   readOnly = false,
   autoFocus = false,
+  editMode: externalEditMode,
+  onModeChange,
 }: CapsuleEditorProps) {
-  const [editMode, setEditMode] = useState<'rich' | 'markdown'>('rich');
+  const [localEditMode, setLocalEditMode] = useState<'rich' | 'markdown'>('rich');
+  const editMode = externalEditMode ?? localEditMode;
+  const setEditMode = onModeChange ?? setLocalEditMode;
   const [markdownText, setMarkdownText] = useState('');
   
   const [showSlash, setShowSlash] = useState(false);
@@ -286,28 +292,6 @@ export function CapsuleEditor({
 
   return (
     <div className="capsule-editor-root" onKeyDown={handleKeyDown}>
-      {/* 1. Mode Switcher (Pill Slider) */}
-      {!readOnly && (
-        <div className="flex justify-end mb-3">
-          <div className="flex bg-[#F2F2F7] dark:bg-[#2C2C2E] p-0.5 rounded-xl border border-black/5 dark:border-white/5 relative z-10">
-            <button
-              type="button"
-              onClick={() => handleModeToggle('rich')}
-              className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all ${editMode === 'rich' ? 'bg-white dark:bg-[#3A3A3C] text-[#007AFF] shadow-sm' : 'text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-white'}`}
-            >
-              Rich Text
-            </button>
-            <button
-              type="button"
-              onClick={() => handleModeToggle('markdown')}
-              className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all ${editMode === 'markdown' ? 'bg-white dark:bg-[#3A3A3C] text-[#007AFF] shadow-sm' : 'text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-white'}`}
-            >
-              Markdown
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 2. Editor Core body selection based on editMode */}
       {editMode === 'rich' ? (
         <>
@@ -363,29 +347,17 @@ export function CapsuleEditor({
               ))}
             </div>
           )}
-
-          {/* Bottom inline toolbar (always visible when not readOnly) */}
-          {!readOnly && (
-            <div className="capsule-editor-toolbar">
-              <ToolBtn active={editor.isActive('bulletList')} title="Bullet list" onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={15} /></ToolBtn>
-              <ToolBtn active={editor.isActive('orderedList')} title="Ordered list" onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={15} /></ToolBtn>
-              <ToolBtn active={editor.isActive('blockquote')} title="Blockquote" onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote size={15} /></ToolBtn>
-              <div style={{ flex: 1 }} />
-              <ToolBtn active={false} title="Insert image from file" onClick={() => imageInputRef.current?.click()}><ImageIcon size={15} /></ToolBtn>
-              <ToolBtn active={false} title="Insert image from URL" onClick={insertImageUrl}><LinkIcon size={15} /></ToolBtn>
-            </div>
-          )}
         </>
       ) : (
         /* Markdown Editor Mode */
-        <div className="capsule-markdown-editor border border-black/5 dark:border-white/5 rounded-2xl bg-white dark:bg-[#1C1C1E] overflow-hidden shadow-sm">
+        <div className="capsule-markdown-editor w-full bg-transparent border-none shadow-none overflow-hidden">
           {/* Markdown formatting Inserter Bar */}
           {!readOnly && (
-            <div className="flex items-center gap-1 p-2 bg-[#F2F2F7] dark:bg-[#2C2C2E] border-b border-black/5 dark:border-white/5">
+            <div className="flex items-center gap-1 p-2 bg-[#F2F2F7] dark:bg-[#2C2C2E] border-b border-black/5 dark:border-white/5 rounded-xl mb-2">
               <button
                 type="button"
                 onClick={() => insertMarkdown('# $1', 'Heading 1')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all font-bold text-xs"
+                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all font-bold text-xs cursor-pointer"
                 title="Heading 1"
               >
                 H1
@@ -393,7 +365,7 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('## $1', 'Heading 2')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all font-bold text-xs"
+                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all font-bold text-xs cursor-pointer"
                 title="Heading 2"
               >
                 H2
@@ -402,7 +374,7 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('**$1**', 'bold text')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all"
+                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
                 title="Bold"
               >
                 <Bold size={13} />
@@ -410,7 +382,7 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('*$1*', 'italic text')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all"
+                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
                 title="Italic"
               >
                 <Italic size={13} />
@@ -418,7 +390,7 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('- $1', 'List item')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all"
+                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
                 title="Bullet List"
               >
                 <List size={13} />
@@ -426,7 +398,7 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('> $1', 'Blockquote')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all"
+                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
                 title="Quote"
               >
                 <Quote size={13} />
@@ -441,7 +413,7 @@ export function CapsuleEditor({
             onChange={(e) => handleMarkdownChange(e.target.value)}
             placeholder="Write raw thoughts or Markdown..."
             disabled={readOnly}
-            className="w-full min-h-[220px] bg-transparent border-none outline-none resize-none text-[14px] font-semibold leading-relaxed text-[#1D1D1F] dark:text-[#F2F2F7] placeholder-[#8E8E93]/40 p-4 font-mono focus:ring-0 focus:border-none focus:outline-none"
+            className="w-full min-h-[220px] bg-transparent border-none outline-none resize-none text-[15px] font-medium leading-[2rem] text-[#2c2c2e] placeholder-[#8E8E93]/40 font-sans focus:ring-0 focus:border-none focus:outline-none p-0"
           />
         </div>
       )}

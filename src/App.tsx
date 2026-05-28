@@ -1081,6 +1081,7 @@ export default function App() {
   const editingCapsuleRef = useRef<Capsule | null>(null);
   editingCapsuleRef.current = editingCapsule;
   const [isMarkdownPreview, setIsMarkdownPreview] = useState(false);
+  const [editMode, setEditMode] = useState<'rich' | 'markdown'>('rich');
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const isUploadingMediaRef = useRef(false);
 
@@ -2784,6 +2785,26 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-2 pb-16 md:pb-20">
+                    {/* Pill Switcher outside the lined paper background */}
+                    <div className="flex justify-end mb-3 shrink-0">
+                      <div className="flex bg-[#F2F2F7] dark:bg-[#2C2C2E] p-0.5 rounded-xl border border-black/5 dark:border-white/5 relative z-10">
+                        <button
+                          type="button"
+                          onClick={() => setEditMode('rich')}
+                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${editMode === 'rich' ? 'bg-white dark:bg-[#3A3A3C] text-[#007AFF] shadow-sm' : 'text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-white'}`}
+                        >
+                          Rich Text
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditMode('markdown')}
+                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${editMode === 'markdown' ? 'bg-white dark:bg-[#3A3A3C] text-[#007AFF] shadow-sm' : 'text-[#8E8E93] hover:text-[#1D1D1F] dark:hover:text-white'}`}
+                        >
+                          Markdown
+                        </button>
+                      </div>
+                    </div>
+
                     <div 
                       className="w-full flex-1 min-h-[220px] rounded-xl bg-[#FFFBE6] paper-preview p-4 relative"
                       style={{ 
@@ -2802,6 +2823,8 @@ export default function App() {
                           setEditContentDraft(json);
                           queueEditContentSave();
                         }}
+                        editMode={editMode}
+                        onModeChange={setEditMode}
                         placeholder="Start typing your brilliance..."
                         readOnly={false}
                         autoFocus={true}
