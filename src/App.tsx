@@ -1397,10 +1397,10 @@ export default function App() {
     html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-black mt-3 mb-2">$1</h1>');
     // Blockquote
     html = html.replace(/^&gt; (.*$)/gim, '<blockquote class="border-l-4 border-[#007AFF] pl-3 italic text-[#636366] my-2">$1</blockquote>');
-    // Links
-    html = html.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank" class="text-[#007AFF] underline">$1</a>');
     // Images
     html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1" class="rounded-xl my-2 max-w-full" />');
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank" class="text-[#007AFF] underline">$1</a>');
     // Horizontal rule
     html = html.replace(/^(-{3,}|\*{3,})$/gim, '<hr class="border-t border-[#E5E5EA] my-3" />');
     // Unordered list
