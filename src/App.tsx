@@ -1143,7 +1143,7 @@ export default function App() {
         isDeleted: false,
         reminder: reminder || null,
         color: randomColor,
-        isAmbiguous: true,
+        isAmbiguous: isAmbiguous || false,
         clarificationPrompt: clarificationPrompt || null
       };
       if (category) newCapsuleData.category = category;
@@ -1156,8 +1156,12 @@ export default function App() {
       const docRef = await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
       console.log('[handleCreate] saved doc id:', docRef.id);
       
-      // Always show quick settings panel for every input
-      setPendingClarificationCapsuleId(docRef.id);
+      // Manage ClarificationPill state
+      if (isAmbiguous) {
+        setPendingClarificationCapsuleId(docRef.id);
+      } else {
+        setPendingClarificationCapsuleId(null);
+      }
     } catch (error) {
       console.error('[handleCreate] ERROR in try block:', error);
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
@@ -3101,7 +3105,7 @@ export default function App() {
           <AnimatePresence>
             {pendingClarificationCapsuleId && (() => {
               const pendingCapsule = [...capsules, ...demoCapsules].find(c => c.id === pendingClarificationCapsuleId);
-              if (!pendingCapsule) return null;
+              if (!pendingCapsule || !pendingCapsule.isAmbiguous) return null;
               return (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
