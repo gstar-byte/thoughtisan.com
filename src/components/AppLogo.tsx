@@ -8,15 +8,21 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Three primary color blocks */}
-      <rect x="5" y="5" width="30" height="90" fill="#FF0000" />
-      <rect x="35" y="5" width="30" height="90" fill="#00FF00" />
-      <rect x="65" y="5" width="30" height="90" fill="#0000FF" />
-      {/* LN monogram overlay */}
+      {/* Gradient representing three primary colors */}
+      <defs>
+        <linearGradient id="primaryGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#FF0000" />
+          <stop offset="50%" stop-color="#00FF00" />
+          <stop offset="100%" stop-color="#0000FF" />
+        </linearGradient>
+      </defs>
+      {/* Rounded sticky‑note shape */}
+      <rect x="5" y="5" width="90" height="90" rx="12" fill="url(#primaryGrad)" />
+      {/* LN monogram overlay – black for contrast */}
       <text
         x="50"
-        y="55"
-        fill="#FFFFFF"
+        y="58"
+        fill="#000000"
         fontFamily="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
         fontWeight="900"
         fontSize="48"
