@@ -1143,7 +1143,7 @@ export default function App() {
         isDeleted: false,
         reminder: reminder || null,
         color: randomColor,
-        isAmbiguous: isAmbiguous || false,
+        isAmbiguous: true,
         clarificationPrompt: clarificationPrompt || null
       };
       if (category) newCapsuleData.category = category;
@@ -1156,12 +1156,8 @@ export default function App() {
       const docRef = await addDoc(collection(getDb(), 'capsules'), newCapsuleData);
       console.log('[handleCreate] saved doc id:', docRef.id);
       
-      // Manage ClarificationPill state
-      if (isAmbiguous) {
-        setPendingClarificationCapsuleId(docRef.id);
-      } else {
-        setPendingClarificationCapsuleId(null);
-      }
+      // Always show quick settings panel for every input
+      setPendingClarificationCapsuleId(docRef.id);
     } catch (error) {
       console.error('[handleCreate] ERROR in try block:', error);
       const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
@@ -3105,7 +3101,7 @@ export default function App() {
           <AnimatePresence>
             {pendingClarificationCapsuleId && (() => {
               const pendingCapsule = [...capsules, ...demoCapsules].find(c => c.id === pendingClarificationCapsuleId);
-              if (!pendingCapsule || !pendingCapsule.isAmbiguous) return null;
+              if (!pendingCapsule) return null;
               return (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -3491,6 +3487,7 @@ const CapsuleItem = memo(function CapsuleItem({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const startPress = (e: React.MouseEvent | React.TouchEvent) => {
+    if (showOptions || showColorPicker || showReminderPicker) return;
     longPressDetected.current = false;
     if ('touches' in e && e.touches.length > 0) {
       touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
