@@ -1355,7 +1355,7 @@ export default function App() {
       }
     }
     setEditingCapsule(null);
-    setIsMarkdownPreview(false);
+    setIsMarkdownPreview(true);
   }, []);
 
   // --- Markdown helpers ---
@@ -2771,7 +2771,7 @@ export default function App() {
                     {isMarkdownPreview ? (
                       <div
                         className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar rounded-xl p-4 bg-[#FFFBE6]"
-                        style={{ backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 1.7rem, #F0E6C0 1.7rem, #F0E6C0 1.75rem, #FFFBE6 1.75rem, #FFFBE6 2rem)', lineHeight: '2rem' }}
+                        style={{ backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', backgroundSize: '100% 2rem', lineHeight: '2rem' }}
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(editContentDraft) }}
                       />
                     ) : (
@@ -2788,7 +2788,7 @@ export default function App() {
                           // Allow Enter to insert newline; don't block anything in textarea
                         }}
                         className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-[#FFFBE6] border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px] rounded-xl p-4"
-                        style={{ backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 1.7rem, #F0E6C0 1.7rem, #F0E6C0 1.75rem, #FFFBE6 1.75rem, #FFFBE6 2rem)', lineHeight: '2rem' }}
+                        style={{ backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', backgroundSize: '100% 2rem', lineHeight: '2rem' }}
                         placeholder="Start typing your brilliance..."
                         autoFocus
                       />
@@ -2816,7 +2816,7 @@ export default function App() {
                             : 'text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7]'
                         }`}
                       >
-                        {isMarkdownPreview ? 'Edit' : 'Preview'}
+                        {isMarkdownPreview ? 'Source' : 'Preview'}
                       </button>
                       <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
                         Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
