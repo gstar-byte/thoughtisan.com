@@ -52,8 +52,7 @@ import {
   Apple, 
   ExternalLink, 
   Share2,
-  Layers,
-  FileCode
+  Layers
 } from 'lucide-react';
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
@@ -2750,8 +2749,7 @@ export default function App() {
                         <button onClick={() => insertMarkdown('~~', '~~')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0 line-through" title="Strikethrough">S</button>
                         <button onClick={() => insertMarkdown('> ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Quote">&ldquo;</button>
                         <button onClick={() => insertMarkdown('- ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="List">&#8226;</button>
-                        <button onClick={() => insertMarkdown('- [ ] ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Todo">&#9744;</button>
-                        <button onClick={() => insertMarkdown('```\n', '\n```')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Code">&lt;/&gt;</button>
+                        <button onClick={() => insertMarkdown('1. ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Ordered">1.</button>
                         <button onClick={() => insertMarkdown('[', '](url)')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Link">&#128279;</button>
                       </div>
                     )}
@@ -2772,6 +2770,7 @@ export default function App() {
                           queueEditContentSave();
                         }}
                         className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px]"
+                        style={{ backgroundImage: 'linear-gradient(#E5E5EA 1px, transparent 1px)', backgroundSize: '100% 2rem', lineHeight: '2rem' }}
                         placeholder="Start typing your brilliance..."
                         autoFocus
                       />
@@ -2793,14 +2792,13 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setIsMarkdownPreview(!isMarkdownPreview)}
-                        className={`p-2 rounded-xl transition-all shrink-0 ${
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all shrink-0 ${
                           isMarkdownPreview
                             ? 'text-[#007AFF] bg-[#007AFF]/10'
                             : 'text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7]'
                         }`}
-                        title={isMarkdownPreview ? 'Edit plain text' : 'Preview markdown'}
                       >
-                        <FileCode size={20} />
+                        {isMarkdownPreview ? 'Edit' : 'Preview'}
                       </button>
                       <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
                         Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
