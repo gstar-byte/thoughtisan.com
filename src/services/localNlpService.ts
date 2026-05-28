@@ -223,9 +223,13 @@ function extractContent(text: string): string {
   content = content.replace(/next (monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)/gi, '');
   content = content.replace(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)\b/gi, '');
 
-  // 10. Fillers and pronouns
+  // 10. Star / Pin / Importance keywords
+  content = content.replace(/[,，]\s*(重要|星标|置顶|收藏|pinned|starred|important)/gi, '');
+  content = content.replace(/(重要|星标|置顶|收藏|pinned|starred|important)\s*[,，]?/gi, '');
+
+  // 11. Fillers and pronouns
   content = content.replace(/^我/g, '');
-  content = content.replace(/去|要|把|将/g, '');
+  content = content.replace(/去|把|将/g, '');
   content = content.replace(/\bto\b/gi, '');
 
   content = content.trim();

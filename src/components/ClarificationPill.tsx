@@ -28,8 +28,17 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
   const [customStarred, setCustomStarred] = useState(false);
   const [customPinned, setCustomPinned] = useState(false);
 
-  const handleQuickSelect = (type: 'today' | 'tomorrow' | 'todo' | 'everyday' | 'everyweek' | 'justnote') => {
+  const [withStar, setWithStar] = useState(false);
+  const [withPin, setWithPin] = useState(false);
+
+  const handleQuickSelect = (type: 'today' | 'tomorrow' | 'dayafter' | 'todo' | 'everyday' | 'everyweek' | 'justnote') => {
     const now = new Date();
+    const baseUpdates: Partial<Capsule> = {
+      isAmbiguous: false,
+      clarificationPrompt: null,
+    };
+    if (withStar) baseUpdates.isStarred = true;
+    if (withPin) baseUpdates.isPinned = true;
 
     if (type === 'today') {
       const todaySix = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
@@ -37,25 +46,29 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
         todaySix.setHours(todaySix.getHours() + 3);
       }
       onResolve({
+        ...baseUpdates,
         isTodo: true,
         reminder: { type: 'once', date: todaySix.getTime() },
-        isAmbiguous: false,
-        clarificationPrompt: null
       });
     } else if (type === 'tomorrow') {
       const tomorrowNine = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
       onResolve({
+        ...baseUpdates,
         isTodo: true,
         reminder: { type: 'once', date: tomorrowNine.getTime() },
-        isAmbiguous: false,
-        clarificationPrompt: null
+      });
+    } else if (type === 'dayafter') {
+      const dayAfterNine = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 9, 0, 0, 0);
+      onResolve({
+        ...baseUpdates,
+        isTodo: true,
+        reminder: { type: 'once', date: dayAfterNine.getTime() },
       });
     } else if (type === 'todo') {
       onResolve({
+        ...baseUpdates,
         isTodo: true,
         reminder: { type: 'none' },
-        isAmbiguous: false,
-        clarificationPrompt: null
       });
     } else if (type === 'everyday') {
       const dailyEight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0, 0);
@@ -63,27 +76,24 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
         dailyEight.setDate(dailyEight.getDate() + 1);
       }
       onResolve({
+        ...baseUpdates,
         isTodo: true,
         reminder: { type: 'daily', date: dailyEight.getTime() },
-        isAmbiguous: false,
-        clarificationPrompt: null
       });
     } else if (type === 'everyweek') {
       const nextMon = new Date(now);
       nextMon.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
       nextMon.setHours(9, 0, 0, 0);
       onResolve({
+        ...baseUpdates,
         isTodo: true,
         reminder: { type: 'weekly', date: nextMon.getTime() },
-        isAmbiguous: false,
-        clarificationPrompt: null
       });
     } else if (type === 'justnote') {
       onResolve({
+        ...baseUpdates,
         isTodo: false,
         reminder: { type: 'none' },
-        isAmbiguous: false,
-        clarificationPrompt: null
       });
     }
   };
@@ -159,6 +169,15 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
           <span>Tomorrow 9 AM</span>
         </motion.button>
 
+        <motion.button
+          whileHover={{ scale: 1.02, backgroundColor: 'rgba(0, 122, 255, 0.08)' }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => handleQuickSelect('dayafter')}
+          className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-[#2C2C2E] text-[#007AFF] text-[11px] font-bold rounded-xl shadow-sm border border-[#E5E5EA] dark:border-[#3A3A3C] transition-colors"
+        >
+          <span>Day After 9 AM</span>
+        </motion.button>
+
         {/* Repeat Loops */}
         <motion.button
           whileHover={{ scale: 1.02, backgroundColor: 'rgba(175, 82, 222, 0.08)' }}
@@ -210,6 +229,35 @@ export function ClarificationPill({ capsule, onResolve }: ClarificationPillProps
         >
           <Settings size={10} />
           <span>Custom</span>
+        </motion.button>
+
+        {/* Star & Pin toggles */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setWithStar(!withStar)}
+          className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold rounded-xl shadow-sm border transition-colors ${
+            withStar
+              ? 'bg-[#FFCC00]/10 text-[#FF9500] border-[#FFCC00]/30'
+              : 'bg-white dark:bg-[#2C2C2E] text-[#8E8E93] border-[#E5E5EA] dark:border-[#3A3A3C]'
+          }`}
+        >
+          <Star size={10} className={withStar ? 'fill-[#FFCC00]' : ''} />
+          {withStar ? 'Starred' : 'Star'}
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setWithPin(!withPin)}
+          className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold rounded-xl shadow-sm border transition-colors ${
+            withPin
+              ? 'bg-[#007AFF]/10 text-[#007AFF] border-[#007AFF]/30'
+              : 'bg-white dark:bg-[#2C2C2E] text-[#8E8E93] border-[#E5E5EA] dark:border-[#3A3A3C]'
+          }`}
+        >
+          <Pin size={10} />
+          {withPin ? 'Pinned' : 'Pin'}
         </motion.button>
       </div>
 
