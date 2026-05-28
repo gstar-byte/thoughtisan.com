@@ -23,14 +23,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Lumi Note – Capture thoughts in full color</title>
+        <title>Lumi Note – Lightning Capture AI‑Parsed Notes, To‑Do & Alerts</title>
         <meta name="description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with chromative visual cues." />
-        <meta property="og:title" content="Lumi Note – Capture thoughts in full color" />
+        <meta property="og:title" content="Lumi Note – Lightning Capture AI‑Parsed Notes, To‑Do & Alerts" />
         <meta property="og:description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with chromative visual cues." />
         <meta property="og:url" content="https://luminote.space" />
         <meta property="og:image" content="https://luminote.space/og-image.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Lumi Note – Capture thoughts in full color" />
+        <meta name="twitter:title" content="Lumi Note – Lightning Capture AI‑Parsed Notes, To‑Do & Alerts" />
         <meta name="twitter:description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind." />
         <meta name="twitter:image" content="https://luminote.space/og-image.png" />
         <link rel="canonical" href="https://luminote.space/" />
@@ -55,26 +55,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </script>
       </Helmet>
 
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AppLogo className="w-8 h-8" />
-            <span className="font-bold text-lg tracking-tight">Lumi Note</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => onLogin(false)} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
-              Log in
-            </button>
-            <button onClick={() => onLogin(true)} className="bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-              Sign up
-            </button>
-          </div>
-        </div>
-      </nav>
-
       {/* Hero Section */}
-      <section className="pt-40 pb-24 px-6 relative overflow-hidden">
+      <section className="pt-24 pb-24 px-6 relative overflow-hidden">
         {/* Animated Mesh Background */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-[#007AFF]/30 to-purple-600/30 blur-[120px] rounded-full mix-blend-screen animate-blob" />
