@@ -2756,7 +2756,7 @@ export default function App() {
 
                     {isMarkdownPreview ? (
                       <div
-                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar prose prose-sm max-w-none"
+                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar p-4"
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(editContentDraft) }}
                       />
                     ) : (
@@ -2769,8 +2769,11 @@ export default function App() {
                           setEditContentDraft(v);
                           queueEditContentSave();
                         }}
-                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px]"
-                        style={{ backgroundImage: 'linear-gradient(#E5E5EA 1px, transparent 1px)', backgroundSize: '100% 2rem', lineHeight: '2rem' }}
+                        onKeyDown={(e) => {
+                          // Allow Enter to insert newline; don't block anything in textarea
+                        }}
+                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-[#FFFBE6] border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px] rounded-xl p-4"
+                        style={{ backgroundImage: 'linear-gradient(#F0E6C0 1px, transparent 1px)', backgroundSize: '100% 2rem', lineHeight: '2rem' }}
                         placeholder="Start typing your brilliance..."
                         autoFocus
                       />
