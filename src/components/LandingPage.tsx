@@ -55,8 +55,26 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </script>
       </Helmet>
 
+      {/* Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AppLogo className="w-8 h-8" />
+            <span className="font-bold text-lg tracking-tight">Lumi Note</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={() => onLogin(false)} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
+              Log in
+            </button>
+            <button onClick={() => onLogin(true)} className="bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+              Sign up
+            </button>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
-      <section className="pt-24 pb-24 px-6 relative overflow-hidden">
+      <section className="pt-40 pb-24 px-6 relative overflow-hidden">
         {/* Animated Mesh Background */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-[#007AFF]/30 to-purple-600/30 blur-[120px] rounded-full mix-blend-screen animate-blob" />
@@ -92,7 +110,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
           >
-            <button onClick={onLogin} className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-bold text-lg hover:scale-105 transition-all flex items-center justify-center gap-2 group">
+            <button onClick={() => onLogin()} className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-bold text-lg hover:scale-105 transition-all flex items-center justify-center gap-2 group">
               Start Free Capture
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
@@ -369,7 +387,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             Capture thoughts in full color. © {new Date().getFullYear()} All rights reserved.
           </p>
           <div className="flex gap-4">
-             <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Terms</a>
              <a href="/privacy.html" className="text-white/40 hover:text-white transition-colors text-sm">Privacy</a>
           </div>
         </div>
