@@ -2784,94 +2784,29 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-2 pb-16 md:pb-20">
-                    {!isMarkdownPreview && (
-                      <div className="flex items-center gap-1 mb-2 px-1.5 py-1 bg-[#F2F2F7] dark:bg-[#2C2C2E] rounded-xl overflow-x-auto border border-black/5 dark:border-white/5 backdrop-blur-md shadow-sm shrink-0">
-                        <button type="button" onClick={() => insertMarkdown('# ', '')} className="px-2 py-1 text-[11px] font-black text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Heading 1">H1</button>
-                        <button type="button" onClick={() => insertMarkdown('## ', '')} className="px-2 py-1 text-[11px] font-bold text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Heading 2">H2</button>
-                        <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
-                        
-                        <button type="button" onClick={() => insertMarkdown('**', '**')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Bold"><Bold size={13} /></button>
-                        <button type="button" onClick={() => insertMarkdown('*', '*')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Italic"><Italic size={13} /></button>
-                        <button type="button" onClick={() => insertMarkdown('++', '++')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Underline"><UnderlineIcon size={13} /></button>
-                        <button type="button" onClick={() => insertMarkdown('~~', '~~')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Strikethrough"><Strikethrough size={13} /></button>
-                        
-                        <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
-                        <button type="button" onClick={() => insertMarkdown('> ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Blockquote"><Quote size={13} /></button>
-                        <button type="button" onClick={() => insertMarkdown('- ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Bullet List"><List size={13} /></button>
-                        <button type="button" onClick={() => insertMarkdown('1. ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Ordered List"><ListOrdered size={13} /></button>
-                        <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
-                        <label onMouseDown={() => { isUploadingMediaRef.current = true; }} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0 cursor-pointer flex items-center justify-center" title="Insert Image">
-                          <ImageIcon size={13} />
-                          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
-                        </label>
-                        {/* Rich WYSIWYG editor */}
-                        <CapsuleEditor
-                          content={editContentDraft}
-                          onChange={(raw, text) => {
-                            setEditContentDraft(text);
-                            queueEditContentSave();
-                          }}
-                          placeholder="Start typing your brilliance..."
-                          readOnly={false}
-                          autoFocus={true}
-                        />
-                      </div>
-                    )}
-
-                    {isMarkdownPreview ? (
-                      <div
-                        onClick={() => {
-                          setIsMarkdownPreview(false);
-                          setTimeout(() => {
-                            editTextareaRef.current?.focus();
-                            if (editTextareaRef.current) {
-                              const len = editTextareaRef.current.value.length;
-                              editTextareaRef.current.setSelectionRange(len, len);
-                            }
-                          }, 50);
-                        }}
-                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar rounded-xl p-4 bg-[#FFFBE6] paper-preview cursor-text"
-                        style={{ 
-                          backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', 
-                          backgroundSize: '100% 2rem', 
-                          lineHeight: '2rem',
-                          backgroundAttachment: 'local',
-                          paddingTop: '1.55rem',
-                          backgroundPositionY: '1.25rem'
-                        }}
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(editContentDraft) }}
-                      />
-                    ) : (
-                      <textarea
-                        ref={editTextareaRef}
-                        value={editContentDraft}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          editContentDraftRef.current = v;
-                          setEditContentDraft(v);
+                    <div 
+                      className="w-full flex-1 min-h-[220px] rounded-xl bg-[#FFFBE6] paper-preview p-4 relative"
+                      style={{ 
+                        backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', 
+                        backgroundSize: '100% 2rem', 
+                        lineHeight: '2rem',
+                        backgroundAttachment: 'local',
+                        paddingTop: '1.55rem',
+                        backgroundPositionY: '1.25rem'
+                      }}
+                    >
+                      <CapsuleEditor
+                        content={editContentDraft}
+                        onChange={(json, text) => {
+                          editContentDraftRef.current = json;
+                          setEditContentDraft(json);
                           queueEditContentSave();
                         }}
-                        onBlur={() => {
-                          setTimeout(() => {
-                            if (isUploadingMediaRef.current) return;
-                            if (editDetailCapsuleIdRef.current) {
-                              setIsMarkdownPreview(true);
-                            }
-                          }, 200);
-                        }}
-                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-[#FFFBE6] border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px] rounded-xl p-4"
-                        style={{ 
-                          backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', 
-                          backgroundSize: '100% 2rem', 
-                          lineHeight: '2rem',
-                          backgroundAttachment: 'local',
-                          paddingTop: '1.55rem',
-                          backgroundPositionY: '1.25rem'
-                        }}
                         placeholder="Start typing your brilliance..."
-                        autoFocus
+                        readOnly={false}
+                        autoFocus={true}
                       />
-                    )}
+                    </div>
                   </div>
                 </div>
                 
