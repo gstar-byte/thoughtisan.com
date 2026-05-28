@@ -18,3 +18,44 @@
   66% { transform: translate(-20px, 20px) scale(0.9); }
   100% { transform: translate(0px, 0px) scale(1); }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Paper Notebook Background Line Alignment Resets for Markdown Preview       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+.paper-preview p,
+.paper-preview li {
+  line-height: 2rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.paper-preview ul,
+.paper-preview ol {
+  margin: 0 !important;
+  padding-left: 1.5rem !important;
+}
+
+.paper-preview h1,
+.paper-preview h2,
+.paper-preview h3,
+.paper-preview h4,
+.paper-preview h5,
+.paper-preview h6 {
+  line-height: 2rem !important;
+  margin: 0 !important;
+  font-weight: 800 !important;
+}
+
+.paper-preview h1 { font-size: 1.5rem !important; }
+.paper-preview h2 { font-size: 1.35rem !important; }
+.paper-preview h3 { font-size: 1.2rem !important; }
+.paper-preview h4, .paper-preview h5, .paper-preview h6 { font-size: 1.125rem !important; }
+
+.paper-preview blockquote {
+  border-left: 3px solid #F0E6C0 !important;
+  padding-left: 0.75rem !important;
+  margin: 0 !important;
+  font-style: italic !important;
+  line-height: 2rem !important;
+}
+
