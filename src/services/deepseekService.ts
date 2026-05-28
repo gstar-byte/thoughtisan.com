@@ -1,0 +1,101 @@
+import { SYSTEM_PROMPT } from "../constants";
+
+// @ts-ignore
+const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY || (typeof process !== 'undefined' ? (process.env.DEEPSEEK_API_KEY || "") : "") || "";
+
+const API_URL = "https://api.deepseek.com/chat/completions";
+const MODEL = "deepseek-chat"; // DeepSeek-V3
+
+export async function categorizeThoughtDeepSeek(text: string): Promise<{
+  category?: string;
+  tags?: string[];
+  refinedContent: string;
+  isTodo?: boolean;
+  reminder?: any;
+  isAmbiguous?: boolean;
+  clarificationPrompt?: string | null;
+}> {
+  if (!apiKey) {
+    console.warn("[DeepSeek] API Key missing.");
+    throw new Error("DeepSeek API Key not configured");
+  }
+
+  const now = new Date();
+  const prompt = SYSTEM_PROMPT.replace(
+    '{{CURRENT_TIME_ZH}}',
+    now.toLocaleString('zh-CN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
+  ).replace('{{CURRENT_TIME_ISO}}', now.toISOString()) +
+    '\n\nInput text: ' +
+    text;
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("DeepSeek API timeout")), 15000)
+  );
+
+  const fetchPromise = fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: prompt },
+        { role: "user", content: text },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1024,
+      temperature: 0.2,
+    }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = await res.text().catch(() => res.statusText);
+      throw new Error(`DeepSeek HTTP ${res.status}: ${err}`);
+    }
+    return res.json();
+  });
+
+  const data = await Promise.race([fetchPromise, timeoutPromise]);
+
+  const raw = data.choices?.[0]?.message?.content || "{}";
+  const result = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+  let finalReminder = result.reminder || undefined;
+  if (finalReminder && typeof finalReminder === 'object') {
+    if (finalReminder.date != null) {
+      let d = finalReminder.date;
+      if (typeof d === 'string') {
+        const parsedDate = new Date(d).getTime();
+        if (!isNaN(parsedDate)) {
+          finalReminder.date = parsedDate;
+        }
+      } else if (typeof d === 'number') {
+        if (d < 9999999999) {
+          finalReminder.date = d * 1000;
+        }
+      }
+      if (isNaN(finalReminder.date)) {
+        finalReminder = undefined;
+      }
+    }
+  }
+
+  return {
+    category: result.category || undefined,
+    tags: Array.isArray(result.tags) ? result.tags : undefined,
+    refinedContent: result.refinedContent || text,
+    isTodo: typeof result.isTodo === 'boolean' ? result.isTodo : (finalReminder ? true : undefined),
+    reminder: finalReminder,
+    isAmbiguous: typeof result.isAmbiguous === 'boolean' ? result.isAmbiguous : undefined,
+    clarificationPrompt: result.clarificationPrompt || undefined,
+  };
+}

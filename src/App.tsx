@@ -56,8 +56,7 @@ import {
 } from 'lucide-react';
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
-import { categorizeThought } from './services/geminiService';
-import { categorizeThoughtLocal } from './services/localNlpService';
+import { categorizeThought } from './services/nlpRouter';
 import { 
   getDb, 
   getAuth, 
@@ -1111,8 +1110,8 @@ export default function App() {
     inputRef.current?.focus();
     
     try {
-      // Use local NLP parser as free alternative to Gemini
-      const parsed = await categorizeThoughtLocal(text);
+      // Use NLP router (DeepSeek -> Local fallback)
+      const parsed = await categorizeThought(text);
       console.log('[handleCreate] parsed result:', JSON.stringify(parsed));
       const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = parsed;
       
