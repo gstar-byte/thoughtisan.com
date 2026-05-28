@@ -1474,12 +1474,13 @@ export default function App() {
     
     if (file.size > 800 * 1024 || isVideo) {
       const url = URL.createObjectURL(file);
-      const newAttachments = [...(capsule.attachments || []), { url, type: (isVideo ? 'video' : 'image') as 'video' | 'image' }];
-      updateCapsule(capsule.id, { attachments: newAttachments });
-      setEditingCapsule((prev) =>
-        prev?.id === capsule.id ? { ...prev, attachments: newAttachments } : prev,
-      );
-      if (!isVideo) {
+      if (isVideo) {
+        const newAttachments = [...(capsule.attachments || []), { url, type: 'video' as const }];
+        updateCapsule(capsule.id, { attachments: newAttachments });
+        setEditingCapsule((prev) =>
+          prev?.id === capsule.id ? { ...prev, attachments: newAttachments } : prev,
+        );
+      } else {
         insertImageUrlToDraft(url);
       }
       return;
@@ -1488,11 +1489,6 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (ee) => {
       const dataUrl = ee.target?.result as string;
-      const newAttachments = [...(capsule.attachments || []), { url: dataUrl, type: 'image' as const }];
-      updateCapsule(capsule.id, { attachments: newAttachments });
-      setEditingCapsule((prev) =>
-        prev?.id === capsule.id ? { ...prev, attachments: newAttachments } : prev,
-      );
       insertImageUrlToDraft(dataUrl);
     };
     reader.readAsDataURL(file);
@@ -2797,6 +2793,11 @@ export default function App() {
                         <button type="button" onClick={() => insertMarkdown('> ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Blockquote"><Quote size={13} /></button>
                         <button type="button" onClick={() => insertMarkdown('- ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Bullet List"><List size={13} /></button>
                         <button type="button" onClick={() => insertMarkdown('1. ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Ordered List"><ListOrdered size={13} /></button>
+                        <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
+                        <label className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0 cursor-pointer flex items-center justify-center" title="Insert Image">
+                          <ImageIcon size={13} />
+                          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
+                        </label>
                       </div>
                     )}
 
@@ -2859,14 +2860,6 @@ export default function App() {
                 <div className="p-3 md:p-5 bg-[#F8F9FA] border-t border-[#E5E5EA] flex justify-between items-center gap-3">
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-3">
-                      <label className="cursor-pointer p-2 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] rounded-xl transition-all flex hidden md:flex items-center gap-2 shrink-0">
-                        <ImageIcon size={20} />
-                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
-                      </label>
-                      <label className="cursor-pointer md:hidden p-2 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] rounded-xl transition-all shrink-0">
-                        <Paperclip size={20} />
-                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
-                      </label>
                       <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
                         Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
