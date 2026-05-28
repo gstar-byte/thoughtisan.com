@@ -1080,7 +1080,7 @@ export default function App() {
   const editDetailCapsuleIdRef = useRef<string | null>(null);
   const editingCapsuleRef = useRef<Capsule | null>(null);
   editingCapsuleRef.current = editingCapsule;
-  const [isMarkdownPreview, setIsMarkdownPreview] = useState(true);
+  const [isMarkdownPreview, setIsMarkdownPreview] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const isUploadingMediaRef = useRef(false);
 
@@ -2804,6 +2804,17 @@ export default function App() {
                           <ImageIcon size={13} />
                           <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
                         </label>
+                        {/* Rich WYSIWYG editor */}
+                        <CapsuleEditor
+                          content={editContentDraft}
+                          onChange={(raw, text) => {
+                            setEditContentDraft(text);
+                            queueEditContentSave();
+                          }}
+                          placeholder="Start typing your brilliance..."
+                          readOnly={false}
+                          autoFocus={true}
+                        />
                       </div>
                     )}
 

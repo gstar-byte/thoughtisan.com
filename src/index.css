@@ -63,3 +63,16 @@
   text-decoration: underline !important;
 }
 
+/* Ensure editor content is above background lines */
+.paper-preview {
+  position: relative;
+  z-index: 1;
+}
+
+/* Image handling inside note */
+.paper-preview img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.5rem 0;
+}
