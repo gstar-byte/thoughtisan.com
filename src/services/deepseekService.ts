@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from "../constants";
 const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY || (typeof process !== 'undefined' ? (process.env.DEEPSEEK_API_KEY || "") : "") || "";
 
 const API_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = "deepseek-chat"; // DeepSeek-V3
+const MODEL = "deepseek-chat"; // DeepSeek-V3 (rebuild trigger)
 
 export async function categorizeThoughtDeepSeek(text: string): Promise<{
   category?: string;
