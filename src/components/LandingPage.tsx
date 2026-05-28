@@ -388,7 +388,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           </p>
           <div className="flex gap-4">
              <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Terms</a>
-             <a href="#" className="text-white/40 hover:text-white transition-colors text-sm">Privacy</a>
+             <a href="/privacy.html" className="text-white/40 hover:text-white transition-colors text-sm">Privacy</a>
           </div>
         </div>
       </footer>

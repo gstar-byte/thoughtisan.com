@@ -1082,6 +1082,7 @@ export default function App() {
   editingCapsuleRef.current = editingCapsule;
   const [isMarkdownPreview, setIsMarkdownPreview] = useState(true);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const isUploadingMediaRef = useRef(false);
 
   useEffect(() => {
     if (!editingCapsule) {
@@ -1451,6 +1452,7 @@ export default function App() {
   };
 
   const handleAttachMedia = (e: React.ChangeEvent<HTMLInputElement>, capsule: Capsule) => {
+    isUploadingMediaRef.current = false;
     const file = e.target.files?.[0];
     if (!file) return;
     const isVideo = file.type.startsWith('video/');
@@ -2699,9 +2701,9 @@ export default function App() {
                 </div>
 
                 <div className="p-5 md:p-8 overflow-y-auto custom-scrollbar flex-1 flex flex-col">
-                  {editingCapsule.attachments && editingCapsule.attachments.length > 0 && (
+                  {editingCapsule.attachments && editingCapsule.attachments.filter(att => att.type === 'video').length > 0 && (
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                      {editingCapsule.attachments.map((att, idx) => (
+                      {editingCapsule.attachments.filter(att => att.type === 'video').map((att, idx) => (
                         <div key={idx} className="relative group rounded-2xl overflow-hidden border border-[#E5E5EA] bg-black/5 aspect-video flex-shrink-0">
                           {att.type === 'video' ? (
                             <video src={att.url} className="w-full h-full object-cover" controls />
@@ -2794,7 +2796,7 @@ export default function App() {
                         <button type="button" onClick={() => insertMarkdown('- ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Bullet List"><List size={13} /></button>
                         <button type="button" onClick={() => insertMarkdown('1. ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Ordered List"><ListOrdered size={13} /></button>
                         <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
-                        <label className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0 cursor-pointer flex items-center justify-center" title="Insert Image">
+                        <label onMouseDown={() => { isUploadingMediaRef.current = true; }} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0 cursor-pointer flex items-center justify-center" title="Insert Image">
                           <ImageIcon size={13} />
                           <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
                         </label>
@@ -2836,6 +2838,7 @@ export default function App() {
                         }}
                         onBlur={() => {
                           setTimeout(() => {
+                            if (isUploadingMediaRef.current) return;
                             if (editDetailCapsuleIdRef.current) {
                               setIsMarkdownPreview(true);
                             }
