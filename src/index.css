@@ -59,3 +59,7 @@
   line-height: 2rem !important;
 }
 
+.paper-preview u {
+  text-decoration: underline !important;
+}
+

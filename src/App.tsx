@@ -52,7 +52,14 @@ import {
   Apple, 
   ExternalLink, 
   Share2,
-  Layers
+  Layers,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Quote,
+  List,
+  ListOrdered
 } from 'lucide-react';
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
@@ -1365,6 +1372,9 @@ export default function App() {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
+    // Custom underline support: ++text++ -> <u>text</u>
+    html = html.replace(/\+\+([^\+]+)\+\+/g, '<u>$1</u>');
+
     // Code blocks
     html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-[#F2F2F7] dark:bg-[#1C1C1E] p-3 rounded-xl text-xs font-mono overflow-x-auto my-2"><code>$1</code></pre>');
     // Inline code
@@ -1426,6 +1436,20 @@ export default function App() {
     });
   }
 
+  const insertImageUrlToDraft = (url: string) => {
+    const ta = editTextareaRef.current;
+    if (ta) {
+      insertMarkdown('![Image](' + url + ')', '');
+    } else {
+      const draft = editContentDraftRef.current;
+      const separator = draft.endsWith('\n') || draft === '' ? '' : '\n';
+      const newText = draft + separator + `![Image](${url})`;
+      editContentDraftRef.current = newText;
+      setEditContentDraft(newText);
+      queueEditContentSave();
+    }
+  };
+
   const handleAttachMedia = (e: React.ChangeEvent<HTMLInputElement>, capsule: Capsule) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1455,6 +1479,9 @@ export default function App() {
       setEditingCapsule((prev) =>
         prev?.id === capsule.id ? { ...prev, attachments: newAttachments } : prev,
       );
+      if (!isVideo) {
+        insertImageUrlToDraft(url);
+      }
       return;
     }
 
@@ -1466,6 +1493,7 @@ export default function App() {
       setEditingCapsule((prev) =>
         prev?.id === capsule.id ? { ...prev, attachments: newAttachments } : prev,
       );
+      insertImageUrlToDraft(dataUrl);
     };
     reader.readAsDataURL(file);
   };
@@ -2754,6 +2782,24 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-2 pb-16 md:pb-20">
+                    {!isMarkdownPreview && (
+                      <div className="flex items-center gap-1 mb-2 px-1.5 py-1 bg-[#F2F2F7] dark:bg-[#2C2C2E] rounded-xl overflow-x-auto border border-black/5 dark:border-white/5 backdrop-blur-md shadow-sm shrink-0">
+                        <button type="button" onClick={() => insertMarkdown('# ', '')} className="px-2 py-1 text-[11px] font-black text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Heading 1">H1</button>
+                        <button type="button" onClick={() => insertMarkdown('## ', '')} className="px-2 py-1 text-[11px] font-bold text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Heading 2">H2</button>
+                        <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
+                        
+                        <button type="button" onClick={() => insertMarkdown('**', '**')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Bold"><Bold size={13} /></button>
+                        <button type="button" onClick={() => insertMarkdown('*', '*')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Italic"><Italic size={13} /></button>
+                        <button type="button" onClick={() => insertMarkdown('++', '++')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Underline"><UnderlineIcon size={13} /></button>
+                        <button type="button" onClick={() => insertMarkdown('~~', '~~')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Strikethrough"><Strikethrough size={13} /></button>
+                        
+                        <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1 shrink-0" />
+                        <button type="button" onClick={() => insertMarkdown('> ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Blockquote"><Quote size={13} /></button>
+                        <button type="button" onClick={() => insertMarkdown('- ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Bullet List"><List size={13} /></button>
+                        <button type="button" onClick={() => insertMarkdown('1. ', '')} className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all shrink-0" title="Ordered List"><ListOrdered size={13} /></button>
+                      </div>
+                    )}
+
                     {isMarkdownPreview ? (
                       <div
                         onClick={() => {
