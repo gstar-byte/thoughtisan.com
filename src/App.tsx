@@ -352,8 +352,21 @@ const SIDEBAR_W = { mobile: 260, desktop: 240 } as const;
 const plainTextFromContent = (content: any): string => {
   if (!content) return '';
   if (typeof content === 'string') {
-    const trimmed = content.trim();
-    if (!trimmed.startsWith('{')) return trimmed;
+    let trimmed = content.trim();
+    if (!trimmed.startsWith('{')) {
+      // Strip common markdown syntax for card display
+      trimmed = trimmed
+        .replace(/^#{1,6}\s+/gm, '')          // headings
+        .replace(/\*\*(.+?)\*\*/g, '$1')      // bold
+        .replace(/\*(.+?)\*/g, '$1')          // italic
+        .replace(/~~(.+?)~~/g, '$1')          // strikethrough
+        .replace(/^>\s+/gm, '')               // blockquote
+        .replace(/^[-*+]\s+/gm, '')           // list items
+        .replace(/^\d+\.\s+/gm, '')          // ordered list
+        .replace(/`([^`]+)`/g, '$1')          // inline code
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1'); // links
+      return trimmed;
+    }
     try {
       const parsed = JSON.parse(trimmed);
       return plainTextFromContent(parsed);
@@ -1076,6 +1089,7 @@ export default function App() {
       setEditDetailTags(t);
       editDetailCategoryRef.current = c;
       editDetailTagsRef.current = t;
+      setIsMarkdownPreview(true);
     }
   }, [editingCapsule]);
 
@@ -2757,7 +2771,7 @@ export default function App() {
                     {isMarkdownPreview ? (
                       <div
                         className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar rounded-xl p-4 bg-[#FFFBE6]"
-                        style={{ backgroundImage: 'repeating-linear-gradient(#FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', lineHeight: '2rem' }}
+                        style={{ backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 1.7rem, #F0E6C0 1.7rem, #F0E6C0 1.75rem, #FFFBE6 1.75rem, #FFFBE6 2rem)', lineHeight: '2rem' }}
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(editContentDraft) }}
                       />
                     ) : (
@@ -2774,7 +2788,7 @@ export default function App() {
                           // Allow Enter to insert newline; don't block anything in textarea
                         }}
                         className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-[#FFFBE6] border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px] rounded-xl p-4"
-                        style={{ backgroundImage: 'repeating-linear-gradient(#FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', lineHeight: '2rem' }}
+                        style={{ backgroundImage: 'repeating-linear-gradient(to bottom, #FFFBE6, #FFFBE6 1.7rem, #F0E6C0 1.7rem, #F0E6C0 1.75rem, #FFFBE6 1.75rem, #FFFBE6 2rem)', lineHeight: '2rem' }}
                         placeholder="Start typing your brilliance..."
                         autoFocus
                       />
