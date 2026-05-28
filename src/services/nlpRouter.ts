@@ -11,6 +11,8 @@ export async function categorizeThought(text: string): Promise<{
   reminder?: any;
   isAmbiguous?: boolean;
   clarificationPrompt?: string | null;
+  isStarred?: boolean;
+  isPinned?: boolean;
 }> {
   if (NLP_PROVIDER === 'deepseek') {
     try {

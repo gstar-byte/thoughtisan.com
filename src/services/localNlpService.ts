@@ -416,6 +416,8 @@ export async function categorizeThoughtLocal(text: string): Promise<{
   reminder?: any;
   isAmbiguous?: boolean;
   clarificationPrompt?: string | null;
+  isStarred?: boolean;
+  isPinned?: boolean;
 }> {
   try {
     const result = parseReminder(text);
@@ -440,11 +442,15 @@ export async function categorizeThoughtLocal(text: string): Promise<{
       }
     }
 
+    // Star & Pin detection
+    const isStarred = /重要|important|⭐|★|星标|star|favorite|收藏/i.test(text);
+    const isPinned = /置顶|pin|fixed|sticky|置顶显示/i.test(text);
+
     // Tag extraction
     const tags: string[] = [];
     if (/提醒|待办|todo|remind/i.test(text)) tags.push('reminder');
     if (/紧急|尽快|马上|urgent|asap/i.test(text)) tags.push('urgent');
-    if (/重要|important|⭐|★|星标/i.test(text)) tags.push('important');
+    if (isStarred) tags.push('important');
     if (/理财|投资|国债|基金|股票|债券|保险|存款|收益|分红|savings|investment/i.test(text)) tags.push('finance');
     if (/重复|每天|每周|每月|recurring|repeat/i.test(text)) tags.push('recurring');
 
@@ -458,6 +464,8 @@ export async function categorizeThoughtLocal(text: string): Promise<{
       reminder: result.reminder,
       isAmbiguous: result.isAmbiguous,
       clarificationPrompt: result.clarificationPrompt,
+      isStarred: isStarred || undefined,
+      isPinned: isPinned || undefined,
     };
   } catch (err) {
     console.error('[localNLP] Error:', err);

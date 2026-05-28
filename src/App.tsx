@@ -1113,7 +1113,7 @@ export default function App() {
       // Use NLP router (DeepSeek -> Local fallback)
       const parsed = await categorizeThought(text);
       console.log('[handleCreate] parsed result:', JSON.stringify(parsed));
-      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt } = parsed;
+      const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt, isStarred, isPinned } = parsed;
       
       // Select a random color from PRESET_COLORS, avoiding repetition
       let colorIndex: number;
@@ -1148,6 +1148,8 @@ export default function App() {
       };
       if (category) newCapsuleData.category = category;
       if (tags && tags.length > 0) newCapsuleData.tags = tags;
+      if (isStarred) newCapsuleData.isStarred = true;
+      if (isPinned) newCapsuleData.isPinned = true;
       
       console.log('[handleCreate] saving to Firestore:', JSON.stringify({ content: newCapsuleData.content, isTodo: newCapsuleData.isTodo, hasReminder: !!newCapsuleData.reminder, isAmbiguous: newCapsuleData.isAmbiguous }));
       
@@ -3694,20 +3696,6 @@ const CapsuleItem = memo(function CapsuleItem({
           )}>
             {plainTextFromContent(capsule.content)}
           </div>
-          
-          {capsule.isAmbiguous && (
-            <div
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isSelectionMode) onToggleSelection();
-              }}
-              className="mt-2.5 relative z-30 pointer-events-auto"
-            >
-              <ClarificationPill capsule={capsule} onResolve={onUpdate} />
-            </div>
-          )}
           
           <div className={cn(
             "flex flex-col gap-2 mt-4 shrink-0 w-full",

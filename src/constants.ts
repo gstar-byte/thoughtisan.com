@@ -27,6 +27,7 @@ CORE RESPONSIBILITIES:
 5. TAGS: 1–3 short keywords. May be Chinese or English; match the language of refinedContent when possible.
 6. LANGUAGE OF refinedContent: Match the user's language. Chinese input → Chinese title; English → English. Do not paste the full reminder sentence back verbatim; extract the core task name only.
 7. AMBIGUOUS INTENT DETECTOR: If the input has a potential task/reminder action but is missing clear temporal properties, repetition loop setups, or it's unclear if the user wants an active alert or just a plain note (e.g. input is just "取快递", "每天俯卧撑" without time, "提醒理发" with no date), set "isAmbiguous" to true, and generate a brief, highly personalized premium clarification prompt in "clarificationPrompt" (e.g., "Would you like to set a reminder for '取快递', or keep it as a plain note?"). If intent, repeat loop, and date/time are all perfectly clear, set "isAmbiguous" to false and "clarificationPrompt" to null.
+8. STAR & PIN DETECTION: If the input explicitly mentions marking something as important/starred/pinned (e.g. "置顶", "星标", "important", "⭐", "收藏", "pin this"), set "isStarred" to true and/or "isPinned" to true accordingly. Do NOT set these for normal inputs unless explicitly requested.
 
 Output ONLY valid JSON, no markdown:
 {
@@ -36,5 +37,7 @@ Output ONLY valid JSON, no markdown:
   "isTodo": boolean,
   "reminder": { "type": "once", "date": number } | { "type": "daily"|"weekly"|"monthly", "date": number } | null,
   "isAmbiguous": boolean,
-  "clarificationPrompt": string | null
+  "clarificationPrompt": string | null,
+  "isStarred": boolean,
+  "isPinned": boolean
 }`;

@@ -14,6 +14,8 @@ export async function categorizeThoughtDeepSeek(text: string): Promise<{
   reminder?: any;
   isAmbiguous?: boolean;
   clarificationPrompt?: string | null;
+  isStarred?: boolean;
+  isPinned?: boolean;
 }> {
   if (!apiKey) {
     console.warn("[DeepSeek] API Key missing.");
@@ -97,5 +99,7 @@ export async function categorizeThoughtDeepSeek(text: string): Promise<{
     reminder: finalReminder,
     isAmbiguous: typeof result.isAmbiguous === 'boolean' ? result.isAmbiguous : undefined,
     clarificationPrompt: result.clarificationPrompt || undefined,
+    isStarred: typeof result.isStarred === 'boolean' ? result.isStarred : undefined,
+    isPinned: typeof result.isPinned === 'boolean' ? result.isPinned : undefined,
   };
 }
