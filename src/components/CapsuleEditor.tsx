@@ -353,11 +353,11 @@ export function CapsuleEditor({
         <div className="capsule-markdown-editor w-full bg-transparent border-none shadow-none overflow-hidden">
           {/* Markdown formatting Inserter Bar */}
           {!readOnly && (
-            <div className="flex items-center gap-1 p-2 bg-[#F2F2F7] dark:bg-[#2C2C2E] border-b border-black/5 dark:border-white/5 rounded-xl mb-2">
+            <div className="absolute bottom-[calc(100%+12px)] left-0 flex items-center gap-1.5 p-1 bg-[#F2F2F7] dark:bg-[#2C2C2E] border border-black/5 dark:border-white/5 rounded-xl shrink-0 z-20 shadow-sm">
               <button
                 type="button"
                 onClick={() => insertMarkdown('# $1', 'Heading 1')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all font-bold text-xs cursor-pointer"
+                className="px-2 py-1 text-[11px] font-black text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer font-bold text-xs"
                 title="Heading 1"
               >
                 H1
@@ -365,16 +365,25 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('## $1', 'Heading 2')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all font-bold text-xs cursor-pointer"
+                className="px-2 py-1 text-[11px] font-bold text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer font-bold text-xs"
                 title="Heading 2"
               >
                 H2
               </button>
+              <button
+                type="button"
+                onClick={() => insertMarkdown('### $1', 'Heading 3')}
+                className="px-2 py-1 text-[11px] font-semibold text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer font-bold text-xs"
+                title="Heading 3"
+              >
+                H3
+              </button>
               <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
+              
               <button
                 type="button"
                 onClick={() => insertMarkdown('**$1**', 'bold text')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
                 title="Bold"
               >
                 <Bold size={13} />
@@ -382,26 +391,79 @@ export function CapsuleEditor({
               <button
                 type="button"
                 onClick={() => insertMarkdown('*$1*', 'italic text')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
                 title="Italic"
               >
                 <Italic size={13} />
               </button>
               <button
                 type="button"
-                onClick={() => insertMarkdown('- $1', 'List item')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
+                onClick={() => insertMarkdown('++$1++', 'underline text')}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
+                title="Underline"
+              >
+                <UnderlineIcon size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertMarkdown('~~$1~~', 'strikethrough text')}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
+                title="Strikethrough"
+              >
+                <Strikethrough size={13} />
+              </button>
+              
+              <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
+              
+              <button
+                type="button"
+                onClick={() => insertMarkdown('> $1', 'blockquote')}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
+                title="Quote"
+              >
+                <Quote size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertMarkdown('- $1', 'list item')}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
                 title="Bullet List"
               >
                 <List size={13} />
               </button>
               <button
                 type="button"
-                onClick={() => insertMarkdown('> $1', 'Blockquote')}
-                className="p-1.5 bg-white dark:bg-[#1C1C1E] hover:bg-[#F2F2F7] dark:hover:bg-[#3A3A3C] rounded-lg border border-black/5 dark:border-white/5 text-[#555] dark:text-[#F2F2F7] transition-all cursor-pointer"
-                title="Quote"
+                onClick={() => insertMarkdown('1. $1', 'list item')}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
+                title="Ordered List"
               >
-                <Quote size={13} />
+                <ListOrdered size={13} />
+              </button>
+              
+              <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
+              
+              <button
+                type="button"
+                onClick={() => {
+                  const url = prompt('Enter link URL:');
+                  if (url) insertMarkdown(`[$1](${url})`, 'link text');
+                }}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
+                title="Insert Link"
+              >
+                <LinkIcon size={13} />
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  const url = prompt('Enter image URL:');
+                  if (url) insertMarkdown(`![$1](${url})`, 'image');
+                }}
+                className="p-1 text-[#555] dark:text-[#F2F2F7] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-all cursor-pointer"
+                title="Insert Image URL"
+              >
+                <ImageIcon size={13} />
               </button>
             </div>
           )}

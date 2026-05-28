@@ -92,15 +92,15 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
-              <Sparkles size={14} className="text-[#007AFF]" />
-              <span className="text-xs font-semibold tracking-wider uppercase">Color + Mindflow = Lumi Note</span>
+              <Sparkles size={14} className="text-[#FF2D55]" />
+              <span className="text-xs font-semibold tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] via-[#FF2D55] to-[#FF9500]">THE NEXT-GEN COLOR AESTHETIC NOTEBOOK</span>
             </div>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.05]">
-              Capture thoughts <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">in full color.</span>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.05]">
+              Create high-aesthetic notes, <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] via-[#FF2D55] to-[#FF9500]">todos & reminders in a single breath.</span>
             </h1>
-            <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with visual chromative cues. No clutter, no friction—just clean mindflow.
+            <p className="text-lg md:text-xl text-white/70 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
+              Lumi Note is a next-generation color-aesthetic capsule notepad designed for lightning-fast capture. Type a single sentence to instantly generate beautifully-styled notes, fluid to-dos, and smart reminders. Bring harmony to your daily flow—where rapid organization meets premium design.
             </p>
           </motion.div>
 

@@ -2834,16 +2834,17 @@ export default function App() {
                 </div>
                 
                 <div className="p-3 md:p-5 bg-[#F8F9FA] border-t border-[#E5E5EA] flex justify-between items-center gap-3">
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col min-w-0 gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={10} className="text-[#C7C7CC] shrink-0" />
                       <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
                         Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     {editingCapsule.reminder?.date && (
-                      <div className="pl-12 flex items-center gap-1.5 -mt-1">
-                        <Bell size={10} className="text-[#007AFF]" />
-                        <span className="text-[10px] font-black text-[#007AFF] uppercase tracking-widest">
+                      <div className="flex items-center gap-1.5">
+                        <Bell size={10} className="text-[#007AFF] shrink-0" />
+                        <span className="text-[10px] font-black text-[#007AFF] uppercase tracking-widest truncate">
                           Reminder: {new Date(editingCapsule.reminder.date).toLocaleDateString()} {new Date(editingCapsule.reminder.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({repeatLabelForMenu(editingCapsule.reminder)})
                         </span>
                       </div>
