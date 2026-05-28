@@ -91,9 +91,17 @@ export async function categorizeThoughtDeepSeek(text: string): Promise<{
     }
   }
 
+  // Ensure category and tags don't overlap
+  let finalTags: string[] | undefined = Array.isArray(result.tags) ? result.tags : undefined;
+  const finalCategory = result.category || undefined;
+  if (finalCategory && finalTags) {
+    finalTags = finalTags.filter((t) => t.toLowerCase() !== finalCategory.toLowerCase());
+    if (finalTags.length === 0) finalTags = undefined;
+  }
+
   return {
-    category: result.category || undefined,
-    tags: Array.isArray(result.tags) ? result.tags : undefined,
+    category: finalCategory,
+    tags: finalTags,
     refinedContent: result.refinedContent || text,
     isTodo: typeof result.isTodo === 'boolean' ? result.isTodo : (finalReminder ? true : undefined),
     reminder: finalReminder,

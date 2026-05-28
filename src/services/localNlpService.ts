@@ -458,11 +458,18 @@ export async function categorizeThoughtLocal(text: string): Promise<{
     if (/理财|投资|国债|基金|股票|债券|保险|存款|收益|分红|savings|investment/i.test(text)) tags.push('finance');
     if (/重复|每天|每周|每月|recurring|repeat/i.test(text)) tags.push('recurring');
 
+    // Ensure category and tags don't overlap
+    let finalTags = tags.length > 0 ? tags : undefined;
+    if (category && finalTags) {
+      finalTags = finalTags.filter((t) => t.toLowerCase() !== category.toLowerCase());
+      if (finalTags.length === 0) finalTags = undefined;
+    }
+
     console.log('[localNLP] input:', text, '-> refinedContent:', result.refinedContent, 'isTodo:', result.isTodo, 'reminder:', !!result.reminder, 'isAmbiguous:', result.isAmbiguous);
 
     return {
       category,
-      tags: tags.length > 0 ? tags : undefined,
+      tags: finalTags,
       refinedContent: result.refinedContent,
       isTodo: result.isTodo,
       reminder: result.reminder,

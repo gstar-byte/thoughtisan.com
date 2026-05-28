@@ -53,7 +53,7 @@ import {
   ExternalLink, 
   Share2,
   Layers,
-  Markdown
+  FileCode
 } from 'lucide-react';
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
@@ -473,7 +473,7 @@ export default function App() {
   const [showProFeaturesModal, setShowProFeaturesModal] = useState(false);
   const [firedReminders, setFiredReminders] = useState<Capsule[]>([]);
   const notifiedIdsRef = useRef<Set<string>>(new Set());
-  const lastColorIndexRef = useRef<number>(-1);
+  const recentColorsRef = useRef<number[]>([]); // track last used color indices
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
@@ -1118,15 +1118,15 @@ export default function App() {
       console.log('[handleCreate] parsed result:', JSON.stringify(parsed));
       const { category, tags, refinedContent, isTodo, reminder, isAmbiguous, clarificationPrompt, isStarred, isPinned } = parsed;
       
-      // Select a random color from PRESET_COLORS, avoiding repetition
-      let colorIndex: number;
-      const maxAttempts = 10;
-      let attempts = 0;
-      do {
-        colorIndex = Math.floor(Math.random() * PRESET_COLORS.length);
-        attempts++;
-      } while (colorIndex === lastColorIndexRef.current && PRESET_COLORS.length > 1 && attempts < maxAttempts);
-      lastColorIndexRef.current = colorIndex;
+      // Select a color ensuring differentiation within last 8 notes
+      const recent = recentColorsRef.current;
+      const avoidSet = new Set(recent.slice(-7)); // avoid last 7 used colors
+      const available = PRESET_COLORS.map((_, i) => i).filter((i) => !avoidSet.has(i));
+      const colorIndex = available.length > 0
+        ? available[Math.floor(Math.random() * available.length)]
+        : Math.floor(Math.random() * PRESET_COLORS.length);
+      recent.push(colorIndex);
+      if (recent.length > 7) recent.shift(); // keep last 7
       const randomColor = PRESET_COLORS[colorIndex];
       
       const newCapsuleData: Record<string, unknown> = {
@@ -2800,7 +2800,7 @@ export default function App() {
                         }`}
                         title={isMarkdownPreview ? 'Edit plain text' : 'Preview markdown'}
                       >
-                        <Markdown size={20} />
+                        <FileCode size={20} />
                       </button>
                       <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
                         Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
