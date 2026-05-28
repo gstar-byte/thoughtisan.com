@@ -1060,7 +1060,7 @@ export default function App() {
   const editDetailCapsuleIdRef = useRef<string | null>(null);
   const editingCapsuleRef = useRef<Capsule | null>(null);
   editingCapsuleRef.current = editingCapsule;
-  const [isMarkdownPreview, setIsMarkdownPreview] = useState(false);
+  const [isMarkdownPreview, setIsMarkdownPreview] = useState(true);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -2756,7 +2756,8 @@ export default function App() {
 
                     {isMarkdownPreview ? (
                       <div
-                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar p-4"
+                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar rounded-xl p-4 bg-[#FFFBE6]"
+                        style={{ backgroundImage: 'repeating-linear-gradient(#FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', lineHeight: '2rem' }}
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(editContentDraft) }}
                       />
                     ) : (
@@ -2773,7 +2774,7 @@ export default function App() {
                           // Allow Enter to insert newline; don't block anything in textarea
                         }}
                         className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-[#FFFBE6] border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px] rounded-xl p-4"
-                        style={{ backgroundImage: 'linear-gradient(#F0E6C0 1px, transparent 1px)', backgroundSize: '100% 2rem', lineHeight: '2rem' }}
+                        style={{ backgroundImage: 'repeating-linear-gradient(#FFFBE6, #FFFBE6 calc(2rem - 1px), #F0E6C0 calc(2rem - 1px), #F0E6C0 2rem)', lineHeight: '2rem' }}
                         placeholder="Start typing your brilliance..."
                         autoFocus
                       />
