@@ -8,24 +8,25 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Gradient representing three primary colors */}
       <defs>
-        <linearGradient id="primaryGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#FF0000" />
-          <stop offset="50%" stop-color="#00FF00" />
-          <stop offset="100%" stop-color="#0000FF" />
+        <linearGradient id="lumi" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#6366F1" />
+          <stop offset="50%" stopColor="#8B5CF6" />
+          <stop offset="100%" stopColor="#EC4899" />
         </linearGradient>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#6366F1" floodOpacity="0.3" />
+        </filter>
       </defs>
-      {/* Rounded sticky‑note shape */}
-      <rect x="5" y="5" width="90" height="90" rx="12" fill="url(#primaryGrad)" />
-      {/* LN monogram overlay – black for contrast */}
+      <rect x="1" y="1" width="98" height="98" rx="28" fill="url(#lumi)" filter="url(#shadow)" />
       <text
         x="50"
-        y="58"
-        fill="#000000"
-        fontFamily="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        y="55"
+        fill="#FFFFFF"
+        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
         fontWeight="900"
         fontSize="48"
+        letterSpacing="-3"
         textAnchor="middle"
         dominantBaseline="middle"
       >

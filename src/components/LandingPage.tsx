@@ -23,14 +23,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#007AFF] selection:text-white overflow-x-hidden">
       <Helmet>
-        <title>Lumi Note – Lightning Capture AI‑Parsed Notes, To‑Do & Alerts</title>
+        <title>Lumi Note – Lightning Capture, AI‑Parsed Notes, To‑Do & Alerts</title>
         <meta name="description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with chromative visual cues." />
-        <meta property="og:title" content="Lumi Note – Lightning Capture AI‑Parsed Notes, To‑Do & Alerts" />
+        <meta property="og:title" content="Lumi Note – Lightning Capture, AI‑Parsed Notes, To‑Do & Alerts" />
         <meta property="og:description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind. Categorize and prioritize instantly with chromative visual cues." />
         <meta property="og:url" content="https://luminote.space" />
         <meta property="og:image" content="https://luminote.space/og-image.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Lumi Note – Lightning Capture AI‑Parsed Notes, To‑Do & Alerts" />
+        <meta name="twitter:title" content="Lumi Note – Lightning Capture, AI‑Parsed Notes, To‑Do & Alerts" />
         <meta name="twitter:description" content="Lumi Note is a lightning-fast, beautiful notepad that uses color to organize your mind." />
         <meta name="twitter:image" content="https://luminote.space/og-image.png" />
         <link rel="canonical" href="https://luminote.space/" />
