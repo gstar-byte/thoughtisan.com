@@ -1398,9 +1398,9 @@ export default function App() {
     // Blockquote
     html = html.replace(/^&gt; (.*$)/gim, '<blockquote class="border-l-4 border-[#007AFF] pl-3 italic text-[#636366] my-2">$1</blockquote>');
     // Images
-    html = html.replace(/!\[([^\]]*)\]\(([\s\S]+?)\)/g, (match, alt, src) => {
+    html = html.replace(/!\[([^\]]*)\]\s*\(([\s\S]+?)\)/g, (match, alt, src) => {
       const cleanSrc = src.replace(/[\r\n\s]/g, '');
-      return `<img src="${cleanSrc}" alt="${alt}" className="rounded-xl my-2 max-w-full" />`;
+      return `<img src="${cleanSrc}" alt="${alt}" class="rounded-xl my-2 max-w-full" />`;
     });
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank" class="text-[#007AFF] underline">$1</a>');
