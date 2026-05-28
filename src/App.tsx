@@ -52,7 +52,8 @@ import {
   Apple, 
   ExternalLink, 
   Share2,
-  Layers
+  Layers,
+  Markdown
 } from 'lucide-react';
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
@@ -1060,6 +1061,8 @@ export default function App() {
   const editDetailCapsuleIdRef = useRef<string | null>(null);
   const editingCapsuleRef = useRef<Capsule | null>(null);
   editingCapsuleRef.current = editingCapsule;
+  const [isMarkdownPreview, setIsMarkdownPreview] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!editingCapsule) {
@@ -1339,7 +1342,76 @@ export default function App() {
       }
     }
     setEditingCapsule(null);
+    setIsMarkdownPreview(false);
   }, []);
+
+  // --- Markdown helpers ---
+  function renderMarkdown(md: string): string {
+    let html = md
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Code blocks
+    html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-[#F2F2F7] dark:bg-[#1C1C1E] p-3 rounded-xl text-xs font-mono overflow-x-auto my-2"><code>$1</code></pre>');
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-[#F2F2F7] dark:bg-[#1C1C1E] px-1 py-0.5 rounded text-xs font-mono">$1</code>');
+    // Bold
+    html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    // Italic
+    html = html.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+    // Strikethrough
+    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+    // Headings
+    html = html.replace(/^###### (.*$)/gim, '<h6 class="text-sm font-bold mt-2 mb-1">$1</h6>');
+    html = html.replace(/^##### (.*$)/gim, '<h5 class="text-sm font-bold mt-2 mb-1">$1</h5>');
+    html = html.replace(/^#### (.*$)/gim, '<h4 class="text-base font-bold mt-2 mb-1">$1</h4>');
+    html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mt-2 mb-1">$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-3 mb-1">$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-black mt-3 mb-2">$1</h1>');
+    // Blockquote
+    html = html.replace(/^&gt; (.*$)/gim, '<blockquote class="border-l-4 border-[#007AFF] pl-3 italic text-[#636366] my-2">$1</blockquote>');
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank" class="text-[#007AFF] underline">$1</a>');
+    // Images
+    html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1" class="rounded-xl my-2 max-w-full" />');
+    // Horizontal rule
+    html = html.replace(/^(-{3,}|\*{3,})$/gim, '<hr class="border-t border-[#E5E5EA] my-3" />');
+    // Unordered list
+    html = html.replace(/^(\s*)[-\*\+] (.*$)/gim, '<li class="ml-4 list-disc">$2</li>');
+    // Ordered list
+    html = html.replace(/^(\s*)\d+\. (.*$)/gim, '<li class="ml-4 list-decimal">$2</li>');
+    // Checkbox - [ ] / [x]
+    html = html.replace(/^\s*[-\*\+] \[ \] (.*$)/gim, '<div class="flex items-center gap-2 ml-4 my-1"><span class="w-3.5 h-3.5 border-2 border-[#8E8E93] rounded-sm inline-block"></span><span>$1</span></div>');
+    html = html.replace(/^\s*[-\*\+] \[x\] (.*$)/gim, '<div class="flex items-center gap-2 ml-4 my-1"><span class="w-3.5 h-3.5 bg-[#34C759] rounded-sm inline-block flex items-center justify-center text-white text-[8px]">&#10003;</span><span>$1</span></div>');
+
+    // Line breaks
+    html = html.replace(/\n/g, '<br />');
+
+    return html;
+  }
+
+  function insertMarkdown(syntaxBefore: string, syntaxAfter: string = '') {
+    const ta = editTextareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = editContentDraftRef.current;
+    const before = text.substring(0, start);
+    const selected = text.substring(start, end);
+    const after = text.substring(end);
+    const newText = before + syntaxBefore + selected + syntaxAfter + after;
+    editContentDraftRef.current = newText;
+    setEditContentDraft(newText);
+    queueEditContentSave();
+    requestAnimationFrame(() => {
+      ta.focus();
+      const newCursor = start + syntaxBefore.length + selected.length;
+      ta.setSelectionRange(newCursor, newCursor);
+    });
+  }
 
   const handleAttachMedia = (e: React.ChangeEvent<HTMLInputElement>, capsule: Capsule) => {
     const file = e.target.files?.[0];
@@ -2669,18 +2741,41 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full pt-2 pb-16 md:pb-20">
-                    <textarea 
-                      value={editContentDraft}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        editContentDraftRef.current = v;
-                        setEditContentDraft(v);
-                        queueEditContentSave();
-                      }}
-                      className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px]"
-                      placeholder="Start typing your brilliance..."
-                      autoFocus
-                    />
+                    {/* Markdown Toolbar */}
+                    {!isMarkdownPreview && (
+                      <div className="flex items-center gap-1 mb-2 px-1 py-1.5 bg-[#F2F2F7] dark:bg-[#2C2C2E] rounded-xl overflow-x-auto">
+                        <button onClick={() => insertMarkdown('# ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Heading">H</button>
+                        <button onClick={() => insertMarkdown('**', '**')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Bold">B</button>
+                        <button onClick={() => insertMarkdown('*', '*')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Italic">I</button>
+                        <button onClick={() => insertMarkdown('~~', '~~')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0 line-through" title="Strikethrough">S</button>
+                        <button onClick={() => insertMarkdown('> ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Quote">&ldquo;</button>
+                        <button onClick={() => insertMarkdown('- ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="List">&#8226;</button>
+                        <button onClick={() => insertMarkdown('- [ ] ', '')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Todo">&#9744;</button>
+                        <button onClick={() => insertMarkdown('```\n', '\n```')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Code">&lt;/&gt;</button>
+                        <button onClick={() => insertMarkdown('[', '](url)')} className="px-2 py-1 text-[11px] font-bold text-[#636366] hover:bg-white dark:hover:bg-[#1C1C1E] rounded-lg transition-colors shrink-0" title="Link">&#128279;</button>
+                      </div>
+                    )}
+
+                    {isMarkdownPreview ? (
+                      <div
+                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] leading-relaxed min-h-[200px] overflow-y-auto custom-scrollbar prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(editContentDraft) }}
+                      />
+                    ) : (
+                      <textarea
+                        ref={editTextareaRef}
+                        value={editContentDraft}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          editContentDraftRef.current = v;
+                          setEditContentDraft(v);
+                          queueEditContentSave();
+                        }}
+                        className="w-full flex-1 text-lg md:text-xl font-medium text-[#1C1C1E] bg-transparent border-none focus:ring-0 resize-none leading-relaxed placeholder:text-[#C7C7CC] placeholder:font-normal min-h-[200px]"
+                        placeholder="Start typing your brilliance..."
+                        autoFocus
+                      />
+                    )}
                   </div>
                 </div>
                 
@@ -2695,6 +2790,18 @@ export default function App() {
                         <Paperclip size={20} />
                         <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAttachMedia(e, editingCapsule)} />
                       </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsMarkdownPreview(!isMarkdownPreview)}
+                        className={`p-2 rounded-xl transition-all shrink-0 ${
+                          isMarkdownPreview
+                            ? 'text-[#007AFF] bg-[#007AFF]/10'
+                            : 'text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7]'
+                        }`}
+                        title={isMarkdownPreview ? 'Edit plain text' : 'Preview markdown'}
+                      >
+                        <Markdown size={20} />
+                      </button>
                       <span className="text-[10px] font-bold text-[#C7C7CC] uppercase tracking-wider truncate">
                         Created: {new Date(editingCapsule.createdAt).toLocaleDateString()} {new Date(editingCapsule.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
