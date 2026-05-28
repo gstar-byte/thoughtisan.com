@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function AppLogo({ className = "w-12 h-12" }: { className?: string }) {
+export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -12,7 +12,7 @@ export function AppLogo({ className = "w-12 h-12" }: { className?: string }) {
       <rect x="5" y="5" width="30" height="90" fill="#FF0000" />
       <rect x="35" y="5" width="30" height="90" fill="#00FF00" />
       <rect x="65" y="5" width="30" height="90" fill="#0000FF" />
-      {/* LN monogram overlay */
+      {/* LN monogram overlay */}
       <text
         x="50"
         y="55"
