@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
+export function AppLogo({ className = "w-12 h-12" }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -9,95 +9,25 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        {/* 便签纸底色：极致纯净的雅致渐变白 */}
-        <linearGradient id="paper-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" />
-          <stop offset="100%" stopColor="#F9FAFB" />
+        <linearGradient id="note-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2C3E50" />
+          <stop offset="100%" stop-color="#34495E" />
         </linearGradient>
-        
-        {/* 卷角背面的立体渐变：模拟纸张翻折的阴影与高光 */}
-        <linearGradient id="curl-bg" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#C8CCD4" />
-          <stop offset="40%" stopColor="#E5E7EB" />
-          <stop offset="100%" stopColor="#FFFFFF" />
-        </linearGradient>
-
-        {/* 四个胶囊的高级配色 */}
-        <linearGradient id="pill-pink" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#EC4899" />
-          <stop offset="100%" stopColor="#F43F5E" />
-        </linearGradient>
-        <linearGradient id="pill-blue" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#3B82F6" />
-          <stop offset="100%" stopColor="#2563EB" />
-        </linearGradient>
-        <linearGradient id="pill-yellow" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#EAB308" />
-          <stop offset="100%" stopColor="#FACC15" />
-        </linearGradient>
-        <linearGradient id="pill-green" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#10B981" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-
-        {/* 整体纸张悬浮阴影 */}
-        <filter id="paper-shadow" x="-20%" y="-20%" width="145%" height="145%">
-          <feDropShadow dx="0" dy="5" stdDeviation="5.5" floodColor="#000000" floodOpacity={0.13} />
-        </filter>
-
-        {/* 掀起弯折角的阴影：创造凌空飞起的感觉 */}
-        <filter id="curl-shadow" x="-35%" y="-35%" width="170%" height="170%">
-          <feDropShadow dx="-2" dy="-2" stdDeviation="3" floodColor="#000000" floodOpacity={0.22} />
-        </filter>
       </defs>
-
-      {/* 整体旋转：西北-东南走向 */}
-      <g transform="rotate(-26, 50, 50)">
-        
-        {/* 1. 便签纸主体（右下角折叠切边明显化） */}
-        <path 
-          d="M18 30 C18 23.3726 23.3726 18 30 18 H70 C76.6274 18 82 23.3726 82 30 V60 L60 82 H30 C23.3726 82 18 76.6274 18 70 Z" 
-          fill="url(#paper-bg)" 
-          filter="url(#paper-shadow)"
-        />
-
-        {/* 2. 4行精美小胶囊清单，左侧待办状态方框 / 对勾，右侧小铃铛 */}
-        
-        {/* 第一行：洋红胶囊 (未完成方块) */}
-        <rect x="25" y="29" width="6" height="6" rx="1.5" stroke="url(#pill-pink)" strokeWidth="1.2" fill="none" />
-        <rect x="35" y="29" width="25" height="6" rx="3" fill="url(#pill-pink)" />
-
-        {/* 第二行：极客蓝胶囊 (已完成打勾复选框 + 右侧提醒小铃铛 🔔) */}
-        <rect x="25" y="41" width="6" height="6" rx="1.5" fill="url(#pill-blue)" />
-        <path d="M26.5 44 L27.8 45.3 L30 43" stroke="#FFFFFF" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="35" y="41" width="31" height="6" rx="3" fill="url(#pill-blue)" />
-        {/* 极简精致小铃铛 */}
-        <path 
-          d="M75.5 37 C76 37 76.5 38 76.5 38.5 C76.5 39.5 77.5 40 77.5 42 C77.5 43.5 78.5 44 79 44.5 C79.5 45 79 46 78 46 H73 C72 46 71.5 45 72 44.5 C72.5 44 73.5 43.5 73.5 42 C73.5 40 74.5 39.5 74.5 38.5 C74.5 38 75 37 75.5 37 Z" 
-          fill="url(#pill-blue)" 
-        />
-        <circle cx="75.5" cy="47.2" r="1.1" fill="url(#pill-blue)" />
-
-        {/* 第三行：明黄胶囊 (未完成方块) */}
-        <rect x="25" y="53" width="6" height="6" rx="1.5" stroke="url(#pill-yellow)" strokeWidth="1.2" fill="none" />
-        <rect x="35" y="53" width="20" height="6" rx="3" fill="url(#pill-yellow)" />
-
-        {/* 第四行：翠绿胶囊 (未完成方块) */}
-        <rect x="25" y="65" width="6" height="6" rx="1.5" stroke="url(#pill-green)" strokeWidth="1.2" fill="none" />
-        <rect x="35" y="65" width="16" height="6" rx="3" fill="url(#pill-green)" />
-
-        {/* 3. 掀起一角的微弱底影线 */}
-        <path d="M60 82 C60 68 68 60 82 60" stroke="#000000" strokeOpacity={0.08} strokeWidth="3" fill="none" />
-
-        {/* 4. 掀起弯折的角本身（明显折叠面积） */}
-        <path 
-          d="M60 82 C60 71 71 60 82 60 C71 71 71 82 60 82 Z" 
-          fill="url(#curl-bg)" 
-          filter="url(#curl-shadow)"
-        />
-        <path d="M60 82 L82 60" stroke="#D1D5DB" strokeOpacity={0.4} strokeWidth="0.5" />
-        
-      </g>
+      {/* 主体便签，圆角矩形 */}
+      <path
+        d="M20 10 h60 a10 10 0 0 1 10 10 v60 a10 10 0 0 1 -10 10 h-40 l-30 -30 v-50 a10 10 0 0 1 10 -10 z"
+        fill="url(#note-bg)"
+      />
+      {/* 折角小高光 */}
+      <path d="M80 10 L70 20 L70 10 Z" fill="#ffffff" opacity="0.2" />
+      {/* 闪电图案，代表极速 */}
+      <path
+        d="M45 35 L55 35 L50 55 L60 55 L40 85 L45 60 L35 60 Z"
+        fill="#ffffff"
+      />
+      {/* AI 点缀 */}
+      <circle cx="70" cy="30" r="4" fill="#00BCD4" />
     </svg>
   );
 }
