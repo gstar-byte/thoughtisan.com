@@ -2504,62 +2504,6 @@ export default function App() {
                 )}
               </AnimatePresence>
             </div>
-            <div className="relative md:hidden">
-            <button 
-              type="button"
-              id="filter-dropdown-btn"
-              title={topFilterTitle}
-              disabled={isSidebarListScopeActive && filter !== 'archived' && filter !== 'trash'}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsFilterMenuOpen(!isFilterMenuOpen);
-              }}
-              className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 flex-shrink-0 shadow-sm border rounded-full text-[13px] font-semibold transition-all ${
-                isSidebarListScopeActive && filter !== 'archived' && filter !== 'trash'
-                  ? 'bg-[#F2F2F7] border-[#E5E5EA] text-[#8E8E93] cursor-default opacity-80'
-                  : 'bg-white border-[#E5E5EA] text-[#1D1D1F] hover:bg-[#F2F2F7] active:scale-95'
-              }`}
-            >
-              <span className="truncate max-w-[80px] sm:max-w-none">{topFilterTriggerLabel}</span>
-              <ChevronDown size={14} className={`flex-shrink-0 text-[#8E8E93] transition-transform ${isFilterMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            <AnimatePresence>
-              {isFilterMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsFilterMenuOpen(false)} />
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 top-full mt-2 w-56 bg-white/90 backdrop-blur-xl border border-white/20 rounded-[18px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 p-2"
-                  >
-                    {filterOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => {
-                          setFilter(opt.value);
-                          if (opt.value === 'starred') {
-                            setCategoryFilter('all');
-                            setTagFilter(null);
-                          }
-                          setIsFilterMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${
-                          filter === opt.value 
-                            ? 'bg-[#E5E5EA] text-[#1D1D1F]' 
-                            : 'hover:bg-[#F2F2F7] text-[#1D1D1F]'
-                        }`}
-                      >
-                        {opt.label}
-                        {filter === opt.value && <Check size={14} className="text-[#007AFF]" />}
-                      </button>
-                    ))}
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-            </div>
           </div>
         </header>
 
@@ -3222,13 +3166,12 @@ export default function App() {
           </div>
         ) : null}
 
-        {/* Improved Quick Capture Input Area */}
         <footer 
           id="input-area" 
           className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex flex-col items-center justify-center ${
             isCaptureCollapsed 
               ? 'h-0 min-h-0 py-0 opacity-0 pointer-events-none translate-y-full overflow-hidden' 
-              : 'min-h-[84px] md:h-32 px-4 md:px-8 py-3 md:py-4 opacity-100 translate-y-0'
+              : 'min-h-[96px] px-4 md:px-8 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))] md:py-4 opacity-100 translate-y-0'
           } ${selectedIds.size > 0 ? 'opacity-30 pointer-events-none' : ''}`}
         >
           {/* iOS-style Drag/Collapse Handle */}

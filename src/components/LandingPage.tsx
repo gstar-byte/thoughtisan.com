@@ -63,7 +63,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <span className="font-bold text-lg tracking-tight">Lumi Note</span>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => onLogin(false)} className="text-sm font-medium text-white/70 hover:text-white transition-colors hidden sm:block">
+            <button onClick={() => onLogin(false)} className="text-sm font-medium text-white/70 hover:text-white transition-colors">
               Log in
             </button>
             <button onClick={() => onLogin(true)} className="bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
