@@ -13,13 +13,9 @@ interface LandingPageProps {
 
 export function LandingPage({ onLogin }: LandingPageProps) {
   const handleGoogleLogin = async () => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     try {
-      if (isMobile) {
-        await signInWithRedirect(getAuth(), getGoogleProvider());
-      } else {
-        await signInWithPopup(getAuth(), getGoogleProvider());
-      }
+      console.log("[GoogleSignIn] Initiating authentication with signInWithPopup...");
+      await signInWithPopup(getAuth(), getGoogleProvider());
     } catch (err: any) {
       console.error("Google login error", err);
       if (err.code === 'auth/unauthorized-domain') {
@@ -28,7 +24,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           `当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置。\n\n` +
           `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
         );
-      } else if (err.code === 'auth/popup-blocked') {
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        console.log("[GoogleSignIn] Popup blocked or cancelled, falling back to signInWithRedirect...");
         try {
           await signInWithRedirect(getAuth(), getGoogleProvider());
         } catch (redirectErr: any) {
@@ -37,7 +34,12 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       } else if (err.code === 'auth/popup-closed-by-user') {
         console.log("Popup closed by user.");
       } else {
-        alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+        console.log("[GoogleSignIn] Encountered other Auth restriction, attempting redirect fallback...");
+        try {
+          await signInWithRedirect(getAuth(), getGoogleProvider());
+        } catch (fallbackErr: any) {
+          alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+        }
       }
     }
   };

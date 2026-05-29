@@ -71,6 +71,7 @@ import {
   getAppleProvider,
   signInWithPopup, 
   signInWithRedirect, 
+  getRedirectResult, 
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -751,13 +752,8 @@ export default function App() {
     setAuthError(null);
     setAuthProcessing(true);
     try {
-      if (isMobile) {
-        console.log("[GoogleSignIn] Mobile device detected, utilizing signInWithRedirect.");
-        await signInWithRedirect(getAuth(), getGoogleProvider());
-      } else {
-        console.log("[GoogleSignIn] Desktop device detected, utilizing signInWithPopup.");
-        await signInWithPopup(getAuth(), getGoogleProvider());
-      }
+      console.log("[GoogleSignIn] Initiating authentication with signInWithPopup...");
+      await signInWithPopup(getAuth(), getGoogleProvider());
     } catch (err: any) {
       console.error("Google Sign-In Error Captured:", err);
       if (err.code === 'auth/unauthorized-domain') {
@@ -766,8 +762,8 @@ export default function App() {
           `当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置。\n\n` +
           `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
         );
-      } else if (err.code === 'auth/popup-blocked') {
-        console.log("[GoogleSignIn] Popup blocked by browser, falling back to signInWithRedirect...");
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        console.log("[GoogleSignIn] Popup blocked or cancelled, falling back to signInWithRedirect...");
         try {
           await signInWithRedirect(getAuth(), getGoogleProvider());
         } catch (redirectErr: any) {
@@ -776,7 +772,12 @@ export default function App() {
       } else if (err.code === 'auth/popup-closed-by-user') {
         console.log("[GoogleSignIn] Popup closed by user.");
       } else {
-        alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+        console.log("[GoogleSignIn] Encountered other Auth restriction, attempting redirect fallback...");
+        try {
+          await signInWithRedirect(getAuth(), getGoogleProvider());
+        } catch (fallbackErr: any) {
+          alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+        }
       }
     } finally {
       setAuthProcessing(false);
@@ -786,6 +787,29 @@ export default function App() {
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
+
+    // Active extraction of redirect authentication credentials (critical for mobile browser compatibility)
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(getAuth());
+        if (result && result.user) {
+          console.log("[GoogleSignIn] Google Redirect sign-in success:", result.user.email);
+        }
+      } catch (err: any) {
+        console.error("[GoogleSignIn] Error retrieving Redirect result:", err);
+        if (err.code === 'auth/unauthorized-domain') {
+          alert(
+            `【网域未授权 / Unauthorized Domain】\n\n` +
+            `由于当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置，重定向认证失败。\n\n` +
+            `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
+          );
+        } else if (err.code !== 'auth/web-storage-unsupported') {
+          alert(`Google Redirect Login failed: ${err.message} (Code: ${err.code})`);
+        }
+      }
+    };
+    handleRedirectResult();
+
     const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser: User | null) => {
       if (firebaseUser) {
         // Listen to user document for premium status
