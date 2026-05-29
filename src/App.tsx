@@ -70,6 +70,7 @@ import {
   getGoogleProvider, 
   getAppleProvider,
   signInWithPopup, 
+  signInWithRedirect, 
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -741,6 +742,42 @@ export default function App() {
       setAuthError(null);
     } catch (err: any) {
       setAuthError('Could not send reset email.');
+    } finally {
+      setAuthProcessing(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    setAuthProcessing(true);
+    try {
+      if (isMobile) {
+        console.log("[GoogleSignIn] Mobile device detected, utilizing signInWithRedirect.");
+        await signInWithRedirect(getAuth(), getGoogleProvider());
+      } else {
+        console.log("[GoogleSignIn] Desktop device detected, utilizing signInWithPopup.");
+        await signInWithPopup(getAuth(), getGoogleProvider());
+      }
+    } catch (err: any) {
+      console.error("Google Sign-In Error Captured:", err);
+      if (err.code === 'auth/unauthorized-domain') {
+        alert(
+          `【网域未授权 / Unauthorized Domain】\n\n` +
+          `当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置。\n\n` +
+          `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
+        );
+      } else if (err.code === 'auth/popup-blocked') {
+        console.log("[GoogleSignIn] Popup blocked by browser, falling back to signInWithRedirect...");
+        try {
+          await signInWithRedirect(getAuth(), getGoogleProvider());
+        } catch (redirectErr: any) {
+          alert(`Google Redirect Login failed: ${redirectErr.message}`);
+        }
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        console.log("[GoogleSignIn] Popup closed by user.");
+      } else {
+        alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+      }
     } finally {
       setAuthProcessing(false);
     }
@@ -1811,27 +1848,56 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#00C6FF] opacity-5 blur-[100px] rounded-full -translate-x-1/2 translate-y-1/2"></div>
           
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-sm"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 w-full max-w-md"
           >
-            <div className="w-44 h-44 mb-12 transform -rotate-6">
-              <AppLogo className="w-full h-full" />
-            </div>
-            <h2 className="text-5xl font-black tracking-tight text-[#1D1D1F] leading-tight mb-6">
-              Capturing<br />
-              <span className="text-[#007AFF]">Genius</span><br />
-              Thoughts.
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-[#1D1D1F] leading-tight mb-4">
+              One Breath.<br />
+              One Phrase.<br />
+              <span className="bg-gradient-to-r from-[#007AFF] to-[#8B5CF6] bg-clip-text text-transparent">Genius Note.</span>
             </h2>
-            <div className="space-y-4">
-               {['AI Powered Intelligence', 'Idea Sync', 'Swiss Aesthetics'].map((feat) => (
-                 <div key={feat} className="flex items-center gap-3 text-[#8E8E93] font-bold">
-                   <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
-                     <div className="w-2 h-2 bg-[#007AFF] rounded-full"></div>
-                   </div>
-                   {feat}
-                 </div>
-               ))}
+            <p className="text-sm font-semibold text-[#8E8E93] mb-12 leading-relaxed max-w-sm">
+              Capture thoughts, todos, and alerts in a single breath. The next-generation AI-driven personal sticky note system.
+            </p>
+            
+            <div className="space-y-8">
+              {[
+                {
+                  icon: <Zap size={18} className="text-[#007AFF]" />,
+                  bg: "bg-[#007AFF]/10",
+                  title: "Lightning Capture & Alerts",
+                  desc: "Speak or write in a single breath. AI instantly parses reminders and checkbox todos."
+                },
+                {
+                  icon: <Palette size={18} className="text-[#EC4899]" />,
+                  bg: "bg-[#EC4899]/10",
+                  title: "Swiss Color Aesthetics",
+                  desc: "Indulge in premium, harmony-tailored color palettes designed for visual clarity."
+                },
+                {
+                  icon: <Share2 size={18} className="text-[#8B5CF6]" />,
+                  bg: "bg-[#8B5CF6]/10",
+                  title: "Instant Multi-Device Sync",
+                  desc: "Access and refine your ideas seamlessly across all of your devices in real-time."
+                }
+              ].map((feat, i) => (
+                <motion.div 
+                  key={feat.title}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.15 + i * 0.1 }}
+                  className="flex gap-4"
+                >
+                  <div className={`w-10 h-10 ${feat.bg} rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-[#1D1D1F]/5`}>
+                    {feat.icon}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#1D1D1F] mb-1">{feat.title}</h4>
+                    <p className="text-xs font-semibold text-[#8E8E93] leading-relaxed">{feat.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         </div>
@@ -1908,7 +1974,7 @@ export default function App() {
               <div className="flex justify-center">
                 <button 
                   type="button"
-                  onClick={() => signInWithPopup(getAuth(), getGoogleProvider())}
+                  onClick={handleGoogleSignIn}
                   className="w-full flex items-center justify-center gap-3 bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm font-bold text-sm text-[#1D1D1F]"
                   title="Sign in with Google"
                 >

@@ -4,7 +4,7 @@ import { AppLogo } from './AppLogo';
 import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getAuth, getGoogleProvider } from '../lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { Helmet } from 'react-helmet-async';
 
 interface LandingPageProps {
@@ -13,10 +13,32 @@ interface LandingPageProps {
 
 export function LandingPage({ onLogin }: LandingPageProps) {
   const handleGoogleLogin = async () => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     try {
-      await signInWithPopup(getAuth(), getGoogleProvider());
-    } catch (error) {
-      console.error("Google login error", error);
+      if (isMobile) {
+        await signInWithRedirect(getAuth(), getGoogleProvider());
+      } else {
+        await signInWithPopup(getAuth(), getGoogleProvider());
+      }
+    } catch (err: any) {
+      console.error("Google login error", err);
+      if (err.code === 'auth/unauthorized-domain') {
+        alert(
+          `【网域未授权 / Unauthorized Domain】\n\n` +
+          `当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置。\n\n` +
+          `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
+        );
+      } else if (err.code === 'auth/popup-blocked') {
+        try {
+          await signInWithRedirect(getAuth(), getGoogleProvider());
+        } catch (redirectErr: any) {
+          alert(`Google Redirect Login failed: ${redirectErr.message}`);
+        }
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        console.log("Popup closed by user.");
+      } else {
+        alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+      }
     }
   };
 
