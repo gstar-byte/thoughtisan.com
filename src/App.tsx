@@ -1815,7 +1815,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             className="relative z-10 w-full max-w-sm"
           >
-            <div className="w-32 h-32 mb-12 transform -rotate-6">
+            <div className="w-44 h-44 mb-12 transform -rotate-6">
               <AppLogo className="w-full h-full" />
             </div>
             <h2 className="text-5xl font-black tracking-tight text-[#1D1D1F] leading-tight mb-6">
@@ -1839,8 +1839,8 @@ export default function App() {
         {/* Right Auth Section */}
         <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
           <div className="w-full max-w-sm">
-            <div className="md:hidden flex flex-col items-center mb-12">
-              <AppLogo className="w-32 h-32 mb-4" />
+            <div className="flex flex-col items-center mb-12">
+              <AppLogo className="w-40 h-40 mb-4" />
               <h1 className="text-3xl font-extrabold tracking-tight text-center bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343]">Lumi Note</h1>
             </div>
 
