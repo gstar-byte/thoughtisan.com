@@ -1,44 +1,76 @@
 <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- 极简高雅的科技蓝紫渐变，缩小后也非常醒目统一 -->
-    <linearGradient id="note-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4F46E5" />
-      <stop offset="100%" stop-color="#7C3AED" />
+    <!-- 便签纸底色：极致纯净的雅致渐变白 -->
+    <linearGradient id="paper-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F9FAFB" />
     </linearGradient>
-    <!-- 折角的高光渐变 -->
-    <linearGradient id="fold-bg" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#A78BFA" />
-      <stop offset="100%" stop-color="#7C3AED" />
+    
+    <!-- 卷角背面的立体渐变：模拟纸张翻折的阴影与高光 -->
+    <linearGradient id="curl-bg" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D1D5DB" />
+      <stop offset="40%" stop-color="#E5E7EB" />
+      <stop offset="100%" stop-color="#FFFFFF" />
     </linearGradient>
-    <!-- 投影 -->
-    <filter id="logo-shadow" x="-15%" y="-15%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#4F46E5" flood-opacity="0.25" />
+
+    <!-- 三个胶囊的高级纯正配色 -->
+    <linearGradient id="pill-pink" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EC4899" />
+      <stop offset="100%" stop-color="#F43F5E" />
+    </linearGradient>
+    <linearGradient id="pill-blue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+    <linearGradient id="pill-yellow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EAB308" />
+      <stop offset="100%" stop-color="#FACC15" />
+    </linearGradient>
+
+    <!-- 整体纸张悬浮阴影 -->
+    <filter id="paper-shadow" x="-20%" y="-20%" width="145%" height="145%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.12" />
+    </filter>
+
+    <!-- 掀起弯折角的阴影：创造凌空飞起的感觉 -->
+    <filter id="curl-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="-1.5" dy="-1.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.18" />
     </filter>
   </defs>
 
-  <!-- 1. 便签主体（带右下角切角） -->
-  <path 
-    d="M15 25 C15 19.4772 19.4772 15 25 15 H75 C80.5228 15 85 19.4772 85 25 V68 L68 85 H25 C19.4772 85 15 80.5228 15 75 Z" 
-    fill="url(#note-bg)" 
-    filter="url(#logo-shadow)"
-  />
+  <!-- 整体旋转：西北-东南走向（倾斜-26度最佳，保持完美美感） -->
+  <g transform="rotate(-26, 50, 50)">
+    
+    {/* 1. 便签纸主体（带切角） */}
+    <path 
+      d="M18 30 C18 23.3726 23.3726 18 30 18 H70 C76.6274 18 82 23.3726 82 30 V64 L64 82 H30 C23.3726 82 18 76.6274 18 70 Z" 
+      fill="url(#paper-bg)" 
+      filter="url(#paper-shadow)"
+    />
 
-  <!-- 2. 右下角切角折叠效果 -->
-  <path d="M68 85 C68 75.6112 75.6112 68 85 68 H68 V85 Z" fill="url(#fold-bg)" />
-  <path d="M68 85 L85 68" stroke="#000000" stroke-opacity="0.12" stroke-width="1" />
+    {/* 2. 便签纸上的三行小胶囊（红、蓝、黄三色，圆点勾选框+长短胶囊条，极致物化待办） */}
+    {/* 第一行：洋红胶囊 */}
+    <circle cx="28" cy="32" r="3.5" fill="url(#pill-pink)" />
+    <rect x="36" y="28.5" width="28" height="7" rx="3.5" fill="url(#pill-pink)" />
 
-  <!-- 3. AI闪电对勾（大道至简，极速、AI与提醒待办的完美契合） -->
-  <path 
-    d="M54 26 L34 50 H52 L36 74 L70 34" 
-    stroke="#FFFFFF" 
-    stroke-width="8.5" 
-    stroke-linecap="round" 
-    stroke-linejoin="round" 
-  />
+    {/* 第二行：极客蓝胶囊 */}
+    <circle cx="28" cy="46" r="3.5" fill="url(#pill-blue)" />
+    <rect x="36" y="42.5" width="36" height="7" rx="3.5" fill="url(#pill-blue)" />
 
-  <!-- 4. AI 灵感微光（Lumi Star） -->
-  <path 
-    d="M28 26 C28 29.5 26 31.5 22.5 31.5 C26 31.5 28 33.5 28 37 C28 33.5 30 31.5 33.5 31.5 C30 31.5 28 29.5 28 26 Z" 
-    fill="#FACC15" 
-  />
+    {/* 第三行：明黄胶囊 */}
+    <circle cx="28" cy="60" r="3.5" fill="url(#pill-yellow)" />
+    <rect x="36" y="56.5" width="20" height="7" rx="3.5" fill="url(#pill-yellow)" />
+
+    {/* 3. 掀起一角的微弱边界阴影（渲染在卷角下方） */}
+    <path d="M64 82 C64 70 70 64 82 64" stroke="#000000" stroke-opacity="0.06" stroke-width="3.5" fill="none" />
+
+    {/* 4. 掀起弯折的角本身（立体翻折纸张背面效果） */}
+    <path 
+      d="M64 82 C64 73 73 64 82 64 C74 74 74 82 64 82 Z" 
+      fill="url(#curl-bg)" 
+      filter="url(#curl-shadow)"
+    />
+    <path d="M64 82 L82 64" stroke="#D1D5DB" stroke-opacity="0.4" stroke-width="0.5" />
+    
+  </g>
 </svg>
