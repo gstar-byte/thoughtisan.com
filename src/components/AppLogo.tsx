@@ -9,16 +9,16 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        {/* 便签纸底色：极致纯净的雅致渐变白 */}
+        {/* 便签纸底色：极致经典且高端雅致的渐变淡黄色 (Classic Canary Yellow) */}
         <linearGradient id="paper-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" />
-          <stop offset="100%" stopColor="#F9FAFB" />
+          <stop offset="0%" stopColor="#FFFDF0" />
+          <stop offset="100%" stopColor="#FEF08A" />
         </linearGradient>
         
-        {/* 卷角背面的立体渐变：模拟纸张翻折的阴影与高光 */}
+        {/* 卷角背面的立体渐变：模拟黄色纸张翻折的折角金黄暗面与高光 */}
         <linearGradient id="curl-bg" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#C8CCD4" />
-          <stop offset="40%" stopColor="#E5E7EB" />
+          <stop offset="0%" stopColor="#EAB308" />
+          <stop offset="40%" stopColor="#FEF08A" />
           <stop offset="100%" stopColor="#FFFFFF" />
         </linearGradient>
 
@@ -32,18 +32,18 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
           <stop offset="100%" stopColor="#2563EB" />
         </linearGradient>
         <linearGradient id="pill-yellow" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#EAB308" />
+          <stop offset="0%" stopColor="#F97316" />
           <stop offset="100%" stopColor="#FACC15" />
         </linearGradient>
 
         {/* 整体纸张悬浮阴影 */}
         <filter id="paper-shadow" x="-20%" y="-20%" width="145%" height="145%">
-          <feDropShadow dx="0" dy="5" stdDeviation="5.5" floodColor="#000000" floodOpacity="0.13" />
+          <feDropShadow dx="0" dy="5" stdDeviation="5.5" floodColor="#000000" floodOpacity={0.13} />
         </filter>
 
         {/* 掀起弯折角的阴影：创造凌空飞起的感觉 */}
         <filter id="curl-shadow" x="-35%" y="-35%" width="170%" height="170%">
-          <feDropShadow dx="-2" dy="-2" stdDeviation="3" floodColor="#000000" floodOpacity="0.22" />
+          <feDropShadow dx="-2" dy="-2" stdDeviation="3" floodColor="#000000" floodOpacity={0.22} />
         </filter>
       </defs>
 
@@ -65,7 +65,7 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
         {/* 饱满完美的五角星 ⭐️ */}
         <path 
           d="M75.5 27 L77.1 30.2 L80.6 30.7 L78.0 33.1 L78.6 36.6 L75.5 34.9 L72.4 36.6 L73.0 33.1 L70.4 30.7 L73.9 30.2 Z" 
-          fill="url(#pill-yellow)" 
+          fill="#EAB308" 
         />
 
         {/* 第二行：极客蓝胶囊 (已完成打勾复选框 + 右侧超圆润小铃铛 🔔) */}
@@ -92,7 +92,7 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
           fill="url(#curl-bg)" 
           filter="url(#curl-shadow)"
         />
-        <path d="M60 82 L82 60" stroke="#D1D5DB" strokeOpacity={0.4} strokeWidth="0.5" />
+        <path d="M60 82 L82 60" stroke="#EAB308" strokeOpacity={0.3} strokeWidth="0.5" />
         
       </g>
     </svg>

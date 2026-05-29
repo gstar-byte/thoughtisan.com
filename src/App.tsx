@@ -877,6 +877,22 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
+    // 1. Instant loading of user-specific cached notes from localStorage
+    const cacheKey = `luminote_cached_notes_${user.uid}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.length > 0) {
+          console.log("[OfflineCache] Loaded", parsed.length, "notes instantly from localStorage.");
+          setCapsules(parsed);
+          setDataLoading(false); // Cancel loading state immediately for instant feedback
+        }
+      } catch (e) {
+        console.error("[OfflineCache] Failed to parse cached notes:", e);
+      }
+    }
+
     const q = query(
       collection(getDb(), 'capsules'), 
       where('userId', '==', user.uid)
@@ -887,9 +903,12 @@ export default function App() {
         ...(d.data() as Capsule),
         id: d.id 
       }));
-      // Sort by createdAt descending locally
-      console.log('--- FIRESTORE DATA LOADED ---', docs.length, 'items');
-      setCapsules(docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+      const sortedDocs = docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      console.log('--- FIRESTORE DATA LOADED ---', sortedDocs.length, 'items');
+      setCapsules(sortedDocs);
+      
+      // Update cache in background
+      localStorage.setItem(cacheKey, JSON.stringify(sortedDocs));
       setDataLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
@@ -1693,7 +1712,7 @@ export default function App() {
 
   // Real Reminder Engine
   useEffect(() => {
-    if (hasPremiumAccess(user) && 'Notification' in window && Notification.permission === 'default') {
+    if (user && hasPremiumAccess(user) && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
     
@@ -1930,7 +1949,7 @@ export default function App() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
           <div className="w-full max-w-sm">
             <div className="flex flex-col items-center mb-12">
-              <AppLogo className="w-40 h-40 mb-4" />
+              <AppLogo className="w-48 h-48 mb-4" />
               <h1 className="text-3xl font-extrabold tracking-tight text-center bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343]">Lumi Note</h1>
             </div>
 
@@ -3321,7 +3340,7 @@ export default function App() {
                     if (e.key === 'Enter') {
                       if (!inputText.trim()) {
                         alert(
-                          '请输入文字，然后点击右侧按钮创建便签；或按住右侧麦克风录制语音，系统会自动识别并创建便签。',
+                          'Please enter some text to create a note, or tap the microphone to record your voice for instant AI capture.',
                         );
                         return;
                       }
@@ -3334,11 +3353,11 @@ export default function App() {
                 />
                 <button 
                   type="button"
-                  title="创建便签"
+                  title="Create Note"
                   onClick={() => {
                     if (!inputText.trim() && !isProcessing) {
                       alert(
-                        '请输入文字，然后点击本按钮创建便签；或按住右侧麦克风录制语音，系统会自动识别并创建便签。',
+                        'Please enter some text to create a note, or tap the microphone to record your voice for instant AI capture.',
                       );
                       return;
                     }
