@@ -9,68 +9,47 @@ export function AppLogo({ className = "w-24 h-24" }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        {/* 底层便签的渐变：炫彩暖色 */}
-        <linearGradient id="bg-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF2E93" />
-          <stop offset="100%" stopColor="#FF8A00" />
+        {/* 极简高雅的科技蓝紫渐变，缩小后也非常醒目统一 */}
+        <linearGradient id="note-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#4F46E5" />
+          <stop offset="100%" stopColor="#7C3AED" />
         </linearGradient>
-        {/* 中层便签的渐变：亮丽青蓝 */}
-        <linearGradient id="bg-middle" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#00F2FE" />
-          <stop offset="100%" stopColor="#4FACFE" />
+        {/* 折角的高光渐变 */}
+        <linearGradient id="fold-bg" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#A78BFA" />
+          <stop offset="100%" stopColor="#7C3AED" />
         </linearGradient>
-        {/* 顶层主便签的渐变：优雅霓虹紫粉 */}
-        <linearGradient id="bg-top" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#8B5CF6" />
-          <stop offset="100%" stopColor="#EC4899" />
-        </linearGradient>
-        {/* 折角背面的高光/暗影渐变 */}
-        <linearGradient id="fold-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.9} />
-          <stop offset="50%" stopColor="#EC4899" />
-          <stop offset="100%" stopColor="#8B5CF6" />
-        </linearGradient>
-        
-        {/* 统一的便签投影，增加3D立体感 */}
-        <filter id="layer-shadow" x="-20%" y="-20%" width="150%" height="150%">
-          <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000000" floodOpacity={0.25} />
-        </filter>
-        
-        {/* 主阴影 */}
-        <filter id="glow-shadow" x="-25%" y="-25%" width="150%" height="150%">
-          <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#8B5CF6" floodOpacity={0.35} />
+        {/* 投影 */}
+        <filter id="logo-shadow" x="-15%" y="-15%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#4F46E5" floodOpacity={0.25} />
         </filter>
       </defs>
 
-      {/* 1. 底层便签：倾斜 -10 度 */}
-      <g transform="rotate(-10, 50, 50)" filter="url(#layer-shadow)">
-        <rect x="18" y="18" width="64" height="64" rx="10" fill="url(#bg-bottom)" />
-      </g>
+      {/* 1. 便签主体（带右下角切角） */}
+      <path 
+        d="M15 25 C15 19.4772 19.4772 15 25 15 H75 C80.5228 15 85 19.4772 85 25 V68 L68 85 H25 C19.4772 85 15 80.5228 15 75 Z" 
+        fill="url(#note-bg)" 
+        filter="url(#logo-shadow)"
+      />
 
-      {/* 2. 中层便签：倾斜 6 度 */}
-      <g transform="rotate(6, 50, 50)" filter="url(#layer-shadow)">
-        <rect x="18" y="18" width="64" height="64" rx="10" fill="url(#bg-middle)" />
-      </g>
+      {/* 2. 右下角切角折叠效果 */}
+      <path d="M68 85 C68 75.6112 75.6112 68 85 68 H68 V85 Z" fill="url(#fold-bg)" />
+      <path d="M68 85 L85 68" stroke="#000000" strokeOpacity={0.12} strokeWidth={1} />
 
-      {/* 3. 顶层便签：微倾斜 -2 度 */}
-      <g transform="rotate(-2, 50, 50)" filter="url(#glow-shadow)">
-        {/* 顶层便签主体（带右下角切角） */}
-        <path d="M18 28 C18 22.4772 22.4772 18 28 18 H72 C77.5228 18 82 22.4772 82 28 V66 L66 82 H28 C22.4772 82 18 77.5228 18 72 Z" fill="url(#bg-top)" />
-        
-        {/* 右下角折叠效果 (Folded Corner) */}
-        <path d="M66 82 C66 73.1634 73.1634 66 82 66 H66 V82 Z" fill="url(#fold-grad)" />
-        {/* 折叠边缘微阴影 */}
-        <path d="M66 82 L82 66" stroke="#000000" strokeOpacity={0.1} strokeWidth="1.5" />
+      {/* 3. AI闪电对勾（大道至简，极速、AI与提醒待办的完美契合） */}
+      <path 
+        d="M54 26 L34 50 H52 L36 74 L70 34" 
+        stroke="#FFFFFF" 
+        strokeWidth="8.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+      />
 
-        {/* 便签内部的精美点缀：手写笔触与音符/光芒 */}
-        <path d="M28 32 H66" stroke="#FFFFFF" strokeOpacity={0.35} strokeWidth="3" strokeLinecap="round" />
-        <path d="M28 44 H54" stroke="#FFFFFF" strokeOpacity={0.35} strokeWidth="3" strokeLinecap="round" />
-        
-        {/* 闪耀星芒 (Lumi) */}
-        <path d="M64 45 C64 49 61 51 57 51 C61 51 64 53 64 57 C64 53 67 51 71 51 C67 51 64 49 64 45 Z" fill="#FFFFFF" />
-        {/* 辅星 */}
-        <path d="M32 58 C32 60 30.5 61 28.5 61 C30.5 61 32 62 32 64 C32 62 33.5 61 35.5 61 C33.5 61 32 60 32 58 Z" fill="#FFFFFF" opacity={0.8} />
-      </g>
+      {/* 4. AI 灵感微光（Lumi Star） */}
+      <path 
+        d="M28 26 C28 29.5 26 31.5 22.5 31.5 C26 31.5 28 33.5 28 37 C28 33.5 30 31.5 33.5 31.5 C30 31.5 28 29.5 28 26 Z" 
+        fill="#FACC15" 
+      />
     </svg>
   );
 }
