@@ -351,7 +351,7 @@ function CrownJewel({ className, size = 32 }: { className?: string; size?: numbe
 }
 
 /** Open width when sidebar is expanded (mobile narrower). */
-const SIDEBAR_W = { mobile: 260, desktop: 240 } as const;
+const SIDEBAR_W = { mobile: 210, desktop: 240 } as const;
 
 /**
  * Helper to extract plain text from Tiptap JSON or plain string
@@ -408,6 +408,10 @@ export default function App() {
       return null;
     }
   });
+  const hasSeenTutorial = React.useMemo(() => {
+    if (!user) return false;
+    return safeLocalStorageGet(ONBOARDING_STORAGE_KEY) === 'true' || user.onboarded === true;
+  }, [user]);
   const [isCaptureCollapsed, setIsCaptureCollapsed] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [capsules, setCapsules] = useState<Capsule[]>([
@@ -925,8 +929,6 @@ export default function App() {
       }, 800); // Give enough time for DOM to update after seeding
     };
 
-    const hasSeenTutorial =
-      safeLocalStorageGet(ONBOARDING_STORAGE_KEY) || user.onboarded;
     // Only trigger tour if no tutorial seen AND no real data exists yet
     if (!hasSeenTutorial && !tourActive.current && allCapsules.length === 0 && !dataLoading) {
        setTimeout(() => {
@@ -935,7 +937,7 @@ export default function App() {
          }
        }, 1500); // 1.5s delay for stable trigger
     }
-  }, [user, authLoading, dataLoading, allCapsules.length]);
+  }, [user, authLoading, dataLoading, allCapsules.length, hasSeenTutorial]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const recognition = useRef<any>(null);
@@ -1838,8 +1840,8 @@ export default function App() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
           <div className="w-full max-w-sm">
             <div className="md:hidden flex flex-col items-center mb-12">
-              <AppLogo className="w-20 h-20 mb-4" />
-              <h1 className="text-2xl font-black text-center">Idea<br />Capsule</h1>
+              <AppLogo className="w-24 h-24 mb-4" />
+              <h1 className="text-3xl font-extrabold tracking-tight text-center bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343]">Lumi Note</h1>
             </div>
 
             <motion.div
@@ -2280,7 +2282,7 @@ export default function App() {
           )}
         </nav>
 
-        {isSidebarOpen && !safeLocalStorageGet(ONBOARDING_STORAGE_KEY) && (
+        {isSidebarOpen && !hasSeenTutorial && (
           <div className="px-3 pb-3">
              <button 
                 onClick={() => {
@@ -2513,7 +2515,7 @@ export default function App() {
             selectedIds.size > 0 ? 'mt-3' : ''
           } ${
             viewMode === 'grid' 
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-3 md:gap-5' 
+              ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-3 md:gap-5' 
               : 'w-full max-w-[1200px] flex flex-col space-y-2.5 md:space-y-3.5'
           } ${isSidebarOpen ? 'ml-0' : 'mx-auto'}`}>
             <AnimatePresence initial={false}>
@@ -3662,7 +3664,7 @@ const CapsuleItem = memo(function CapsuleItem({
         ].join('\n')}
         className={cn(
           "w-full relative rounded-[24px] md:rounded-[28px] shadow-sm transition-all border flex group",
-          viewMode === 'grid' ? "flex-col h-full min-h-[80px] md:min-h-[140px]" : "flex-row",
+          viewMode === 'grid' ? "flex-col h-full min-h-[130px] md:min-h-[140px]" : "flex-row",
           "items-center gap-1.5 p-2.5 md:gap-3 md:p-6",
           isSelected ? "border-[#007AFF] shadow-xl ring-4 ring-[#007AFF]/10" : "border-black/5 hover:border-black/10 hover:shadow-lg",
           capsule.isTodo &&
