@@ -44,6 +44,7 @@ import {
   RefreshCw,
   Pin,
   Star,
+  X,
   Mail, 
   Lock, 
   CheckCircle2, 
