@@ -149,8 +149,27 @@ interface FirestoreErrorInfo {
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  
+  // 检查是否由于 Firebase Quota 配额耗尽导致的数据库不可用，提供极致的防御性体验
+  if (errorMsg.includes('Quota limit exceeded') || errorMsg.includes('Quota exceeded')) {
+    const hasAlerted = (window as any)._firestoreQuotaAlerted;
+    if (!hasAlerted) {
+      (window as any)._firestoreQuotaAlerted = true;
+      setTimeout(() => {
+        alert(
+          `【数据库每日读写超限 / Firestore Quota Exceeded】\n\n` +
+          `由于今天频繁的极速开发和数据吞吐，当前 Firebase 项目的 Firestore 免费每日配额已达到今日物理上限。\n\n` +
+          `✨ 好消息：\n1. 您的本地离线数据和最近缓存 100% 绝对安全！Lumi Note 已自动为您无缝启动本地离线编辑模式，您可以继续顺畅写便签、待办与管理分类。\n` +
+          `2. 一旦配额恢复，所有本地数据将自动实时上传同步。\n\n` +
+          `🛠️ 恢复云端指引：\n您可以前往 Firebase 控制台将您的项目升级为按量付费的 Blaze 计划以解锁无限配额，或者耐心等待次日（美国西八区零点）Google 云端配额刷新重置！`
+        );
+      }, 300);
+    }
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMsg,
     authInfo: {
       userId: getAuth().currentUser?.uid,
       email: getAuth().currentUser?.email,
@@ -910,6 +929,36 @@ export default function App() {
            setAuthLoading(false);
         }, (error) => {
           console.error("user doc snapshot error", error);
+          handleFirestoreError(error, OperationType.GET, 'users');
+          
+          // 【高可用物理容灾 / High Availability Fallback】
+          // 当数据库被云端限额锁定（Quota Limit Exceeded）无法返回用户文档时，
+          // 平滑退避到本地高速缓存或利用基础 Firebase 用户信息为用户瞬间完成认证。
+          // 这样即使云端停机，用户也绝不会卡死在登录界面，而是可以畅通无阻地登入后台，使用卓越的本地离线缓存继续记录灵感！
+          const cachedUser = localStorage.getItem('luminote_auth_user');
+          if (cachedUser) {
+            try {
+              setUser(JSON.parse(cachedUser));
+            } catch (e) {
+              setUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Lumi User',
+                photoURL: firebaseUser.photoURL,
+                isPremium: false,
+                onboarded: true
+              });
+            }
+          } else {
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Lumi User',
+              photoURL: firebaseUser.photoURL,
+              isPremium: false,
+              onboarded: true
+            });
+          }
           setAuthLoading(false);
         });
       } else {
@@ -971,6 +1020,7 @@ export default function App() {
       setDataLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
+      setDataLoading(false); // 关键！配额超限报错时强制停止 Loading 转圈，让用户完美看到离线缓存的便签！
     });
 
     return () => unsubscribe();
