@@ -413,6 +413,13 @@ const plainTextFromContent = (content: any): string => {
 };
 
 export default function App() {
+  // 【终极防刷风暴卫兵 / Anti-Storm Sandbox Sentry】
+  // 如果检测到当前 React 实例处于 iframe 嵌套容器中（例如 Firebase 鉴权内部 iframe 或错误的重定向路由中），
+  // 物理切断一切后续 UI 挂载和 Firebase 数据库快照监听，彻底杜绝任何递归加载风暴和配额恶意刷满隐患！
+  if (typeof window !== 'undefined' && window !== window.top) {
+    return null;
+  }
+
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const raw = localStorage.getItem('luminote_auth_user');
