@@ -59,7 +59,8 @@ import {
   Strikethrough,
   Quote,
   List,
-  ListOrdered
+  ListOrdered,
+  ListChecks
 } from 'lucide-react';
 import { Capsule, FilterType, ReminderConfig, ReminderType, UserProfile } from './types';
 import { PRESET_COLORS } from './constants';
@@ -806,78 +807,33 @@ export default function App() {
     }
   };
 
-  // Capture Redirect Login Results (Crucial for mobile browser social login compliance)
-  useEffect(() => {
-    getRedirectResult(getAuth())
-      .then((result) => {
-        if (result?.user) {
-          console.log("[Redirect Auth] Successfully logged in user:", result.user.uid);
-          showToast("Successfully logged in with Google!", "success");
-        }
-      })
-      .catch((error) => {
-        console.error("[Redirect Auth] Capture Error:", error);
-        showToast("Social Login failed. Please try again.", "error");
-      });
-  }, [showToast]);
-
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
+
+    // Active extraction of redirect authentication credentials (critical for mobile browser compatibility)
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(getAuth());
+        if (result && result.user) {
+          console.log("[GoogleSignIn] Google Redirect sign-in success:", result.user.email);
+        }
+      } catch (err: any) {
+        console.error("[GoogleSignIn] Error retrieving Redirect result:", err);
+        if (err.code === 'auth/unauthorized-domain') {
+          alert(
+            `[Unauthorized Domain]\n\nThe current domain "${window.location.hostname}" is not in your Firebase authorized domains list.\n\nPlease go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add this domain.`
+          );
+        } else if (err.code !== 'auth/web-storage-unsupported') {
+          console.warn(`Google Redirect Login issue: ${err.message} (Code: ${err.code})`);
+        }
+      }
+    };
+    handleRedirectResult();
+
     const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser: User | null) => {
       if (firebaseUser) {
-        // 立刻利用 firebaseUser 以及本地缓存设置 setUser，防止云端 users snapshot 长时间挂起死锁
-        const localCachedUser = localStorage.getItem('luminote_auth_user');
-        let initialUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          isPremium: false,
-          onboarded: false
-        };
-        if (localCachedUser) {
-          try {
-            initialUser = { ...initialUser, ...JSON.parse(localCachedUser) };
-          } catch (e) {}
-        }
-        setUser(initialUser);
-        setAuthLoading(false); // 快速让 UI 开始渲染后台页面
-
-        // 自动将在未登录状态下写的便签（迁移）合并上传至云端账户下，保证数据一个不丢
-        // 使用 setTimeout 异步沙箱保护，确保即使迁移中发生任何 Firestore 错误，也绝对不阻塞 users 监听器的挂载，绝对不影响页面极速渲染！
-        setTimeout(() => {
-          const anonymousCached = localStorage.getItem('luminote_anonymous_cached_notes');
-          if (anonymousCached) {
-            try {
-              const parsed = JSON.parse(anonymousCached) as Capsule[];
-              if (parsed && parsed.length > 0) {
-                console.log("[Migration] Found", parsed.length, "anonymous notes to migrate to user:", firebaseUser.uid);
-                const batch = writeBatch(getDb());
-                parsed.forEach((cap) => {
-                  const newDocRef = doc(collection(getDb(), 'capsules'));
-                  const { id: _oldId, ...rest } = cap;
-                  batch.set(newDocRef, {
-                    ...rest,
-                    userId: firebaseUser.uid,
-                    createdAt: cap.createdAt || Date.now(),
-                    updatedAt: cap.updatedAt || Date.now()
-                  });
-                });
-                batch.commit().then(() => {
-                  console.log("[Migration] Successfully migrated all anonymous notes to cloud!");
-                  localStorage.removeItem('luminote_anonymous_cached_notes');
-                }).catch((err) => {
-                  console.error("[Migration] Commit batch failed:", err);
-                });
-              }
-            } catch (e) {
-              console.error("[Migration] Failed to parse anonymous notes:", e);
-            }
-          }
-        }, 300);
-
-        // Listen to user document for premium status in background
+        // Listen to user document for premium status
         const userDocRef = doc(getDb(), 'users', firebaseUser.uid);
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -913,8 +869,10 @@ export default function App() {
               updatedAt: Date.now()
             }, { merge: true });
           }
+          setAuthLoading(false);
         }, (error) => {
           console.error("user doc snapshot error", error);
+          setAuthLoading(false);
         });
       } else {
         if (userDocUnsubscribe) {
@@ -3791,6 +3749,7 @@ const CapsuleItem = memo(function CapsuleItem({
   onSelectAll,
 }: CapsuleItemProps) {
   const [showOptions, setShowOptions] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [isConfiguringCustom, setIsConfiguringCustom] = useState(false);
 
