@@ -3,8 +3,7 @@ import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
 import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { getAuth, getGoogleProvider } from '../lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { getAuth, getGoogleProvider, signInWithPopup, signInWithRedirect } from '../lib/firebase';
 import { Helmet } from 'react-helmet-async';
 
 interface LandingPageProps {
@@ -14,7 +13,12 @@ interface LandingPageProps {
 export function LandingPage({ onLogin }: LandingPageProps) {
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(getAuth(), getGoogleProvider());
+      const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(getAuth(), getGoogleProvider());
+      } else {
+        await signInWithPopup(getAuth(), getGoogleProvider());
+      }
     } catch (error) {
       console.error("Google login error", error);
     }
@@ -59,7 +63,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <nav className="fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-1.5 md:gap-2">
-            <AppLogo className="w-8 h-8" />
+            <AppLogo className="w-10 h-10 md:w-12 md:h-12 shrink-0" />
             <span className="font-bold text-lg tracking-tight">Lumi Note</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
@@ -380,7 +384,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <footer className="py-12 border-t border-white/10 bg-black text-center relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-             <AppLogo className="w-6 h-6" />
+             <AppLogo className="w-8 h-8 md:w-9 md:h-9 shrink-0" />
              <span className="font-bold text-white/80">Lumi Note</span>
           </div>
           <p className="text-white/40 text-sm">

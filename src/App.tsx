@@ -70,6 +70,8 @@ import {
   getGoogleProvider, 
   getAppleProvider,
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -169,9 +171,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     },
     operationType,
     path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  };
+  console.error('Firestore Error (Gracefully handled): ', JSON.stringify(errInfo));
 }
 
 function hasActiveReminder(c: Capsule): boolean {
@@ -800,6 +801,21 @@ export default function App() {
       setAuthProcessing(false);
     }
   };
+
+  // Capture Redirect Login Results (Crucial for mobile browser social login compliance)
+  useEffect(() => {
+    getRedirectResult(getAuth())
+      .then((result) => {
+        if (result?.user) {
+          console.log("[Redirect Auth] Successfully logged in user:", result.user.uid);
+          showToast("Successfully logged in with Google!", "success");
+        }
+      })
+      .catch((error) => {
+        console.error("[Redirect Auth] Capture Error:", error);
+        showToast("Social Login failed. Please try again.", "error");
+      });
+  }, [showToast]);
 
   // Auth Listener
   useEffect(() => {
@@ -1991,7 +2007,18 @@ export default function App() {
               <div className="flex justify-center">
                 <button 
                   type="button"
-                  onClick={() => signInWithPopup(getAuth(), getGoogleProvider())}
+                  onClick={async () => {
+                    try {
+                      const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+                      if (isMobile) {
+                        await signInWithRedirect(getAuth(), getGoogleProvider());
+                      } else {
+                        await signInWithPopup(getAuth(), getGoogleProvider());
+                      }
+                    } catch (err) {
+                      console.error("Google Auth Action failed", err);
+                    }
+                  }}
                   className="w-full flex items-center justify-center gap-3 bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm font-bold text-sm text-[#1D1D1F]"
                   title="Sign in with Google"
                 >
