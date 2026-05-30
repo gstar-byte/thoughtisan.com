@@ -44,7 +44,6 @@ import {
   RefreshCw,
   Pin,
   Star,
-  X,
   Mail, 
   Lock, 
   CheckCircle2, 
@@ -78,18 +77,10 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile,
-  collection, 
-  query, 
-  where, 
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
   deleteField,
 } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { setDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { setDoc, getDocs, writeBatch, doc, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 import { cn } from './lib/utils';
 import { driver } from 'driver.js';
@@ -494,7 +485,7 @@ export default function App() {
   // 未登录状态下，实时缓存用户创建的新便签至通用本地缓存，防止页面重定向刷新导致便签丢失
   useEffect(() => {
     if (!user) {
-      const userCreatedCapsules = capsules.filter(c => c.id && !c.id.startsWith('mock-'));
+      const userCreatedCapsules = capsules.filter(c => c && c.id && typeof c.id === 'string' && !c.id.startsWith('mock-'));
       if (userCreatedCapsules.length > 0) {
         localStorage.setItem('luminote_anonymous_cached_notes', JSON.stringify(userCreatedCapsules));
       } else {
@@ -854,34 +845,37 @@ export default function App() {
         setAuthLoading(false); // 快速让 UI 开始渲染后台页面
 
         // 自动将在未登录状态下写的便签（迁移）合并上传至云端账户下，保证数据一个不丢
-        const anonymousCached = localStorage.getItem('luminote_anonymous_cached_notes');
-        if (anonymousCached) {
-          try {
-            const parsed = JSON.parse(anonymousCached) as Capsule[];
-            if (parsed && parsed.length > 0) {
-              console.log("[Migration] Found", parsed.length, "anonymous notes to migrate to user:", firebaseUser.uid);
-              const batch = writeBatch(getDb());
-              parsed.forEach((cap) => {
-                const newDocRef = doc(collection(getDb(), 'capsules'));
-                const { id: _oldId, ...rest } = cap;
-                batch.set(newDocRef, {
-                  ...rest,
-                  userId: firebaseUser.uid,
-                  createdAt: cap.createdAt || Date.now(),
-                  updatedAt: cap.updatedAt || Date.now()
+        // 使用 setTimeout 异步沙箱保护，确保即使迁移中发生任何 Firestore 错误，也绝对不阻塞 users 监听器的挂载，绝对不影响页面极速渲染！
+        setTimeout(() => {
+          const anonymousCached = localStorage.getItem('luminote_anonymous_cached_notes');
+          if (anonymousCached) {
+            try {
+              const parsed = JSON.parse(anonymousCached) as Capsule[];
+              if (parsed && parsed.length > 0) {
+                console.log("[Migration] Found", parsed.length, "anonymous notes to migrate to user:", firebaseUser.uid);
+                const batch = writeBatch(getDb());
+                parsed.forEach((cap) => {
+                  const newDocRef = doc(collection(getDb(), 'capsules'));
+                  const { id: _oldId, ...rest } = cap;
+                  batch.set(newDocRef, {
+                    ...rest,
+                    userId: firebaseUser.uid,
+                    createdAt: cap.createdAt || Date.now(),
+                    updatedAt: cap.updatedAt || Date.now()
+                  });
                 });
-              });
-              batch.commit().then(() => {
-                console.log("[Migration] Successfully migrated all anonymous notes to cloud!");
-                localStorage.removeItem('luminote_anonymous_cached_notes');
-              }).catch((err) => {
-                console.error("[Migration] Commit batch failed:", err);
-              });
+                batch.commit().then(() => {
+                  console.log("[Migration] Successfully migrated all anonymous notes to cloud!");
+                  localStorage.removeItem('luminote_anonymous_cached_notes');
+                }).catch((err) => {
+                  console.error("[Migration] Commit batch failed:", err);
+                });
+              }
+            } catch (e) {
+              console.error("[Migration] Failed to parse anonymous notes:", e);
             }
-          } catch (e) {
-            console.error("[Migration] Failed to parse anonymous notes:", e);
           }
-        }
+        }, 300);
 
         // Listen to user document for premium status in background
         const userDocRef = doc(getDb(), 'users', firebaseUser.uid);
@@ -981,6 +975,7 @@ export default function App() {
       setDataLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
+      setDataLoading(false); // 异常时也优雅释放 loading 状态，防锁死！
     });
 
     return () => unsubscribe();
@@ -1895,7 +1890,8 @@ export default function App() {
   const sortedCapsules = allCapsules;
   
   const filteredCapsules = sortedCapsules.filter(c => {
-    const matchesSearch = c.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const contentText = typeof c.content === 'string' ? c.content : plainTextFromContent(c.content);
+    const matchesSearch = (contentText || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                          (c.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
     const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter;
     const matchesTag = !tagFilter || (c.tags && c.tags.includes(tagFilter));
