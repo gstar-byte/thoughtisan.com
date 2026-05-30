@@ -150,23 +150,6 @@ interface FirestoreErrorInfo {
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errorMsg = error instanceof Error ? error.message : String(error);
-  
-  // 检查是否由于 Firebase Quota 配额耗尽导致的数据库不可用，提供极致的防御性体验
-  if (errorMsg.includes('Quota limit exceeded') || errorMsg.includes('Quota exceeded')) {
-    const hasAlerted = (window as any)._firestoreQuotaAlerted;
-    if (!hasAlerted) {
-      (window as any)._firestoreQuotaAlerted = true;
-      setTimeout(() => {
-        alert(
-          `【数据库每日读写超限 / Firestore Quota Exceeded】\n\n` +
-          `由于今天频繁的极速开发和数据吞吐，当前 Firebase 项目的 Firestore 免费每日配额已达到今日物理上限。\n\n` +
-          `✨ 好消息：\n1. 您的本地离线数据和最近缓存 100% 绝对安全！Lumi Note 已自动为您无缝启动本地离线编辑模式，您可以继续顺畅写便签、待办与管理分类。\n` +
-          `2. 一旦配额恢复，所有本地数据将自动实时上传同步。\n\n` +
-          `🛠️ 恢复云端指引：\n您可以前往 Firebase 控制台将您的项目升级为按量付费的 Blaze 计划以解锁无限配额，或者耐心等待次日（美国西八区零点）Google 云端配额刷新重置！`
-        );
-      }, 300);
-    }
-  }
 
   const errInfo: FirestoreErrorInfo = {
     error: errorMsg,
