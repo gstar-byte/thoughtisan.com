@@ -1691,13 +1691,13 @@ export default function App() {
       Notification.requestPermission();
     }
     
-    const interval = setInterval(() => {
+    const checkReminders = () => {
       const now = Date.now();
       allCapsules.forEach(cap => {
         if (!cap.reminder?.date || cap.completed || cap.isDeleted || cap.isArchived) return;
         
-        // Prevent spamming VERY old reminders
-        const isTooOld = now - cap.reminder.date > 1000 * 60 * 30; 
+        // Prevent spamming VERY old reminders (only drop if older than 24 hours to prevent extreme backlogs)
+        const isTooOld = now - cap.reminder.date > 1000 * 60 * 60 * 24; 
         if (isTooOld) {
           if (cap.reminder.type === 'once') {
             updateCapsule(cap.id, { reminder: { ...cap.reminder, type: 'none' } });
@@ -1712,8 +1712,17 @@ export default function App() {
           new Notification('Lumi Note Reminder', { body: plainTextFromContent(cap.content) });
         }
 
+        // Trigger gentle tactile vibration feedback on mobile devices
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([150, 80, 150]);
+        }
+
         notifiedIdsRef.current.add(cap.id);
-        setFiredReminders(prev => [...prev, cap]);
+        setFiredReminders(prev => {
+          // Avoid duplicate UI alerts for the same item in the same cycle
+          if (prev.some(p => p.id === cap.id)) return prev;
+          return [...prev, cap];
+        });
 
         let shouldUpdate = false;
         const nextReminder = { ...cap.reminder };
@@ -1744,9 +1753,28 @@ export default function App() {
 
         if (shouldUpdate) updateCapsule(cap.id, { reminder: nextReminder as any });
       });
-    }, 10000);
+    };
+
+    // Run instantly on initialization
+    checkReminders();
+
+    const interval = setInterval(checkReminders, 8000);
     
-    return () => clearInterval(interval);
+    // Listen to foreground/visibility focus transitions to instantly trigger reminders (no background lag)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkReminders();
+      }
+    };
+    
+    window.addEventListener('focus', checkReminders);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkReminders);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [allCapsules, updateCapsule, user]);
 
   const sortedCapsules = allCapsules;
@@ -2609,6 +2637,7 @@ export default function App() {
                       onToggleSelection={() => toggleSelection(capsule.id)}
                       onViewDetail={() => setEditingCapsule(capsule)}
                       isPremium={hasPremiumAccess(user)}
+                      showToast={showToast}
                     />
                   </div>
                 </div>
@@ -2871,7 +2900,7 @@ export default function App() {
         </AnimatePresence>
 
         {/* In-App Reminders (Pro feature) */}
-        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[200] flex flex-col gap-2 pointer-events-none w-full max-w-sm">
+        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:bottom-8 md:right-8 z-[200] flex flex-col gap-2 pointer-events-none w-auto md:w-full md:max-w-sm">
           <AnimatePresence>
             {firedReminders.map(rem => (
               <motion.div 
@@ -3234,7 +3263,7 @@ export default function App() {
           className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex flex-col items-center justify-center ${
             isCaptureCollapsed 
               ? 'h-0 min-h-0 py-0 opacity-0 pointer-events-none translate-y-full overflow-hidden' 
-              : 'min-h-[96px] px-4 md:px-8 pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] md:py-4 opacity-100 translate-y-0'
+              : 'min-h-[96px] px-4 md:px-8 pt-3 pb-[calc(32px+env(safe-area-inset-bottom))] md:pb-4 md:pt-3 opacity-100 translate-y-0'
           } ${selectedIds.size > 0 ? 'opacity-30 pointer-events-none' : ''}`}
         >
           {/* iOS-style Drag/Collapse Handle */}
@@ -3601,6 +3630,7 @@ interface CapsuleItemProps {
   onToggleSelection: () => void;
   onViewDetail: () => void;
   isPremium: boolean;
+  showToast?: (msg: string, type?: 'info' | 'success' | 'error') => void;
 }
 
 const formatNoteDateTime = (ts: number) => new Date(ts).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -3633,6 +3663,7 @@ const CapsuleItem = memo(function CapsuleItem({
   onToggleSelection,
   onViewDetail,
   isPremium,
+  showToast,
 }: CapsuleItemProps) {
   const onUpdate = useCallback(
     (updates: Partial<Capsule>) => patchCapsule(capsule.id, updates),
@@ -3652,6 +3683,27 @@ const CapsuleItem = memo(function CapsuleItem({
   const longPressDetected = useRef(false);
   const touchStartPos = useRef<{x: number, y: number} | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Robust Outside Click / Touch handler for mobile browser compatibility
+  useEffect(() => {
+    if (!showOptions && !showColorPicker && !showReminderPicker) return;
+    
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowOptions(false);
+        setShowColorPicker(false);
+        setShowReminderPicker(false);
+        setIsConfiguringCustom(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [showOptions, showColorPicker, showReminderPicker]);
 
   const startPress = (e: React.MouseEvent | React.TouchEvent) => {
     if (showOptions || showColorPicker || showReminderPicker) return;
@@ -3784,48 +3836,15 @@ const CapsuleItem = memo(function CapsuleItem({
           }
         }}
       >
-        {(showOptions || showColorPicker || showReminderPicker) && (
-          <div
-            className="fixed inset-0 z-[100]"
-            aria-hidden
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowOptions(false);
-              setShowColorPicker(false);
-              setShowReminderPicker(false);
-              setIsConfiguringCustom(false);
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              setShowOptions(false);
-              setShowColorPicker(false);
-              setShowReminderPicker(false);
-              setIsConfiguringCustom(false);
-            }}
-          />
-        )}
 
-        {/* Grid mode Pin/Star indicators */}
-        {viewMode === 'grid' && (capsule.isPinned || capsule.isStarred) && (
-          <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
-            {capsule.isPinned && <Pin size={13} className="text-white/80 fill-white/80 rotate-45" />}
-            {capsule.isStarred && <Star size={13} className="text-[#FFCC00] fill-[#FFCC00]" />}
-          </div>
-        )}
-
-        {capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date && (
-          <div
-            className="absolute bottom-3 right-14 z-20 flex items-center justify-center w-7 h-7 rounded-full bg-black/20 backdrop-blur-md border border-white/25 text-white shadow-md pointer-events-auto cursor-help"
-            title={reminderBellTitle(capsule)}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isSelectionMode) onToggleSelection();
-            }}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <Bell size={14} className={capsule.reminder.date <= Date.now() ? "text-red-200 animate-pulse" : "text-white"} />
+        {/* Pinned, Starred and Bell status badges in top-right corner */}
+        {(capsule.isPinned || capsule.isStarred || (capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date)) && (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20">
+            {capsule.isPinned && <Pin size={13} className="text-white/80 fill-white/80 rotate-45 shrink-0" />}
+            {capsule.isStarred && <Star size={13} className="text-[#FFCC00] fill-[#FFCC00] shrink-0" />}
+            {capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date && (
+              <Bell size={13} className={cn("shrink-0", capsule.reminder.date <= Date.now() ? "text-red-200 animate-pulse" : "text-white/80")} />
+            )}
           </div>
         )}
 
@@ -3866,12 +3885,6 @@ const CapsuleItem = memo(function CapsuleItem({
             capsule.isTodo && capsule.completed ? "line-through opacity-50 text-white/70" : "text-white",
             viewMode === 'grid' ? "whitespace-pre-wrap line-clamp-4" : "line-clamp-1"
           )}>
-            {viewMode !== 'grid' && capsule.isPinned && (
-              <Pin size={14} className="text-white/80 fill-white/80 shrink-0 rotate-45" />
-            )}
-            {viewMode !== 'grid' && capsule.isStarred && (
-              <Star size={14} className="text-[#FFCC00] fill-[#FFCC00] shrink-0" />
-            )}
             <span>{plainTextFromContent(capsule.content)}</span>
           </div>
           
@@ -4049,6 +4062,13 @@ const CapsuleItem = memo(function CapsuleItem({
                     {/* GROUP 2: Actions (single note only) */}
                     <div className="space-y-0.5">
                       <button 
+                        onClick={(e) => { e.stopPropagation(); onUpdate({ isPinned: !capsule.isPinned }); setShowOptions(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                      >
+                        <Pin size={14} className={capsule.isPinned ? "text-[#007AFF] fill-[#007AFF] rotate-45" : "text-[#8E8E93]"} />
+                        {capsule.isPinned ? 'Unpin Note' : 'Pin to Top'}
+                      </button>
+                      <button 
                         onClick={(e) => { e.stopPropagation(); onUpdate({ isStarred: !capsule.isStarred }); setShowOptions(false); }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
                       >
@@ -4083,12 +4103,51 @@ const CapsuleItem = memo(function CapsuleItem({
                         <Archive size={14} className="text-[#8E8E93]" />
                         Archive
                       </button>
+                      <button 
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          setShowOptions(false); 
+                          const shareText = plainTextFromContent(capsule.content);
+                          if (typeof navigator !== 'undefined' && navigator.share) {
+                            try {
+                              await navigator.share({
+                                title: 'Lumi Note Share',
+                                text: shareText
+                              });
+                            } catch (err) {
+                              console.log('Share failed or aborted', err);
+                            }
+                          } else {
+                            try {
+                              await navigator.clipboard.writeText(shareText);
+                              if (showToast) {
+                                showToast("Note content copied to clipboard!", "success");
+                              }
+                            } catch (err) {
+                              console.error('Copy to clipboard failed: ', err);
+                            }
+                          }
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                      >
+                        <Share2 size={14} className="text-[#8E8E93]" />
+                        Share Note
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); onUpdate({ isDeleted: true }); setShowOptions(false); }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#FFF5F5] text-[#FF3B30] font-medium rounded-lg transition-colors"
                       >
                         <Trash2 size={14} />
                         Delete
+                      </button>
+
+                      <div className="h-px bg-[#F2F2F7] mx-2 my-1.5" />
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setShowOptions(false); }}
+                        className="w-full flex items-center justify-center gap-1 px-3 py-2 text-xs hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
+                      >
+                        <X size={14} />
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -4100,177 +4159,174 @@ const CapsuleItem = memo(function CapsuleItem({
           {/* Color Picker Popup */}
           <AnimatePresence>
             {showColorPicker && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40 cursor-default" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowColorPicker(false);
-                  }} 
-                />
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                  className="absolute right-0 top-full mt-2 w-[200px] max-w-[70vw] bg-white border border-[#E5E5EA] rounded-2xl shadow-2xl z-50 p-3 text-[#1D1D1F]"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                >
-                  <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-2 px-1">Presets</div>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {PRESET_COLORS.map(color => (
-                      <button 
-                        key={color}
-                        onClick={() => { onUpdate({ color }); setShowColorPicker(false); }}
-                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${capsule.color === color ? 'border-[#007AFF] scale-110' : 'border-transparent'}`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                className="absolute right-0 top-full mt-2 w-[200px] max-w-[70vw] bg-white border border-[#E5E5EA] rounded-2xl shadow-2xl z-50 p-3 text-[#1D1D1F]"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              >
+                <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-2 px-1">Presets</div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {PRESET_COLORS.map(color => (
                     <button 
-                      onClick={() => { onUpdate({ color: null as any }); setShowColorPicker(false); }}
-                      className={`w-6 h-6 rounded-full border-2 border-dashed border-[#D1D1D6] flex items-center justify-center text-[#8E8E93] hover:border-[#8E8E93] hover:text-[#1D1D1F] transition-all bg-[#F2F2F7] ${!capsule.color ? 'border-[#007AFF] text-[#007AFF] bg-[#007AFF]/10' : ''}`}
-                      title="Reset to default"
-                    >
-                      <RotateCcw size={12} />
-                    </button>
-                  </div>
-                  
-                  <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5 px-1">Custom Color</div>
-                  <label className="flex items-center gap-2 p-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-lg cursor-pointer hover:bg-[#F2F2F7] transition-all relative group overflow-hidden">
-                     <div className="w-6 h-6 rounded-md shadow-sm border border-black/10 overflow-hidden relative shrink-0">
-                       <input 
-                         type="color" 
-                         value={capsule.color || '#6BCB77'}
-                         onChange={(e) => onUpdate({ color: e.target.value })}
-                         className="absolute -top-4 -left-4 w-12 h-12 cursor-pointer p-0 m-0 border-none bg-transparent opacity-0 z-10"
-                       />
-                       <div className="w-full h-full absolute inset-0 z-0" style={{ backgroundColor: capsule.color || '#6BCB77' }} />
-                     </div>
-                     <div className="flex flex-col flex-1 relative z-0 pointer-events-none">
-                       <span className="text-[10px] font-bold text-[#1D1D1F] group-hover:text-[#007AFF] transition-colors">Palette 🎨</span>
-                       <span className="text-[9px] text-[#8E8E93] font-mono uppercase leading-none">{capsule.color || '#HEX'}</span>
-                     </div>
-                  </label>
-                </motion.div>
-              </>
+                      key={color}
+                      onClick={() => { onUpdate({ color }); setShowColorPicker(false); }}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${capsule.color === color ? 'border-[#007AFF] scale-110' : 'border-transparent'}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                  <button 
+                    onClick={() => { onUpdate({ color: null as any }); setShowColorPicker(false); }}
+                    className={`w-6 h-6 rounded-full border-2 border-dashed border-[#D1D1D6] flex items-center justify-center text-[#8E8E93] hover:border-[#8E8E93] hover:text-[#1D1D1F] transition-all bg-[#F2F2F7] ${!capsule.color ? 'border-[#007AFF] text-[#007AFF] bg-[#007AFF]/10' : ''}`}
+                    title="Reset to default"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                </div>
+                
+                <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5 px-1">Custom Color</div>
+                <label className="flex items-center gap-2 p-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-lg cursor-pointer hover:bg-[#F2F2F7] transition-all relative group overflow-hidden">
+                   <div className="w-6 h-6 rounded-md shadow-sm border border-black/10 overflow-hidden relative shrink-0">
+                     <input 
+                       type="color" 
+                       value={capsule.color || '#6BCB77'}
+                       onChange={(e) => onUpdate({ color: e.target.value })}
+                       className="absolute -top-4 -left-4 w-12 h-12 cursor-pointer p-0 m-0 border-none bg-transparent opacity-0 z-10"
+                     />
+                     <div className="w-full h-full absolute inset-0 z-0" style={{ backgroundColor: capsule.color || '#6BCB77' }} />
+                   </div>
+                   <div className="flex flex-col flex-1 relative z-0 pointer-events-none">
+                     <span className="text-[10px] font-bold text-[#1D1D1F] group-hover:text-[#007AFF] transition-colors">Palette 🎨</span>
+                     <span className="text-[9px] text-[#8E8E93] font-mono uppercase leading-none">{capsule.color || '#HEX'}</span>
+                   </div>
+                </label>
+
+                <div className="h-px bg-[#F2F2F7] my-2" />
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowColorPicker(false); }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
+                >
+                  <X size={12} />
+                  Cancel
+                </button>
+              </motion.div>
             )}
           </AnimatePresence>
 
         {/* Reminder Type Picker & Custom Config */}
         <AnimatePresence>
           {showReminderPicker && (
-            <>
-              <div 
-                className="fixed inset-0 z-40 cursor-default" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowReminderPicker(false);
-                  setIsConfiguringCustom(false);
-                }} 
-              />
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                className="absolute right-0 top-full mt-2 w-[200px] max-w-[70vw] bg-white border border-[#E5E5EA] rounded-xl shadow-2xl z-50 overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              >
-                {!isConfiguringCustom ? (
-                  <div className="p-1">
-                    <div className="px-3 py-2 border-b border-[#F2F2F7]">
-                       <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5">Specific Time</div>
-                        <input 
-                          type="datetime-local" 
-                          value={tempReminderDate ? new Date(tempReminderDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
-                          onChange={handleTimeChange}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-full px-2 py-1 bg-[#F2F2F7] rounded-md text-[10px] sm:text-[11px] border-none focus:ring-2 focus:ring-[#007AFF] outline-none"
-                        />
-                    </div>
-                    <div className="px-3 py-1.5 text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider">Repeat</div>
-                    {(['once', 'daily', 'weekly', 'monthly', 'yearly', 'custom'] as ReminderType[]).map(type => (
-                      <button 
-                        key={type}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReminderSelect(type);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-[#F2F2F7] capitalize font-medium rounded-lg transition-colors ${(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) ? 'text-[#007AFF] bg-[#007AFF]/5' : 'text-[#1D1D1F]'}`}
-                      >
-                        <span>{type === 'once' ? 'No repeat' : type}</span>
-                        {(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) && <Check size={12} />}
-                      </button>
-                    ))}
-                    <div className="p-2 border-t border-[#F2F2F7] mt-1 flex gap-2">
-                      <button 
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           onUpdate({ reminder: undefined });
-                           setShowReminderPicker(false);
-                           setIsConfiguringCustom(false);
-                         }}
-                         className="flex-1 py-1.5 bg-[#F2F2F7] text-[#FF3B30] rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition-all"
-                      >
-                        Clear
-                      </button>
-                      <button 
-                         onClick={saveReminder}
-                         className="flex-1 py-1.5 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-sm hover:bg-[#0051FF] transition-all"
-                      >
-                        Save
-                      </button>
-                    </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: -10 }}
+              className="absolute right-0 top-full mt-2 w-[200px] max-w-[70vw] bg-white border border-[#E5E5EA] rounded-xl shadow-2xl z-50 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              {!isConfiguringCustom ? (
+                <div className="p-1">
+                  <div className="px-3 py-2 border-b border-[#F2F2F7]">
+                     <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5">Specific Time</div>
+                      <input 
+                        type="datetime-local" 
+                        value={tempReminderDate ? new Date(tempReminderDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                        onChange={handleTimeChange}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-2 py-1 bg-[#F2F2F7] rounded-md text-[10px] sm:text-[11px] border-none focus:ring-2 focus:ring-[#007AFF] outline-none"
+                      />
                   </div>
-                ) : (
-                  <div className="p-3 space-y-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <button onClick={(e) => { e.stopPropagation(); setIsConfiguringCustom(false); }} className="p-1 hover:bg-[#F2F2F7] rounded-md">
-                         <X size={14} />
-                      </button>
-                      <span className="text-xs font-bold uppercase tracking-tight">Custom Repeat</span>
+                  <div className="px-3 py-1.5 text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider">Repeat</div>
+                  {(['once', 'daily', 'weekly', 'monthly', 'yearly', 'custom'] as ReminderType[]).map(type => (
+                    <button 
+                      key={type}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReminderSelect(type);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-[#F2F2F7] capitalize font-medium rounded-lg transition-colors ${(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) ? 'text-[#007AFF] bg-[#007AFF]/5' : 'text-[#1D1D1F]'}`}
+                    >
+                      <span>{type === 'once' ? 'No repeat' : type}</span>
+                      {(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) && <Check size={12} />}
+                    </button>
+                  ))}
+                  <div className="p-2 border-t border-[#F2F2F7] mt-1 flex gap-2">
+                    <button 
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         onUpdate({ reminder: undefined });
+                         setShowReminderPicker(false);
+                         setIsConfiguringCustom(false);
+                       }}
+                       className="flex-1 py-1.5 bg-[#F2F2F7] text-[#FF3B30] rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition-all"
+                    >
+                      Clear
+                    </button>
+                    <button 
+                       onClick={saveReminder}
+                       className="flex-1 py-1.5 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-sm hover:bg-[#0051FF] transition-all"
+                    >
+                      Save
+                    </button>
+                  </div>
+                  
+                  <div className="h-px bg-[#F2F2F7] mx-2 mt-1" />
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowReminderPicker(false); setIsConfiguringCustom(false); }}
+                    className="w-full flex items-center justify-center gap-1 px-3 py-2 text-[11px] hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
+                  >
+                    <X size={12} />
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 space-y-3">
+                  <div className="flex items-center gap-1 mb-1">
+                    <button onClick={(e) => { e.stopPropagation(); setIsConfiguringCustom(false); }} className="p-1 hover:bg-[#F2F2F7] rounded-md">
+                       <X size={14} />
+                    </button>
+                    <span className="text-xs font-bold uppercase tracking-tight">Custom Repeat</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[9px] font-bold text-[#8E8E93] uppercase block mb-1">Every</label>
+                      <div className="flex items-center gap-2">
+                         <input 
+                           type="number" 
+                           min="1"
+                           value={customInterval}
+                           onChange={(e) => setCustomInterval(parseInt(e.target.value) || 1)}
+                           onClick={(e) => e.stopPropagation()}
+                           className="w-16 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF] text-center"
+                         />
+                         <select 
+                           value={customUnit}
+                           onChange={(e) => setCustomUnit(e.target.value as any)}
+                           onClick={(e) => e.stopPropagation()}
+                           className="flex-1 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF]"
+                         >
+                           <option value="day">Days</option>
+                           <option value="week">Weeks</option>
+                           <option value="month">Months</option>
+                         </select>
+                      </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-[9px] font-bold text-[#8E8E93] uppercase block mb-1">Every</label>
-                        <div className="flex items-center gap-2">
-                           <input 
-                             type="number" 
-                             min="1"
-                             value={customInterval}
-                             onChange={(e) => setCustomInterval(parseInt(e.target.value) || 1)}
-                             onClick={(e) => e.stopPropagation()}
-                             className="w-16 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF] text-center"
-                           />
-                           <select 
-                             value={customUnit}
-                             onChange={(e) => setCustomUnit(e.target.value as any)}
-                             onClick={(e) => e.stopPropagation()}
-                             className="flex-1 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF]"
-                           >
-                             <option value="day">Days</option>
-                             <option value="week">Weeks</option>
-                             <option value="month">Months</option>
-                           </select>
-                        </div>
-                      </div>
-                      
-                      <button 
-                        onClick={saveReminder}
-                        className="w-full py-2 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-md hover:bg-[#0051FF] transition-all"
-                      >
-                        Save
-                      </button>
-                    </div>
+                    <button 
+                      onClick={saveReminder}
+                      className="w-full py-2 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-md hover:bg-[#0051FF] transition-all"
+                    >
+                      Save
+                    </button>
                   </div>
-                )}
-              </motion.div>
-            </>
+                </div>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
