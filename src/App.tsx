@@ -503,15 +503,70 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(true);
   const [pendingClarificationCapsuleId, setPendingClarificationCapsuleId] = useState<string | null>(null);
 
+  // Pull-to-refresh & Toast state
+  const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'info' | 'success' | 'error'>('info');
+  const touchStartY = useRef(0);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = useCallback((msg: string, type: 'info' | 'success' | 'error' = 'info') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(msg);
+    setToastType(type);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 2500);
+  }, []);
+
   const handleSync = useCallback(async () => {
     if (isSyncing) return;
     setIsSyncing(true);
+    showToast("Syncing notes...", "info");
+    
     // Artificial delay to show animation and "simulate" a refresh, 
     // though Firestore is real-time. This also clears any local staleness.
     await new Promise(r => setTimeout(r, 1000));
     setLastSyncTime(Date.now());
     setIsSyncing(false);
-  }, [isSyncing]);
+    showToast("Sync complete!", "success");
+  }, [isSyncing, showToast]);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const container = document.getElementById('scroll-container');
+    if (!container) return;
+    if (container.scrollTop === 0) {
+      setIsPulling(true);
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isPulling) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    
+    if (diff > 0) {
+      const pullDistance = Math.min(diff * 0.4, 80);
+      setPullY(pullDistance);
+      if (diff > 10) {
+        if (e.cancelable) e.preventDefault();
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isPulling) return;
+    setIsPulling(false);
+    if (pullY >= 50 && !isSyncing) {
+      void handleSync();
+    }
+    setPullY(0);
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1797,7 +1852,7 @@ export default function App() {
     }
 
     return (
-      <div id="login-screen" className="h-[100dvh] w-screen flex flex-col md:flex-row bg-white overflow-hidden">
+      <div id="login-screen" className="min-h-[100dvh] md:h-[100dvh] w-screen flex flex-col md:flex-row bg-white overflow-y-auto md:overflow-hidden py-8 md:py-0">
         {/* Back button */}
         <button 
           onClick={() => setShowAuthScreen(false)}
@@ -1839,7 +1894,7 @@ export default function App() {
         {/* Right Auth Section */}
         <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
           <div className="w-full max-w-sm">
-            <div className="md:hidden flex flex-col items-center mb-12">
+            <div className="md:hidden flex flex-col items-center mb-6">
               <AppLogo className="w-24 h-24 mb-4" />
               <h1 className="text-3xl font-extrabold tracking-tight text-center bg-clip-text text-transparent bg-gradient-to-r from-[#1D1D1F] to-[#434343]">Lumi Note</h1>
             </div>
@@ -1849,8 +1904,8 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
             >
               <h3 className="text-2xl font-bold text-[#1D1D1F] mb-2">{isRegistering ? 'Create Account' : 'Welcome Back'}</h3>
-              <p className="text-[#8E8E93] text-sm font-semibold mb-8">
-                {isRegistering ? 'Start your idea journey today.' : 'Sign in to sync your notes.'}
+              <p className="text-[#8E8E93] text-sm font-semibold mb-4 md:mb-8">
+                {isRegistering ? 'Create an account to instantly capture and sync your notes, to-dos & reminders.' : 'Sign in to instantly capture and sync your notes, to-dos & reminders.'}
               </p>
 
               <form onSubmit={handleEmailAuth} className="space-y-4">
@@ -1900,7 +1955,7 @@ export default function App() {
                 </button>
               </form>
 
-              <div className="relative my-10">
+              <div className="relative my-5 md:my-10">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#E5E5EA]"></div></div>
                 <div className="relative flex justify-center text-[10px] uppercase font-black text-[#8E8E93]"><span className="bg-white px-4 tracking-widest">Or social sign in</span></div>
               </div>
@@ -1919,7 +1974,7 @@ export default function App() {
 
               <button 
                 onClick={() => setIsRegistering(!isRegistering)}
-                className="w-full text-center mt-12 text-xs font-bold text-[#8E8E93]"
+                className="w-full text-center mt-6 md:mt-12 text-xs font-bold text-[#8E8E93]"
               >
                 {isRegistering ? 'Already have an account?' : "Don't have an account?"} <span className="text-[#007AFF]">{isRegistering ? 'Sign In' : 'Sign Up'}</span>
               </button>
@@ -1942,7 +1997,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-40 bg-black/35 md:hidden"
+            className="fixed inset-0 z-[90] bg-black/35 md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
@@ -1958,7 +2013,7 @@ export default function App() {
           opacity: isSidebarOpen ? 1 : 0
         }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
-        className={`bg-white border-r border-[#E5E5EA] flex flex-col items-stretch shadow-xl md:shadow-none z-50 fixed md:relative h-full ${!isSidebarOpen ? 'invisible border-none overflow-hidden' : 'visible'}`}
+        className={`bg-white border-r border-[#E5E5EA] flex flex-col items-stretch shadow-xl md:shadow-none z-[100] fixed md:relative h-full ${!isSidebarOpen ? 'invisible border-none overflow-hidden' : 'visible'}`}
       >
         <div className="p-4 flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
@@ -2329,16 +2384,6 @@ export default function App() {
                       <LogOut size={10} />
                       Sign Out
                     </button>
-                    <div className="w-1 h-1 rounded-full bg-[#E5E5EA]" />
-                    <button 
-                      onClick={handleSync}
-                      disabled={isSyncing}
-                      title={`Last synced: ${new Date(lastSyncTime).toLocaleTimeString()}`}
-                      className="text-[10px] font-bold text-[#007AFF] uppercase tracking-wider hover:opacity-70 transition-opacity flex items-center gap-1 disabled:opacity-50"
-                    >
-                      <RefreshCw size={10} className={isSyncing ? "animate-spin" : ""} />
-                      {isSyncing ? 'Syncing' : 'Sync'}
-                    </button>
                   </div>
                 </div>
               )}
@@ -2449,7 +2494,7 @@ export default function App() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 top-full mt-2 min-w-[220px] w-max max-w-[90vw] bg-white/90 backdrop-blur-xl border border-white/20 rounded-[18px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 p-2"
+                      className="absolute right-0 top-full mt-2 min-w-[220px] w-max max-w-[90vw] bg-white dark:bg-[#1C1C1E] border border-[#E5E5EA] dark:border-white/10 rounded-[18px] shadow-[0_8px_30px_rgba(0,0,0,0.15)] z-50 p-2"
                     >
                       <div className="px-3 py-1.5 text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest">Sort By</div>
                       {[
@@ -2510,7 +2555,23 @@ export default function App() {
         </header>
 
         {/* Capsule List */}
-        <div id="scroll-container" className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 custom-scrollbar scroll-smooth">
+        <div 
+          id="scroll-container" 
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 custom-scrollbar scroll-smooth relative"
+        >
+          {/* Pull to refresh indicator */}
+          {pullY > 0 && (
+            <div 
+              style={{ height: `${pullY}px` }} 
+              className="w-full flex items-center justify-center overflow-hidden transition-all duration-75 text-xs text-[#8E8E93] dark:text-[#AEAEB2] font-bold gap-2 select-none"
+            >
+              <RefreshCw size={14} className={pullY >= 50 ? "animate-spin text-[#007AFF]" : "text-[#8E8E93]"} />
+              <span>{pullY >= 50 ? "Release to sync notes..." : "Pull down to sync..."}</span>
+            </div>
+          )}
           <div className={`w-full pb-36 transition-all duration-300 ${
             selectedIds.size > 0 ? 'mt-3' : ''
           } ${
@@ -3173,7 +3234,7 @@ export default function App() {
           className={`shrink-0 transition-all duration-500 ease-in-out relative z-40 bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-xl border-t border-[#E5E5EA] dark:border-white/10 flex flex-col items-center justify-center ${
             isCaptureCollapsed 
               ? 'h-0 min-h-0 py-0 opacity-0 pointer-events-none translate-y-full overflow-hidden' 
-              : 'min-h-[96px] px-4 md:px-8 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))] md:py-4 opacity-100 translate-y-0'
+              : 'min-h-[96px] px-4 md:px-8 pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] md:py-4 opacity-100 translate-y-0'
           } ${selectedIds.size > 0 ? 'opacity-30 pointer-events-none' : ''}`}
         >
           {/* iOS-style Drag/Collapse Handle */}
@@ -3351,6 +3412,21 @@ export default function App() {
            <Mic size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
          </div>
       )}
+      {/* Floating Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 16, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] px-4 py-2.5 rounded-full bg-black/85 dark:bg-white/95 backdrop-blur-md text-white dark:text-black text-xs font-bold shadow-2xl flex items-center gap-2 border border-white/10 dark:border-black/5"
+          >
+            {toastType === 'info' && <RefreshCw size={14} className="animate-spin text-[#007AFF]" />}
+            {toastType === 'success' && <Check size={14} className="text-[#34C759]" strokeWidth={3} />}
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -3730,6 +3806,14 @@ const CapsuleItem = memo(function CapsuleItem({
           />
         )}
 
+        {/* Grid mode Pin/Star indicators */}
+        {viewMode === 'grid' && (capsule.isPinned || capsule.isStarred) && (
+          <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
+            {capsule.isPinned && <Pin size={13} className="text-white/80 fill-white/80 rotate-45" />}
+            {capsule.isStarred && <Star size={13} className="text-[#FFCC00] fill-[#FFCC00]" />}
+          </div>
+        )}
+
         {capsule.reminder && capsule.reminder.type !== 'none' && capsule.reminder.date && (
           <div
             className="absolute bottom-3 right-14 z-20 flex items-center justify-center w-7 h-7 rounded-full bg-black/20 backdrop-blur-md border border-white/25 text-white shadow-md pointer-events-auto cursor-help"
@@ -3748,7 +3832,7 @@ const CapsuleItem = memo(function CapsuleItem({
         {/* To-do toggle */}
         <div className={cn(
           "flex flex-col items-center gap-2 z-[20] shrink-0 transition-all",
-          viewMode === 'grid' ? "absolute top-4 left-4" : "mt-0.5 pl-1"
+          viewMode === 'grid' ? "absolute top-4 left-4" : "pl-1"
         )}>
           {capsule.isTodo && (
             <button
@@ -3774,15 +3858,21 @@ const CapsuleItem = memo(function CapsuleItem({
 
         {/* Content Area */}
         <div className={cn(
-          "flex-1 min-w-0 pt-0.5 flex flex-col h-full",
-          viewMode === 'grid' ? "justify-center text-center px-1 pb-4 md:pb-6" : "justify-center text-left"
+          "flex-1 min-w-0 flex flex-col h-full",
+          viewMode === 'grid' ? "pt-0.5 justify-center text-center px-1 pb-4 md:pb-6" : "justify-center text-left"
         )}>
           <div className={cn(
-            "text-base sm:text-lg md:text-xl font-bold leading-tight transition-all break-words select-none",
+            "text-base sm:text-lg md:text-xl font-bold leading-tight transition-all break-words select-none flex items-center gap-1.5 flex-wrap",
             capsule.isTodo && capsule.completed ? "line-through opacity-50 text-white/70" : "text-white",
             viewMode === 'grid' ? "whitespace-pre-wrap line-clamp-4" : "line-clamp-1"
           )}>
-            {plainTextFromContent(capsule.content)}
+            {viewMode !== 'grid' && capsule.isPinned && (
+              <Pin size={14} className="text-white/80 fill-white/80 shrink-0 rotate-45" />
+            )}
+            {viewMode !== 'grid' && capsule.isStarred && (
+              <Star size={14} className="text-[#FFCC00] fill-[#FFCC00] shrink-0" />
+            )}
+            <span>{plainTextFromContent(capsule.content)}</span>
           </div>
           
           <div className={cn(
@@ -3853,15 +3943,13 @@ const CapsuleItem = memo(function CapsuleItem({
               ? "opacity-100 md:opacity-0 group-hover:opacity-100"
               : "opacity-100 md:opacity-0 group-hover:opacity-100"
         )}>
-          <div className="flex items-center gap-1 bg-black/15 p-1 rounded-full">
-            <button 
-               id={index === 0 ? "capsule-options-btn-0" : undefined}
-               onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
-               className="p-2 text-white/60 hover:bg-white/20 hover:text-white rounded-full"
-            >
-              <MoreVertical size={16} />
-            </button>
-          </div>
+          <button 
+             id={index === 0 ? "capsule-options-btn-0" : undefined}
+             onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
+             className="p-2 text-white/70 hover:bg-white/25 hover:text-white rounded-full transition-colors flex items-center justify-center"
+          >
+            <MoreVertical size={16} />
+          </button>
 
           {/* Dropdown Options */}
           <AnimatePresence>
