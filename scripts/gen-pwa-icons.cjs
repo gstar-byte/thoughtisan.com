@@ -2,9 +2,9 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-// Create a self-contained SVG with white background and no filters
-// This is a clean reproduction of app-logo.svg optimized for PNG icon rendering
-const iconSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+// Pure vector SVG without any filters (feDropShadow) to avoid librsvg/sharp rendering black backgrounds.
+// This preserves transparent backgrounds and the original high-fidelity Canary Yellow design perfectly.
+const iconSvg = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="paper-bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FFFDF0"/>
@@ -24,8 +24,6 @@ const iconSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <stop offset="100%" stop-color="#FACC15"/>
     </linearGradient>
   </defs>
-
-  <rect width="100" height="100" fill="white"/>
 
   <g transform="rotate(-26, 50, 50)">
     <path d="M18 30 C18 23.3726 23.3726 18 30 18 H70 C76.6274 18 82 23.3726 82 30 V60 L60 82 H30 C23.3726 82 18 76.6274 18 70 Z" fill="url(#paper-bg)"/>
@@ -52,14 +50,14 @@ async function generate() {
     .resize(192, 192)
     .png()
     .toFile(path.join(__dirname, '..', 'public', 'favicon-192.png'));
-  console.log('favicon-192.png generated');
+  console.log('favicon-192.png generated (100% transparent Canary Yellow)');
 
   // 48x48 favicon
   await sharp(svgBuf)
     .resize(48, 48)
     .png()
     .toFile(path.join(__dirname, '..', 'public', 'favicon-48.png'));
-  console.log('favicon-48.png generated');
+  console.log('favicon-48.png generated (100% transparent Canary Yellow)');
 }
 
 generate().catch(err => { console.error(err); process.exit(1); });
