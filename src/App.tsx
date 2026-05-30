@@ -823,7 +823,25 @@ export default function App() {
     let userDocUnsubscribe: () => void;
     const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser: User | null) => {
       if (firebaseUser) {
-        // Listen to user document for premium status
+        // 立刻利用 firebaseUser 以及本地缓存设置 setUser，防止云端 users snapshot 长时间挂起死锁
+        const localCachedUser = localStorage.getItem('luminote_auth_user');
+        let initialUser = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          isPremium: false,
+          onboarded: false
+        };
+        if (localCachedUser) {
+          try {
+            initialUser = { ...initialUser, ...JSON.parse(localCachedUser) };
+          } catch (e) {}
+        }
+        setUser(initialUser);
+        setAuthLoading(false); // 快速让 UI 开始渲染后台页面
+
+        // Listen to user document for premium status in background
         const userDocRef = doc(getDb(), 'users', firebaseUser.uid);
         userDocUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -859,10 +877,8 @@ export default function App() {
               updatedAt: Date.now()
             }, { merge: true });
           }
-           setAuthLoading(false);
         }, (error) => {
           console.error("user doc snapshot error", error);
-          setAuthLoading(false);
         });
       } else {
         if (userDocUnsubscribe) {
@@ -888,6 +904,22 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
+    // 1. 毫秒级瞬间加载本地缓存，避免空白骨架屏锁死
+    const cacheKey = `luminote_cached_notes_${user.uid}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.length > 0) {
+          console.log("[OfflineCache] Loaded", parsed.length, "notes instantly from localStorage.");
+          setCapsules(parsed);
+          setDataLoading(false); // 瞬间关闭 Loading
+        }
+      } catch (e) {
+        console.error("[OfflineCache] Failed to parse cached notes:", e);
+      }
+    }
+
     const q = query(
       collection(getDb(), 'capsules'), 
       where('userId', '==', user.uid)
@@ -898,9 +930,12 @@ export default function App() {
         ...(d.data() as Capsule),
         id: d.id 
       }));
-      // Sort by createdAt descending locally
-      console.log('--- FIRESTORE DATA LOADED ---', docs.length, 'items');
-      setCapsules(docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+      const sortedDocs = docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      console.log('--- FIRESTORE DATA LOADED ---', sortedDocs.length, 'items');
+      setCapsules(sortedDocs);
+      
+      // 更新本地缓存
+      localStorage.setItem(cacheKey, JSON.stringify(sortedDocs));
       setDataLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
@@ -1052,9 +1087,20 @@ export default function App() {
       }
 
       if (realIds.length > 0) {
+        const bump = shouldBumpUpdatedAt(updates);
+        const ts = Date.now();
+
+        // Optimistic batch local update
+        setCapsules((prev) =>
+          prev.map((c) => {
+            if (!realIds.includes(c.id)) return c;
+            const merged = mergeCapsulePatch(c, updates);
+            return bump ? { ...merged, updatedAt: ts } : merged;
+          })
+        );
+
         const batch = writeBatch(getDb());
         const now = Date.now();
-        const bump = shouldBumpUpdatedAt(updates);
         const clean = partialCapsuleToFirestore(updates);
         if (bump) {
           clean.updatedAt = now;
@@ -1318,6 +1364,16 @@ export default function App() {
         );
         return;
       }
+
+      // Optimistic Local State Update (Instant Response)
+      setCapsules((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const merged = mergeCapsulePatch(c, updates);
+          return bump ? { ...merged, updatedAt: now } : merged;
+        })
+      );
+
       try {
         const docRef = doc(getDb(), 'capsules', id);
         const cleanUpdates: Record<string, unknown> = {};
