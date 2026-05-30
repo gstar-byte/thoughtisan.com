@@ -807,6 +807,42 @@ export default function App() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    setAuthProcessing(true);
+    try {
+      console.log("[GoogleSignIn] Initiating authentication with signInWithPopup...");
+      await signInWithPopup(getAuth(), getGoogleProvider());
+    } catch (err: any) {
+      console.error("Google Sign-In Error Captured:", err);
+      if (err.code === 'auth/unauthorized-domain') {
+        alert(
+          `【网域未授权 / Unauthorized Domain】\n\n` +
+          `当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置。\n\n` +
+          `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
+        );
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        console.log("[GoogleSignIn] Popup blocked or cancelled, falling back to signInWithRedirect...");
+        try {
+          await signInWithRedirect(getAuth(), getGoogleProvider());
+        } catch (redirectErr: any) {
+          alert(`Google Redirect Login failed: ${redirectErr.message}`);
+        }
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        console.log("[GoogleSignIn] Popup closed by user.");
+      } else {
+        console.log("[GoogleSignIn] Encountered other Auth restriction, attempting redirect fallback...");
+        try {
+          await signInWithRedirect(getAuth(), getGoogleProvider());
+        } catch (fallbackErr: any) {
+          alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
+        }
+      }
+    } finally {
+      setAuthProcessing(false);
+    }
+  };
+
   // Auth Listener
   useEffect(() => {
     let userDocUnsubscribe: () => void;
@@ -822,10 +858,12 @@ export default function App() {
         console.error("[GoogleSignIn] Error retrieving Redirect result:", err);
         if (err.code === 'auth/unauthorized-domain') {
           alert(
-            `[Unauthorized Domain]\n\nThe current domain "${window.location.hostname}" is not in your Firebase authorized domains list.\n\nPlease go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add this domain.`
+            `【网域未授权 / Unauthorized Domain】\n\n` +
+            `由于当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置，重定向认证失败。\n\n` +
+            `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
           );
         } else if (err.code !== 'auth/web-storage-unsupported') {
-          console.warn(`Google Redirect Login issue: ${err.message} (Code: ${err.code})`);
+          alert(`Google Redirect Login failed: ${err.message} (Code: ${err.code})`);
         }
       }
     };
@@ -869,7 +907,7 @@ export default function App() {
               updatedAt: Date.now()
             }, { merge: true });
           }
-          setAuthLoading(false);
+           setAuthLoading(false);
         }, (error) => {
           console.error("user doc snapshot error", error);
           setAuthLoading(false);
@@ -898,7 +936,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    // 1. 毫秒级瞬间加载本地缓存，避免空白骨架屏锁死
+    // 1. Instant loading of user-specific cached notes from localStorage
     const cacheKey = `luminote_cached_notes_${user.uid}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
@@ -907,7 +945,7 @@ export default function App() {
         if (parsed && parsed.length > 0) {
           console.log("[OfflineCache] Loaded", parsed.length, "notes instantly from localStorage.");
           setCapsules(parsed);
-          setDataLoading(false); // 瞬间关闭 Loading
+          setDataLoading(false); // Cancel loading state immediately for instant feedback
         }
       } catch (e) {
         console.error("[OfflineCache] Failed to parse cached notes:", e);
@@ -928,12 +966,11 @@ export default function App() {
       console.log('--- FIRESTORE DATA LOADED ---', sortedDocs.length, 'items');
       setCapsules(sortedDocs);
       
-      // 更新本地缓存
+      // Update cache in background
       localStorage.setItem(cacheKey, JSON.stringify(sortedDocs));
       setDataLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'capsules');
-      setDataLoading(false); // 异常时也优雅释放 loading 状态，防锁死！
     });
 
     return () => unsubscribe();
@@ -2060,18 +2097,7 @@ export default function App() {
               <div className="flex justify-center">
                 <button 
                   type="button"
-                  onClick={async () => {
-                    try {
-                      const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-                      if (isMobile) {
-                        await signInWithRedirect(getAuth(), getGoogleProvider());
-                      } else {
-                        await signInWithPopup(getAuth(), getGoogleProvider());
-                      }
-                    } catch (err) {
-                      console.error("Google Auth Action failed", err);
-                    }
-                  }}
+                  onClick={handleGoogleSignIn}
                   className="w-full flex items-center justify-center gap-3 bg-white py-3 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-all active:scale-95 shadow-sm font-bold text-sm text-[#1D1D1F]"
                   title="Sign in with Google"
                 >
