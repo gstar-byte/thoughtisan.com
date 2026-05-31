@@ -4325,9 +4325,7 @@ const CapsuleItem = memo(function CapsuleItem({
           "flex items-center gap-1 transition-opacity relative",
           showOptions || showReminderPicker ? "z-[110]" : "z-40",
           viewMode === 'grid' ? "absolute bottom-4 right-4" : "flex-shrink-0",
-          showOptions || showReminderPicker
-            ? "opacity-100"
-            : "opacity-100 md:opacity-0 group-hover:opacity-100"
+          "opacity-100"
         )}>
           <button
             ref={triggerRef}
@@ -4357,6 +4355,13 @@ const CapsuleItem = memo(function CapsuleItem({
           >
             {!showReminderPicker ? (
               <div className="p-1.5 space-y-0.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleSelection(); closeMenu(); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                >
+                  <ListChecks size={16} className="text-[#8E8E93]" />
+                  Select
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onUpdate({ isStarred: !capsule.isStarred }); closeMenu(); }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
