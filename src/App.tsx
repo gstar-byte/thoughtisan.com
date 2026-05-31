@@ -4123,7 +4123,12 @@ const CapsuleItem = memo(function CapsuleItem({
           </div>
           
           <div className={cn(
-            "flex flex-col gap-2 mt-4 shrink-0 w-full",
+            "flex flex-col gap-2 shrink-0 w-full transition-all duration-300",
+            // 桌面端 (md) 下默认收起且透明度为 0，仅在 hover 时优雅展开
+            "md:max-h-0 md:opacity-0 md:overflow-hidden md:pointer-events-none md:mt-0",
+            "md:group-hover:max-h-32 md:group-hover:opacity-100 md:group-hover:mt-4 md:group-hover:pointer-events-auto",
+            // 移动端/触摸屏下默认直接展开显示，确保操作与阅读体验
+            "max-h-32 opacity-100 mt-3 pointer-events-auto",
             viewMode === 'grid' ? "items-center" : ""
           )}>
             <div
