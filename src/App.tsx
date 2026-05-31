@@ -3832,6 +3832,7 @@ const CapsuleItem = memo(function CapsuleItem({
   showToast,
   onSelectAll,
 }: CapsuleItemProps) {
+  const capsuleColor = capsule.color || PRESET_COLORS[index % PRESET_COLORS.length] || '#E65100';
   const [showOptions, setShowOptions] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
