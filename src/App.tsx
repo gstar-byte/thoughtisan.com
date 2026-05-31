@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -2896,6 +2897,44 @@ export default function App() {
                         strokeWidth={2}
                       />
                     </button>
+                    <button
+                      type="button"
+                      aria-label={editingCapsule.isTodo ? 'Cancel to-do' : 'Set as to-do'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        patchCapsule(editingCapsule.id, { isTodo: !editingCapsule.isTodo });
+                      }}
+                      className="w-11 h-11 flex items-center justify-center rounded-full bg-[#1D1D1F] shadow-md hover:opacity-90 transition-opacity"
+                    >
+                      {editingCapsule.isTodo
+                        ? <CheckSquare size={22} className="text-[#007AFF]" strokeWidth={2} />
+                        : <Square size={22} className="text-white" strokeWidth={2} />}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Share note"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const shareText = plainTextFromContent(editingCapsule.content);
+                        if (typeof navigator !== 'undefined' && navigator.share) {
+                          try {
+                            await navigator.share({ title: 'Lumi Note Share', text: shareText });
+                          } catch (err) {
+                            console.log('Share failed or aborted', err);
+                          }
+                        } else {
+                          try {
+                            await navigator.clipboard.writeText(shareText);
+                            showToast('Note content copied to clipboard!', 'success');
+                          } catch (err) {
+                            console.error('Copy to clipboard failed: ', err);
+                          }
+                        }
+                      }}
+                      className="w-11 h-11 flex items-center justify-center rounded-full bg-[#1D1D1F] shadow-md hover:opacity-90 transition-opacity"
+                    >
+                      <Share2 size={20} className="text-white" strokeWidth={2} />
+                    </button>
                     <button 
                       type="button"
                       onClick={closeEditingModal}
@@ -2982,6 +3021,30 @@ export default function App() {
                           <option key={t} value={t} />
                         ))}
                       </datalist>
+                    </div>
+                    <div className="relative">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-[#AEAEB2] mb-1.5">Color</div>
+                      <div className="flex items-center flex-wrap gap-2">
+                        {PRESET_COLORS.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            aria-label={`Set color ${c}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              patchCapsule(editingCapsule.id, { color: c });
+                            }}
+                            className="w-8 h-8 rounded-full shadow-sm transition-transform hover:scale-110 flex items-center justify-center"
+                            style={{
+                              backgroundColor: c,
+                              outline: (editingCapsule.color || '') === c ? '2px solid #007AFF' : '2px solid transparent',
+                              outlineOffset: '2px',
+                            }}
+                          >
+                            {(editingCapsule.color || '') === c && <Check size={14} className="text-white drop-shadow" />}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -3847,8 +3910,49 @@ const CapsuleItem = memo(function CapsuleItem({
   const [isSwiping, setIsSwiping] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
 
+  // Floating options menu (portal-rendered so it is never clipped by the
+  // card's `overflow-hidden`). Anchored to the kebab button on click, or to
+  // the cursor on desktop right-click.
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const portalMenuRef = useRef<HTMLDivElement>(null);
+  const suppressNextClickRef = useRef(false);
+
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const isHorizontalSwipe = useRef<boolean | null>(null);
+
+  const MENU_WIDTH = 200;
+  const closeMenu = useCallback(() => {
+    setShowOptions(false);
+    setShowReminderPicker(false);
+    setIsConfiguringCustom(false);
+    setMenuPos(null);
+  }, []);
+
+  const openMenuAt = useCallback((x: number, y: number) => {
+    // Reserve enough vertical room for the tallest panel (reminder picker) so
+    // the menu flips above the anchor when near the bottom edge.
+    const budgetH = 360;
+    let left = x;
+    let top = y;
+    if (left + MENU_WIDTH > window.innerWidth - 8) left = window.innerWidth - MENU_WIDTH - 8;
+    if (left < 8) left = 8;
+    if (top + budgetH > window.innerHeight - 8) top = Math.max(8, y - budgetH);
+    if (top < 8) top = 8;
+    setShowReminderPicker(false);
+    setIsConfiguringCustom(false);
+    setMenuPos({ left, top });
+    setShowOptions(true);
+  }, []);
+
+  const openMenuFromButton = useCallback(() => {
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (r) {
+      openMenuAt(r.right - MENU_WIDTH, r.bottom + 6);
+    } else {
+      openMenuAt(window.innerWidth / 2 - MENU_WIDTH / 2, window.innerHeight / 2);
+    }
+  }, [openMenuAt]);
 
   const handleTouchStartSwipe = (e: React.TouchEvent) => {
     if (showOptions || showColorPicker || showReminderPicker) return;
@@ -3927,14 +4031,21 @@ const CapsuleItem = memo(function CapsuleItem({
   
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowOptions(false);
-        setShowColorPicker(false);
-        setShowReminderPicker(false);
-        setIsConfiguringCustom(false);
+      const target = e.target as Node;
+      if (menuRef.current && menuRef.current.contains(target)) return;
+      if (portalMenuRef.current && portalMenuRef.current.contains(target)) return;
+      // Swallow the click that dismisses an open menu so it doesn't also
+      // trigger the underlying card (which would open the detail view).
+      if (showOptions || showReminderPicker) {
+        suppressNextClickRef.current = true;
       }
+      setShowOptions(false);
+      setShowColorPicker(false);
+      setShowReminderPicker(false);
+      setIsConfiguringCustom(false);
+      setMenuPos(null);
     };
-    
+
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('touchstart', handleOutsideClick, { passive: true });
     return () => {
@@ -4051,19 +4162,28 @@ const CapsuleItem = memo(function CapsuleItem({
         )}
         style={{ 
           backgroundColor: capsuleColor,
-          transform: window.innerWidth <= 768 ? `translateX(${isSwiping ? swipeX : (swipedOpen ? -180 : 0)}px)` : 'none'
+          transform: window.innerWidth <= 768 ? `translateX(${isSwiping ? swipeX : (swipedOpen ? -180 : 0)}px)` : 'none',
+          // Suppress the iOS long-press "callout" (copy / share / look up) so it
+          // never overlaps our swipe gesture or options menu on touch devices.
+          WebkitTouchCallout: 'none',
         }}
         onTouchStart={handleTouchStartSwipe}
         onTouchMove={handleTouchMoveSwipe}
         onTouchEnd={handleTouchEndSwipe}
         onTouchCancel={handleTouchEndSwipe}
-        onClick={(e) => {
-          if (showOptions || showColorPicker || showReminderPicker) {
+        onContextMenu={(e) => {
+          // Always suppress the browser's native long-press / right-click menu
+          // on a note card. On desktop, open our own options menu at the cursor.
+          e.preventDefault();
+          if (window.innerWidth > 768 && !isSelectionMode) {
             e.stopPropagation();
-            setShowOptions(false);
-            setShowColorPicker(false);
-            setShowReminderPicker(false);
-            setIsConfiguringCustom(false);
+            openMenuAt(e.clientX, e.clientY);
+          }
+        }}
+        onClick={(e) => {
+          if (suppressNextClickRef.current) {
+            suppressNextClickRef.current = false;
+            e.stopPropagation();
             return;
           }
           if (isSelectionMode) {
@@ -4203,372 +4323,158 @@ const CapsuleItem = memo(function CapsuleItem({
 
         <div ref={menuRef} className={cn(
           "flex items-center gap-1 transition-opacity relative",
-          showOptions || showColorPicker || showReminderPicker ? "z-[110]" : "z-40",
+          showOptions || showReminderPicker ? "z-[110]" : "z-40",
           viewMode === 'grid' ? "absolute bottom-4 right-4" : "flex-shrink-0",
-          showOptions || showColorPicker || showReminderPicker
-            ? "opacity-100"
-            : viewMode === 'grid'
-              ? "opacity-100 md:opacity-0 group-hover:opacity-100"
-              : "opacity-100 md:opacity-0 group-hover:opacity-100"
+          "opacity-100"
         )}>
-          <button 
-             onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
-             className="p-2 text-white/70 hover:bg-white/25 hover:text-white rounded-full transition-colors flex items-center justify-center"
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-label="Note options"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (showOptions || showReminderPicker) { closeMenu(); } else { openMenuFromButton(); }
+            }}
+            className="p-2 text-white/70 hover:bg-white/25 hover:text-white rounded-full transition-colors flex items-center justify-center"
           >
             <MoreVertical size={16} />
           </button>
+        </div>
 
-          <AnimatePresence>
-            {showOptions && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: viewMode === 'grid' ? 10 : -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: viewMode === 'grid' ? 10 : -10 }}
-                className={cn(
-                  "absolute rounded-xl shadow-2xl z-50 overflow-hidden text-[#1D1D1F] w-[185px] max-w-[70vw]",
-                  "top-full mt-1.5 right-0 border border-[#E5E5EA] bg-[#ffffff]"
-                )}
-                style={{ backgroundColor: '#ffffff' }}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              >
-                <div className="p-2 space-y-2">
-                  <div className="space-y-1.5">
-                    <div className="relative">
-                      <div className="px-2 py-0.5 text-[8px] uppercase font-black tracking-widest text-[#AEAEB2]">Category</div>
-                      <input 
-                        type="text"
-                        value={tempCategory}
-                        onChange={(e) => setTempCategory(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const t = tempCategory.trim();
-                            onUpdate({ category: t || undefined });
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        onBlur={() => onUpdate({ category: tempCategory.trim() || undefined })}
-                        className="w-full bg-[#F2F2F7] border-none rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-[#007AFF]/20"
-                        placeholder="Category..."
-                      />
-                      {tempCategory && allCategories.filter(c => c.toLowerCase().includes(tempCategory.toLowerCase()) && c !== tempCategory).length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E5EA] rounded-xl shadow-xl z-[80] overflow-hidden">
-                          {allCategories.filter(c => c.toLowerCase().includes(tempCategory.toLowerCase()) && c !== tempCategory).slice(0, 3).map(cat => (
-                            <button key={cat} onClick={() => { setTempCategory(cat); onUpdate({ category: cat }); }} className="w-full text-left px-2.5 py-1.5 text-[10px] hover:bg-[#F2F2F7] font-semibold">{cat}</button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <div className="px-2 py-0.5 text-[8px] uppercase font-black tracking-widest text-[#AEAEB2]">Tags</div>
-                      <input 
-                        type="text"
-                        value={tempTags}
-                        onChange={(e) => setTempTags(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const parts = tempTags.split(',').map((t) => t.trim()).filter(Boolean);
-                            onUpdate({ tags: parts.length ? parts : undefined });
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        onBlur={() => {
-                          const parts = tempTags.split(',').map((t) => t.trim()).filter(Boolean);
-                          onUpdate({ tags: parts.length ? parts : undefined });
-                        }}
-                        className="w-full bg-[#F2F2F7] border-none rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-[#007AFF]/20"
-                        placeholder="Tags..."
-                      />
-                      {(() => {
-                        const lastTag = tempTags.split(',').pop()?.trim() || '';
-                        const suggestions = lastTag ? allTags.filter(t => t.toLowerCase().includes(lastTag.toLowerCase()) && !tempTags.split(',').map(x => x.trim()).includes(t)) : [];
-                        return suggestions.length > 0 && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E5EA] rounded-xl shadow-xl z-[80] overflow-hidden">
-                            {suggestions.slice(0, 3).map(tag => (
-                              <button 
-                                key={tag} 
-                                onClick={() => {
-                                  const parts = tempTags.split(',');
-                                  parts.pop();
-                                  const newVal = [...parts.map(p => p.trim()), tag].join(', ') + ', ';
-                                  setTempTags(newVal);
-                                  onUpdate({ tags: newVal.split(',').map(t => t.trim()).filter(Boolean) });
-                                }} 
-                                className="w-full text-left px-2.5 py-1.5 text-[10px] hover:bg-[#F2F2F7] font-semibold"
-                              >
-                                #{tag}
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-[#F2F2F7] mx-1 my-1" />
-
-                  <div className="space-y-0.5">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onUpdate({ isPinned: !capsule.isPinned }); setShowOptions(false); }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                    >
-                      <Pin size={14} className={capsule.isPinned ? "text-[#007AFF] fill-[#007AFF] rotate-45" : "text-[#8E8E93]"} />
-                      {capsule.isPinned ? 'Unpin Note' : 'Pin to Top'}
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onUpdate({ isStarred: !capsule.isStarred }); setShowOptions(false); }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                    >
-                      <Star size={14} className={capsule.isStarred ? "text-[#FFCC00] fill-[#FFCC00]" : "text-[#8E8E93]"} />
-                      {capsule.isStarred ? 'Unstar' : 'Star'}
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowColorPicker(true); setShowOptions(false); }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                    >
-                      <Palette size={14} className="text-[#8E8E93]" />
-                      Change Color
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowReminderPicker(true); setShowOptions(false); }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                    >
-                      <Calendar size={14} className="text-[#8E8E93]" />
-                      Set Reminder
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onUpdate({ isTodo: !capsule.isTodo }); setShowOptions(false); }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                    >
-                      {capsule.isTodo ? <Square size={14} className="text-[#8E8E93]" /> : <CheckSquare size={14} className="text-[#007AFF]" />}
-                      {capsule.isTodo ? 'Cancel To-do' : 'Set To-do'}
-                    </button>
-                    
-                    <button 
-                      onClick={async (e) => { 
-                        e.stopPropagation(); 
-                        setShowOptions(false); 
-                        const shareText = plainTextFromContent(capsule.content);
-                        if (typeof navigator !== 'undefined' && navigator.share) {
-                          try {
-                            await navigator.share({
-                              title: 'Lumi Note Share',
-                              text: shareText
-                            });
-                          } catch (err) {
-                            console.log('Share failed or aborted', err);
-                          }
-                        } else {
-                          try {
-                            await navigator.clipboard.writeText(shareText);
-                            if (showToast) {
-                              showToast("Note content copied to clipboard!", "success");
-                            }
-                          } catch (err) {
-                            console.error('Copy to clipboard failed: ', err);
-                          }
-                        }
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
-                    >
-                      <Share2 size={14} className="text-[#8E8E93]" />
-                      Share Note
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onUpdate({ isDeleted: true }); setShowOptions(false); }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-[#FFF5F5] text-[#FF3B30] font-medium rounded-lg transition-colors"
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-
-                    <div className="h-px bg-[#F2F2F7] mx-1 my-1" />
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowOptions(false); }}
-                      className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
-                    >
-                      <X size={14} />
-                      Cancel
-                    </button>
-                  </div>
+        {showOptions && menuPos && createPortal(
+          <motion.div
+            ref={portalMenuRef}
+            initial={{ opacity: 0, scale: 0.96, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="fixed z-[2000] w-[200px] max-w-[calc(100vw-16px)] bg-white border border-[#E5E5EA] rounded-xl shadow-2xl overflow-hidden text-[#1D1D1F]"
+            style={{ left: menuPos.left, top: menuPos.top }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            {!showReminderPicker ? (
+              <div className="p-1.5 space-y-0.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleSelection(); closeMenu(); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                >
+                  <ListChecks size={16} className="text-[#8E8E93]" />
+                  Select
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onUpdate({ isStarred: !capsule.isStarred }); closeMenu(); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                >
+                  <Star size={16} className={capsule.isStarred ? "text-[#FFCC00] fill-[#FFCC00]" : "text-[#8E8E93]"} />
+                  {capsule.isStarred ? 'Unstar' : 'Star'}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowReminderPicker(true); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm hover:bg-[#F2F2F7] font-medium rounded-lg transition-colors"
+                >
+                  <Calendar size={16} className="text-[#8E8E93]" />
+                  Set Reminder
+                </button>
+                <div className="h-px bg-[#F2F2F7] mx-1 my-1" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); onUpdate({ isDeleted: true }); closeMenu(); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm hover:bg-[#FFF5F5] text-[#FF3B30] font-medium rounded-lg transition-colors"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </button>
+              </div>
+            ) : !isConfiguringCustom ? (
+              <div className="p-1">
+                <div className="px-3 py-2 border-b border-[#F2F2F7]">
+                  <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5">Specific Time</div>
+                  <input
+                    type="datetime-local"
+                    value={tempReminderDate ? new Date(tempReminderDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                    onChange={handleTimeChange}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full px-2 py-1 bg-[#F2F2F7] rounded-md text-[10px] sm:text-[11px] border-none focus:ring-2 focus:ring-[#007AFF] outline-none"
+                  />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {showColorPicker && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                className="absolute right-0 top-full mt-2 w-[200px] max-w-[70vw] bg-white border border-[#E5E5EA] rounded-2xl shadow-2xl z-50 p-3 text-[#1D1D1F]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-2 px-1">Presets</div>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {PRESET_COLORS.map(color => (
-                    <button 
-                      key={color}
-                      onClick={() => { onUpdate({ color }); setShowColorPicker(false); }}
-                      className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${capsule.color === color ? 'border-[#007AFF] scale-110' : 'border-transparent'}`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                  <button 
-                    onClick={() => { onUpdate({ color: null as any }); setShowColorPicker(false); }}
-                    className={`w-6 h-6 rounded-full border-2 border-dashed border-[#D1D1D6] flex items-center justify-center text-[#8E8E93] hover:border-[#8E8E93] hover:text-[#1D1D1F] transition-all bg-[#F2F2F7] ${!capsule.color ? 'border-[#007AFF] text-[#007AFF] bg-[#007AFF]/10' : ''}`}
-                    title="Reset to default"
+                <div className="px-3 py-1.5 text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider">Repeat</div>
+                {(['once', 'daily', 'weekly', 'monthly', 'yearly', 'custom'] as ReminderType[]).map(type => (
+                  <button
+                    key={type}
+                    onClick={(e) => { e.stopPropagation(); handleReminderSelect(type); }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-[#F2F2F7] capitalize font-medium rounded-lg transition-colors ${(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) ? 'text-[#007AFF] bg-[#007AFF]/5' : 'text-[#1D1D1F]'}`}
                   >
-                    <RotateCcw size={12} />
+                    <span>{type === 'once' ? 'No repeat' : type}</span>
+                    {(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) && <Check size={12} />}
+                  </button>
+                ))}
+                <div className="p-2 border-t border-[#F2F2F7] mt-1 flex gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpdate({ reminder: undefined }); closeMenu(); }}
+                    className="flex-1 py-1.5 bg-[#F2F2F7] text-[#FF3B30] rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition-all"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={(e) => { saveReminder(e); closeMenu(); }}
+                    className="flex-1 py-1.5 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-sm hover:bg-[#0051FF] transition-all"
+                  >
+                    Save
                   </button>
                 </div>
-                
-                <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5 px-1">Custom Color</div>
-                <label className="flex items-center gap-2 p-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-lg cursor-pointer hover:bg-[#F2F2F7] transition-all relative group overflow-hidden">
-                   <div className="w-6 h-6 rounded-md shadow-sm border border-black/10 overflow-hidden relative shrink-0">
-                     <input 
-                       type="color" 
-                       value={capsule.color || '#6BCB77'}
-                       onChange={(e) => onUpdate({ color: e.target.value })}
-                       className="absolute -top-4 -left-4 w-12 h-12 cursor-pointer p-0 m-0 border-none bg-transparent opacity-0 z-10"
-                     />
-                     <div className="w-full h-full absolute inset-0 z-0" style={{ backgroundColor: capsule.color || '#6BCB77' }} />
-                   </div>
-                   <div className="flex flex-col flex-1 relative z-0 pointer-events-none">
-                     <span className="text-[10px] font-bold text-[#1D1D1F] group-hover:text-[#007AFF] transition-colors">Palette 🎨</span>
-                     <span className="text-[9px] text-[#8E8E93] font-mono uppercase leading-none">{capsule.color || '#HEX'}</span>
-                   </div>
-                </label>
-
-                <div className="h-px bg-[#F2F2F7] my-2" />
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setShowColorPicker(false); }}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
+                <div className="h-px bg-[#F2F2F7] mx-2 mt-1" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowReminderPicker(false); setIsConfiguringCustom(false); }}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-2 text-[11px] hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
                 >
-                  <X size={12} />
-                  Cancel
+                  <ChevronLeft size={12} />
+                  Back
                 </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Reminder Picker Popup */}
-          <AnimatePresence>
-            {showReminderPicker && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                className="absolute right-0 top-full mt-2 w-[200px] max-w-[70vw] bg-white border border-[#E5E5EA] rounded-xl shadow-2xl z-50 overflow-hidden text-[#1D1D1F]"
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              >
-                {!isConfiguringCustom ? (
-                  <div className="p-1">
-                    <div className="px-3 py-2 border-b border-[#F2F2F7]">
-                       <div className="text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider mb-1.5">Specific Time</div>
-                        <input 
-                          type="datetime-local" 
-                          value={tempReminderDate ? new Date(tempReminderDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
-                          onChange={handleTimeChange}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-full px-2 py-1 bg-[#F2F2F7] rounded-md text-[10px] sm:text-[11px] border-none focus:ring-2 focus:ring-[#007AFF] outline-none"
-                        />
-                    </div>
-                    <div className="px-3 py-1.5 text-[9px] font-bold text-[#8E8E93] uppercase tracking-wider">Repeat</div>
-                    {(['once', 'daily', 'weekly', 'monthly', 'yearly', 'custom'] as ReminderType[]).map(type => (
-                      <button 
-                        key={type}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReminderSelect(type);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-[#F2F2F7] capitalize font-medium rounded-lg transition-colors ${(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) ? 'text-[#007AFF] bg-[#007AFF]/5' : 'text-[#1D1D1F]'}`}
+              </div>
+            ) : (
+              <div className="p-3 space-y-3">
+                <div className="flex items-center gap-1 mb-1">
+                  <button onClick={(e) => { e.stopPropagation(); setIsConfiguringCustom(false); }} className="p-1 hover:bg-[#F2F2F7] rounded-md">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span className="text-xs font-bold uppercase tracking-tight">Custom Repeat</span>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[9px] font-bold text-[#8E8E93] uppercase block mb-1">Every</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={customInterval}
+                        onChange={(e) => setCustomInterval(parseInt(e.target.value) || 1)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-16 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF] text-center"
+                      />
+                      <select
+                        value={customUnit}
+                        onChange={(e) => setCustomUnit(e.target.value as any)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF]"
                       >
-                        <span>{type === 'once' ? 'No repeat' : type}</span>
-                        {(tempReminderType === type || (tempReminderType === 'none' && type === 'once')) && <Check size={12} />}
-                      </button>
-                    ))}
-                    <div className="p-2 border-t border-[#F2F2F7] mt-1 flex gap-2">
-                      <button 
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           onUpdate({ reminder: undefined });
-                           setShowReminderPicker(false);
-                           setIsConfiguringCustom(false);
-                         }}
-                         className="flex-1 py-1.5 bg-[#F2F2F7] text-[#FF3B30] rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition-all"
-                      >
-                        Clear
-                      </button>
-                      <button 
-                         onClick={saveReminder}
-                         className="flex-1 py-1.5 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-sm hover:bg-[#0051FF] transition-all"
-                      >
-                        Save
-                      </button>
-                    </div>
-                    
-                    <div className="h-px bg-[#F2F2F7] mx-2 mt-1" />
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setShowReminderPicker(false); setIsConfiguringCustom(false); }}
-                      className="w-full flex items-center justify-center gap-1 px-3 py-2 text-[11px] hover:bg-[#F2F2F7] text-[#8E8E93] font-bold rounded-lg transition-colors"
-                    >
-                      <X size={12} />
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-3 space-y-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <button onClick={(e) => { e.stopPropagation(); setIsConfiguringCustom(false); }} className="p-1 hover:bg-[#F2F2F7] rounded-md">
-                         <X size={14} />
-                      </button>
-                      <span className="text-xs font-bold uppercase tracking-tight">Custom Repeat</span>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-[9px] font-bold text-[#8E8E93] uppercase block mb-1">Every</label>
-                        <div className="flex items-center gap-2">
-                           <input 
-                             type="number" 
-                             min="1"
-                             value={customInterval}
-                             onChange={(e) => setCustomInterval(parseInt(e.target.value) || 1)}
-                             onClick={(e) => e.stopPropagation()}
-                             className="w-16 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF] text-center"
-                           />
-                           <select 
-                             value={customUnit}
-                             onChange={(e) => setCustomUnit(e.target.value as any)}
-                             onClick={(e) => e.stopPropagation()}
-                             className="flex-1 px-2 py-1.5 bg-[#F2F2F7] rounded-md text-xs border-none outline-none focus:ring-2 focus:ring-[#007AFF]"
-                           >
-                             <option value="day">Days</option>
-                             <option value="week">Weeks</option>
-                             <option value="month">Months</option>
-                           </select>
-                        </div>
-                      </div>
-                      
-                      <button 
-                        onClick={saveReminder}
-                        className="w-full py-2 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-md hover:bg-[#0051FF] transition-all"
-                      >
-                        Save
-                      </button>
+                        <option value="day">Days</option>
+                        <option value="week">Weeks</option>
+                        <option value="month">Months</option>
+                      </select>
                     </div>
                   </div>
-                )}
-              </motion.div>
+                  <button
+                    onClick={(e) => { saveReminder(e); closeMenu(); }}
+                    className="w-full py-2 bg-[#007AFF] text-white rounded-lg text-xs font-bold shadow-md hover:bg-[#0051FF] transition-all"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
             )}
-          </AnimatePresence>
-        </div>
+          </motion.div>,
+          document.body
+        )}
       </div>
     </div>
   );
