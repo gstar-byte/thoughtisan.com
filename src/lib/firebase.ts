@@ -12,8 +12,6 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile,
-  signInWithRedirect,
-  getRedirectResult
 } from 'firebase/auth';
 import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -85,6 +83,4 @@ export {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile,
-  signInWithRedirect,
-  getRedirectResult
 };

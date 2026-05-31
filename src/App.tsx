@@ -914,7 +914,10 @@ export default function App() {
               isPremium: false,
               onboarded: false,
               updatedAt: Date.now()
-            }, { merge: true });
+            }, { merge: true }).catch((e) => {
+              // Silently degrade when Firestore quota is exceeded — user auth still works via local fallback
+              console.error('Firestore setDoc user error (silenced):', e);
+            });
           }
            setAuthLoading(false);
         }, (error) => {
@@ -1099,7 +1102,10 @@ export default function App() {
             tourActive.current = false;
             safeLocalStorageSet(ONBOARDING_STORAGE_KEY, 'true');
             if (user) {
-              updateDoc(doc(getDb(), 'users', user.uid), { onboarded: true });
+              updateDoc(doc(getDb(), 'users', user.uid), { onboarded: true }).catch((e) => {
+                // Silently degrade — onboarded flag is also cached locally
+                console.error('Firestore updateDoc onboarded error (silenced):', e);
+              });
             }
           }
         });
@@ -2019,6 +2025,18 @@ export default function App() {
   const topFilterTitle = isSidebarListScopeActive
     ? 'List is narrowed by sidebar (category or tag). Type filters still apply on top of that scope.'
     : undefined;
+
+  // 等待 Firebase Auth 初始化完成，避免 localStorage 缓存导致的闪烁跳转
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-[100dvh] bg-[#F8F9FA]">
+        <div className="flex flex-col items-center gap-4">
+          <AppLogo className="w-16 h-16 animate-pulse" />
+          <div className="w-6 h-6 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     if (!showAuthScreen) {
