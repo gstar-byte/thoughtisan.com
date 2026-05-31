@@ -9,7 +9,7 @@
       "destination": "https://ai-studio-applet-webapp-e17fe.firebaseapp.com/__/auth/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ],

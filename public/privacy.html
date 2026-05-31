@@ -1,23 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Privacy Policy – Lumi Note</title>
-  <meta name="description" content="Privacy Policy for Lumi Note. Understand how we secure and manage your notes and personal data.">
-  <link rel="icon" href="/app-logo.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy - Lumi Note</title>
+  <meta name="description" content="Lumi Note Privacy Policy, detailing how we collect, use, and safeguard your personal thoughts." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/app-logo.svg" type="image/svg+xml" />
+  
   <style>
     :root {
-      --bg: #0A0A0B;
-      --card-bg: #161618;
-      --card-border: rgba(255, 255, 255, 0.08);
-      --text: #F5F5F7;
-      --text-muted: #8E8E93;
-      --primary: #007AFF;
-      --primary-hover: #0062CC;
+      --bg-gradient: linear-gradient(135deg, #f5f5f7 0%, #e8e8ed 100%);
+      --text-main: #1d1d1f;
+      --text-muted: #8e8e93;
+      --card-bg: rgba(255, 255, 255, 0.75);
+      --card-border: rgba(255, 255, 255, 0.5);
+      --primary: #007aff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-gradient: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
+        --text-main: #f5f5f7;
+        --text-muted: #8e8e93;
+        --card-bg: rgba(28, 28, 30, 0.7);
+        --card-border: rgba(255, 255, 255, 0.08);
+      }
     }
 
     * {
@@ -27,293 +40,198 @@
     }
 
     body {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 3rem 1.5rem;
+      line-height: 1.625;
       -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
     }
 
-    /* Ambient background blobs */
-    .bg-blobs {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 100vh;
-      overflow: hidden;
-      z-index: 0;
-      pointer-events: none;
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background: var(--card-bg);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid var(--card-border);
+      border-radius: 32px;
+      padding: 3rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .blob-1 {
-      position: absolute;
-      top: -10%;
-      left: 10%;
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(circle, rgba(0, 122, 255, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-      border-radius: 50%;
-    }
-
-    .blob-2 {
-      position: absolute;
-      top: 20%;
-      right: 10%;
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(175, 82, 222, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
-      border-radius: 50%;
-    }
-
-    .wrapper {
-      position: relative;
-      z-index: 1;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 80px 24px;
-    }
-
-    /* Header Nav */
     header {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 64px;
+      text-align: center;
+      margin-bottom: 3rem;
     }
 
     .logo-container {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      text-decoration: none;
-      color: var(--text);
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+      transform: rotate(-6deg);
+      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
-
-    .logo-img {
-      width: 32px;
-      height: 32px;
-    }
-
-    .logo-text {
-      font-weight: 800;
-      font-size: 20px;
-      letter-spacing: -0.5px;
-    }
-
-    .back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      background-color: rgba(255, 255, 255, 0.05);
-      border: 1px border var(--card-border);
-      border-radius: 20px;
-      color: var(--text);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.2s ease;
-    }
-
-    .back-btn:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      transform: translateY(-1px);
-    }
-
-    /* Policy Card */
-    .policy-card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 32px;
-      padding: 48px;
-      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+    
+    .logo-container:hover {
+      transform: rotate(0deg) scale(1.05);
     }
 
     h1 {
-      font-size: 40px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      margin-bottom: 8px;
+      font-size: 2.25rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(180deg, var(--text-main) 0%, rgba(29,29,31,0.7) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .last-updated {
-      font-size: 14px;
+    .effective-date {
+      font-size: 0.875rem;
+      font-weight: 600;
       color: var(--text-muted);
-      font-weight: 500;
-      margin-bottom: 40px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .content {
+      space-y: 2rem;
     }
 
     h2 {
-      font-size: 22px;
-      font-weight: 700;
-      margin-top: 36px;
-      margin-bottom: 16px;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    h2::before {
-      content: '';
-      display: inline-block;
-      width: 4px;
-      height: 18px;
-      background-color: var(--primary);
-      border-radius: 2px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.5rem;
     }
 
     p {
-      color: rgba(255, 255, 255, 0.75);
-      font-size: 15px;
-      line-height: 1.7;
-      margin-bottom: 20px;
-    }
-
-    strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    a {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.15s ease;
-    }
-
-    a:hover {
-      color: var(--primary-hover);
-      text-decoration: underline;
+      font-size: 0.975rem;
+      font-weight: 500;
+      color: var(--text-main);
+      opacity: 0.9;
+      margin-bottom: 1rem;
     }
 
     ul {
-      list-style-type: none;
-      margin-bottom: 24px;
+      margin-left: 1.5rem;
+      margin-bottom: 1.5rem;
+      list-style-type: square;
     }
 
     li {
-      position: relative;
-      padding-left: 20px;
-      color: rgba(255, 255, 255, 0.75);
-      font-size: 15px;
-      margin-bottom: 12px;
-    }
-
-    li::before {
-      content: "•";
-      position: absolute;
-      left: 0;
-      color: var(--primary);
-      font-weight: bold;
-    }
-
-    footer {
-      text-align: center;
-      margin-top: 64px;
-      color: var(--text-muted);
-      font-size: 13px;
+      font-size: 0.95rem;
       font-weight: 500;
+      color: var(--text-main);
+      opacity: 0.85;
+      margin-bottom: 0.5rem;
     }
 
-    @media (max-width: 768px) {
-      .wrapper {
-        padding: 40px 16px;
-      }
-      header {
-        margin-bottom: 40px;
-      }
-      .policy-card {
-        padding: 32px 20px;
-        border-radius: 24px;
-      }
-      h1 {
-        font-size: 30px;
-      }
-      h2 {
-        font-size: 18px;
-      }
+    footer-nav {
+      margin-top: 3.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-home {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 0.875rem 2rem;
+      border-radius: 16px;
+      text-decoration: none;
+      box-shadow: 0 10px 25px rgba(0, 122, 255, 0.25);
+      transition: all 0.25s ease;
+    }
+
+    .btn-home:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(0, 122, 255, 0.35);
+      background: #0062cc;
     }
   </style>
 </head>
 <body>
-  <div class="bg-blobs">
-    <div class="blob-1"></div>
-    <div class="blob-2"></div>
-  </div>
-
-  <div class="wrapper">
+  <div class="container">
     <header>
-      <a href="/" class="logo-container">
-        <svg class="logo-img" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="48" fill="url(#paint0_linear)" stroke="white" stroke-width="4"/>
-          <path d="M50 20V80M20 50H80" stroke="white" stroke-width="8" stroke-linecap="round"/>
-          <defs>
-            <linearGradient id="paint0_linear" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#007AFF"/>
-              <stop offset="1" stop-color="#00C6FF"/>
-            </linearGradient>
-          </defs>
+      <div class="logo-container">
+        <!-- Canary Yellow Folded Paper SVG Logo -->
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+          <g transform="rotate(-26, 50, 50)">
+            <!-- 矢量扁平硬投影 -->
+            <path d="M18 32 C18 25.3726 23.3726 20 30 20 H70 C76.6274 20 82 25.3726 82 32 V62 L60 84 H30 C23.3726 84 18 78.6274 18 72 Z" fill="#000000" fill-opacity="0.08" />
+            <!-- 便签纸主体 -->
+            <path d="M18 30 C18 23.3726 23.3726 18 30 18 H70 C76.6274 18 82 23.3726 82 30 V60 L60 82 H30 C23.3726 82 18 76.6274 18 70 Z" fill="#FEF08A" />
+            <!-- 第一行 -->
+            <rect x="25" y="28" width="6" height="6" rx="1.5" stroke="#EC4899" stroke-width="1.2" fill="none" />
+            <rect x="35" y="28" width="28" height="6" rx="3" fill="#EC4899" />
+            <path d="M75.5 27 L77.1 30.2 L80.6 30.7 L78.0 33.1 L78.6 36.6 L75.5 34.9 L72.4 36.6 L73.0 33.1 L70.4 30.7 L73.9 30.2 Z" fill="#EAB308" />
+            <!-- 第二行 -->
+            <rect x="25" y="42" width="6" height="6" rx="1.5" fill="#007AFF" />
+            <path d="M26.5 45 L27.8 46.3 L30 44" stroke="#FFFFFF" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="35" y="42" width="31" height="6" rx="3" fill="#007AFF" />
+            <path d="M75.5 38.5 C74.2 38.5 73.2 39.8 73.2 41.2 C73.2 42.2 72.2 44.2 71.5 44.8 C71 45.3 71.5 46.2 72.8 46.2 H78.2 C79.5 46.2 80 45.3 79.5 44.8 C78.8 44.2 77.8 42.2 77.8 41.2 C77.8 39.8 76.8 38.5 75.5 38.5 Z" fill="#007AFF" />
+            <circle cx="75.5" cy="47.2" r="1.1" fill="#007AFF" />
+            <!-- 第三行 -->
+            <rect x="25" y="56" width="6" height="6" rx="1.5" stroke="#F97316" stroke-width="1.2" fill="none" />
+            <rect x="35" y="56" width="20" height="6" rx="3" fill="#F97316" />
+            <!-- 掀角阴影线 -->
+            <path d="M60 82 C60 68 68 60 82 60" stroke="#000000" stroke-opacity="0.08" stroke-width="3" fill="none" />
+            <!-- 掀角本身 -->
+            <path d="M60 82 C60 71 71 60 82 60 C71 71 71 82 60 82 Z" fill="#EAB308" />
+            <path d="M60 82 L82 60" stroke="#EAB308" stroke-opacity="0.3" stroke-width="0.5" />
+          </g>
         </svg>
-        <span class="logo-text">Lumi Note</span>
-      </a>
-      <a href="/" class="back-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        Back to Home
-      </a>
+      </div>
+      <h1>Privacy Policy</h1>
+      <div class="effective-date">Effective Date: May 26, 2026</div>
     </header>
 
-    <main class="policy-card">
-      <h1>Privacy Policy</h1>
-      <p class="last-updated">Last Updated: May 26, 2026</p>
+    <div class="content">
+      <h2>1. Information Collection</h2>
+      <p>We collect minimal personal data required to provide a high-quality experience. This includes basic account info (username, email) and user content (notes, todos, categories, tags, reminders) created inside the application.</p>
 
-      <p>
-        At <strong>Lumi Note</strong>, we are committed to protecting your privacy. This Privacy Policy describes how we collect, use, store, and share your personal information when you use our services.
-      </p>
-
-      <h2>1. Information We Collect</h2>
-      <p>
-        To provide our colorful idea-capture and task management experience, we collect the following data:
-      </p>
+      <h2>2. Information Use</h2>
+      <p>Your data is used solely for the following purposes:</p>
       <ul>
-        <li><strong>Personal Authentication Data:</strong> When you register or log in, we collect your email address, display name, and profile picture url (if authenticated via Google).</li>
-        <li><strong>Your Generated Content:</strong> We store all the notes, tags, categories, task checklists, visual color-codes, and reminders that you create in order to sync them securely across your devices.</li>
+        <li>Securely synchronizing your personal thoughts and tasks to the cloud (via Google Firebase Firestore).</li>
+        <li>Personalizing UI theme layouts, cards colors, and application display states.</li>
+        <li>Fulfilling legal obligations as required by active law enforcement or official court procedures.</li>
       </ul>
 
-      <h2>2. How We Use Information</h2>
-      <p>
-        We use the collected information solely to:
-      </p>
-      <ul>
-        <li>Provide, personalize, and improve your note-taking experience.</li>
-        <li>Synchronize your notes and to-dos instantly across all your registered devices.</li>
-        <li>Verify account authentication and Premium subscription status.</li>
-      </ul>
-      <p>
-        We strictly **do not sell** your personal data or your note contents to any third parties under any circumstances.
-      </p>
+      <h2>3. Data Sharing</h2>
+      <p>Lumi Note does not sell, lease, or share your personal data with third-party companies. Your files are private and remain strictly under your control, accessible only under authorization.</p>
 
-      <h2>3. Data Synchronization & Security</h2>
-      <p>
-        All your content and authentication profiles are securely stored and synced using <strong>Firebase Cloud Services</strong> (Firestore Database & Firebase Authentication). We utilize standard industry encryption protocols (HTTPS/SSL) to protect your data in transit and at rest.
-      </p>
+      <h2>4. Security Measures</h2>
+      <p>We utilize robust industry-standard encryption protocols (SSL/TLS, HTTPS) to protect all information during transit and implement tight cloud database rules (Firebase Security Rules) to prevent unauthorized server breaches.</p>
 
-      <h2>4. Your Data Control & Ownership</h2>
-      <p>
-        You retain full ownership and complete control over your content. You can modify, archive, or permanently delete any capsules, tags, categories, and account information directly inside the application settings at any time with immediate effect.
-      </p>
+      <h2>5. Your Rights</h2>
+      <p>You reserve complete ownership over your data. You may request data deletion, profile modification, or full data exports at any time by contacting our support team at <a href="mailto:hello@luminote.space" style="color: var(--primary); text-decoration: none; font-weight: 700;">hello@luminote.space</a>.</p>
 
-      <h2>5. Contact Us</h2>
-      <p>
-        If you have any questions or feedback regarding this Privacy Policy, please feel free to reach out to us at <a href="mailto:hello@luminote.space">hello@luminote.space</a>. We will respond to your inquiry promptly.
-      </p>
-    </main>
+      <h2>6. Policy Updates</h2>
+      <p>We may update this policy periodically to align with security advancements. Registered users will be informed of critical changes via email notifications or top banner updates.</p>
+    </div>
 
-    <footer>
-      © 2026 Lumi Note. All rights reserved.
-    </footer>
+    <div class="footer-nav">
+      <a href="/" class="btn-home">Back to Homepage</a>
+    </div>
   </div>
 </body>
 </html>

@@ -3,8 +3,7 @@ import { motion } from 'motion/react';
 import { AppLogo } from './AppLogo';
 import { Zap, Mic, CheckSquare, Sparkles, Command, Shield, ArrowRight, Share2, Palette, Clock, Repeat, CalendarDays, Smartphone, Monitor, Tablet, Apple, Play } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { getAuth, getGoogleProvider } from '../lib/firebase';
-import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
+import { getAuth, getGoogleProvider, signInWithPopup, signInWithRedirect } from '../lib/firebase';
 import { Helmet } from 'react-helmet-async';
 
 interface LandingPageProps {
@@ -14,33 +13,14 @@ interface LandingPageProps {
 export function LandingPage({ onLogin }: LandingPageProps) {
   const handleGoogleLogin = async () => {
     try {
-      console.log("[GoogleSignIn] Initiating authentication with signInWithPopup...");
-      await signInWithPopup(getAuth(), getGoogleProvider());
-    } catch (err: any) {
-      console.error("Google login error", err);
-      if (err.code === 'auth/unauthorized-domain') {
-        alert(
-          `【网域未授权 / Unauthorized Domain】\n\n` +
-          `当前访问域名 "${window.location.hostname}" 尚未在您的 Firebase Console 授权网域列表中配置。\n\n` +
-          `开发与调试指引：\n请前往 Firebase 控制台 -> Authentication -> Settings -> Authorized Domains，把当前域名添加进去，即可瞬间修复 Google 登录！`
-        );
-      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-        console.log("[GoogleSignIn] Popup blocked or cancelled, falling back to signInWithRedirect...");
-        try {
-          await signInWithRedirect(getAuth(), getGoogleProvider());
-        } catch (redirectErr: any) {
-          alert(`Google Redirect Login failed: ${redirectErr.message}`);
-        }
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        console.log("Popup closed by user.");
+      const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(getAuth(), getGoogleProvider());
       } else {
-        console.log("[GoogleSignIn] Encountered other Auth restriction, attempting redirect fallback...");
-        try {
-          await signInWithRedirect(getAuth(), getGoogleProvider());
-        } catch (fallbackErr: any) {
-          alert(`Google 登录失败: ${err.message || '未知错误'} (错误码: ${err.code || 'unknown'})`);
-        }
+        await signInWithPopup(getAuth(), getGoogleProvider());
       }
+    } catch (error) {
+      console.error("Google login error", error);
     }
   };
 
@@ -81,16 +61,16 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AppLogo className="w-16 h-16" />
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <AppLogo className="w-10 h-10 md:w-12 md:h-12 shrink-0" />
             <span className="font-bold text-lg tracking-tight">Lumi Note</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button onClick={() => onLogin(false)} className="text-sm font-medium text-white/70 hover:text-white transition-colors">
               Log in
             </button>
-            <button onClick={() => onLogin(true)} className="bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+            <button onClick={() => onLogin(true)} className="bg-white text-black px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-bold hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
               Sign up
             </button>
           </div>
@@ -404,7 +384,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <footer className="py-12 border-t border-white/10 bg-black text-center relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-             <AppLogo className="w-16 h-16" />
+             <AppLogo className="w-8 h-8 md:w-9 md:h-9 shrink-0" />
              <span className="font-bold text-white/80">Lumi Note</span>
           </div>
           <p className="text-white/40 text-sm">

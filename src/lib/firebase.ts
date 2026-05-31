@@ -11,9 +11,11 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile,
+  signInWithRedirect,
+  getRedirectResult
 } from 'firebase/auth';
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, serverTimestamp, deleteField, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 let app: any = null;
@@ -28,6 +30,10 @@ function initFirebase() {
   }
   if (!dbInstance) {
     dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    // 启用 IndexedDB 离线持久化，国内弱网/移动端登录后秒显全部便签！
+    enableIndexedDbPersistence(dbInstance).catch((err) => {
+      console.warn("Firestore persistence failed to enable:", err.code);
+    });
   }
   if (!authInstance) {
     authInstance = getFirebaseAuth(app);
@@ -78,5 +84,7 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile,
+  signInWithRedirect,
+  getRedirectResult
 };
